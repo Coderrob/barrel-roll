@@ -1,0 +1,16 @@
+{
+  "exitCode": 1,
+  "ignore": [
+    "**/.vscode-test/**",
+    "**/__mocks__/**",
+    "**/coverage/**",
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/out/**"
+  ],
+  "minLines": 5,
+  "minTokens": 70,
+  "output": "./coverage/jscpd",
+  "reporters": ["html", "console"],
+  "threshold": 2
+}

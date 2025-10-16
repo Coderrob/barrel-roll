@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": true,
+    "declarationMap": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "removeComments": false,
+    "sourceMap": true,
+    "target": "ES2022"
+  },
+  "exclude": ["dist", "node_modules"],
+  "extends": "./tsconfig.json",
+  "include": [
+    "__mocks__",
+    "__tests__",
+    "src",
+    "eslint.config.mjs",
+    "jest.config.cjs",
+    "rollup.config.js"
+  ]
+}

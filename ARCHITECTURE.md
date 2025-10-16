@@ -12,17 +12,60 @@ Barrel Roll follows SOLID principles with clean separation of concerns. The exte
 barrel-roll/
 ├── src/
 │   ├── extension.ts                      # Extension entry point
-│   ├── barrelFileGenerator.ts            # Main orchestrator
-│   ├── services/                         # Service layer
-│   │   ├── fileSystemService.ts          # File I/O operations
-│   │   ├── exportParser.ts               # Export extraction logic
-│   │   └── barrelContentBuilder.ts       # Content generation
-│   └── test/                             # Test suite
-│       ├── runTest.ts                    # Test runner
-│       └── suite/                        # Test cases
-│           ├── exportParser.test.ts
-│           ├── barrelContentBuilder.test.ts
-│           └── barrelFileGenerator.test.ts
+│   ├── index.ts                          # Public API exports
+│   ├── core/                             # Core barrel generation functionality
+│   │   ├── index.ts                      # Core exports
+│   │   └── services/                     # Service layer
+│   │       ├── index.ts                  # Service exports
+│   │       ├── barrel-file.generator.ts  # Main orchestrator
+│   │       ├── barrel-content.builder.ts # Content generation
+│   │       ├── export.parser.ts          # Export extraction logic
+│   │       └── file-system.service.ts    # File I/O operations
+│   ├── logging/                          # Logging infrastructure
+│   │   ├── index.ts
+│   │   ├── config.ts
+│   │   ├── types.ts
+│   │   ├── filters/
+│   │   │   ├── index.ts
+│   │   │   └── log-filters.ts
+│   │   ├── loggers/
+│   │   │   ├── index.ts
+│   │   │   ├── composite.ts
+│   │   │   ├── factory.ts
+│   │   │   ├── filtered.ts
+│   │   │   ├── metrics.ts
+│   │   │   ├── mock.ts
+│   │   │   └── noop.ts
+│   │   └── pino/
+│   │       ├── index.ts
+│   │       ├── logger.ts
+│   │       └── types.ts
+│   ├── types/                            # Shared type definitions
+│   │   ├── index.ts
+│   │   └── env.ts
+│   ├── test/                             # Integration tests
+│   │   ├── runTest.ts                    # VS Code test runner
+│   │   └── suite/                        # Test cases
+│   │       ├── index.ts
+│   │       ├── barrelContentBuilder.test.ts
+│   │       ├── barrelFileGenerator.test.ts
+│   │       └── exportParser.test.ts
+│   └── __tests__/                        # Jest unit tests
+│       ├── jest.setup.ts
+│       ├── filters/
+│       │   └── log-filters.test.ts
+│       └── loggers/
+│           ├── composite.logger.test.ts
+│           ├── filtered.logger.test.ts
+│           ├── logger-config.resolver.test.ts
+│           ├── logger.factory.test.ts
+│           ├── metrics.logger.test.ts
+│           ├── mock.logger.test.ts
+│           ├── noop.logger.test.ts
+│           └── pino.logger.test.ts
+├── audit/                                # Repository audit documentation
+│   ├── log.md                            # Audit chronological log
+│   └── dependency-graph.md               # Dependency analysis reports
 ├── .vscode/                              # VS Code workspace config
 ├── .github/workflows/                    # CI/CD pipelines
 ├── dist/                                 # Webpack bundled output
@@ -42,11 +85,12 @@ barrel-roll/
 
 **Code Stats**: ~25 lines
 
-### 2. Barrel File Generator (`barrelFileGenerator.ts`)
+### 2. Barrel File Generator (`src/core/services/barrel-file.generator.ts`)
 
 **Responsibility**: Orchestrate the barrel file generation process
 
 **Pattern**: Facade/Orchestrator pattern
+
 - Coordinates between services
 - Implements dependency injection for testability
 - Handles the main workflow:
@@ -59,13 +103,14 @@ barrel-roll/
 
 ### 3. Service Layer
 
-#### FileSystemService (`services/fileSystemService.ts`)
+#### FileSystemService (`src/core/services/file-system.service.ts`)
 
 **Responsibility**: File system operations
 
 **SOLID Principle**: Single Responsibility - handles only file I/O
 
 **Methods**:
+
 - `getTypeScriptFiles(directoryPath)`: Lists .ts files (excluding index.ts)
 - `readFile(filePath)`: Reads file content
 - `writeFile(filePath, content)`: Writes file content
@@ -74,13 +119,14 @@ barrel-roll/
 
 **Code Stats**: ~60 lines
 
-#### ExportParser (`services/exportParser.ts`)
+#### ExportParser (`src/core/services/export.parser.ts`)
 
 **Responsibility**: Extract TypeScript exports from source code
 
 **SOLID Principle**: Single Responsibility - handles only export parsing
 
 **Features**:
+
 - Detects named exports (class, interface, type, function, const, enum)
 - Detects default exports
 - Handles export lists `export { A, B }`
@@ -89,34 +135,36 @@ barrel-roll/
 - Deduplicates export names
 
 **Methods**:
+
 - `extractExports(content)`: Main export extraction logic
 - `removeComments(content)`: Helper to strip comments
 
 **Code Stats**: ~70 lines
 
-#### BarrelContentBuilder (`services/barrelContentBuilder.ts`)
+#### BarrelContentBuilder (`src/core/services/barrel-content.builder.ts`)
 
-**Responsibility**: Build formatted barrel file content
+**Responsibility**: Generate barrel file content from parsed exports
 
 **SOLID Principle**: Single Responsibility - handles only content generation
 
 **Features**:
-- Filters parent folder references
-- Sorts files alphabetically for consistency
-- Handles default exports separately
-- Generates clean, formatted export statements
+
+- Generates properly formatted export statements
+- Sorts exports alphabetically for consistency
+- Handles different export types appropriately
 
 **Methods**:
-- `buildContent(exportsByFile, directoryPath)`: Main content builder
-- `getModulePath(filePath)`: Convert file paths to module paths
 
-**Code Stats**: ~80 lines
+- `buildBarrelContent(exportMap)`: Main content generation logic
+
+**Code Stats**: ~40 lines
 
 ## Design Patterns
 
 ### Dependency Injection
 
 The `BarrelFileGenerator` accepts service instances through its constructor, enabling:
+
 - Easy unit testing with mocks
 - Flexibility to swap implementations
 - Loose coupling between components
@@ -132,11 +180,13 @@ constructor(
 ### Separation of Concerns
 
 Each service has a single, well-defined responsibility:
+
 - **FileSystemService**: I/O operations
 - **ExportParser**: Code parsing
 - **BarrelContentBuilder**: Content generation
 
 This makes the code:
+
 - Easy to test in isolation
 - Simple to understand
 - Straightforward to modify
@@ -147,19 +197,17 @@ All services throw descriptive errors that bubble up to the extension entry poin
 
 ## Testing Strategy
 
-### Unit Tests
+- **Unit Tests**: Jest-based tests in `src/__tests__/` covering logging, filters, and core services
+- **Integration Tests**: VS Code extension tests in `src/test/suite/` verifying end-to-end functionality
+- **Test Coverage**: 60% minimum coverage requirement with detailed reporting
+- **CI/CD**: Automated testing on push/PR with coverage reporting
 
-- **ExportParser**: Tests various export syntax patterns
-- **BarrelContentBuilder**: Tests content generation logic
+## Audit & Quality Assurance
 
-### Integration Tests
-
-- **BarrelFileGenerator**: End-to-end tests with temporary directories
-
-### Coverage
-
-- Tests cover happy paths, edge cases, and error scenarios
-- Mock-free integration tests verify real file system operations
+- **Dependency Analysis**: Automated circular dependency detection using `madge` and `dependency-cruiser`
+- **Code Quality**: ESLint rules for import/export consistency and unused code detection
+- **Repository Standards**: Adherence to SOLID principles, clean architecture, and refactoring guidelines
+- **Audit Documentation**: Ongoing audit log in `audit/log.md` with dependency graphs and remediation plans
 
 ## Build Process
 
@@ -184,10 +232,10 @@ Commands are registered in `contributes.commands` and added to the context menu 
 
 The architecture supports easy additions:
 
-1. **New Export Types**: Extend `ExportParser.extractExports()`
-2. **Different Output Formats**: Create new builder implementations
-3. **File Filters**: Extend `FileSystemService.getTypeScriptFiles()`
-4. **Additional Commands**: Add new commands in `extension.ts`
+- **New Export Types**: Extend `ExportParser.extractExports()`
+- **Different Output Formats**: Create new builder implementations
+- **File Filters**: Extend `FileSystemService.getTypeScriptFiles()`
+- **Additional Commands**: Add new commands in `extension.ts`
 
 ## Performance Considerations
 

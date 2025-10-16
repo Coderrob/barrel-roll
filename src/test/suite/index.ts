@@ -1,6 +1,8 @@
 import * as path from 'path';
-import Mocha from 'mocha';
+import { fileURLToPath } from 'url';
+
 import { glob } from 'glob';
+import Mocha from 'mocha';
 
 export async function run(): Promise<void> {
   // Create the mocha test
@@ -9,7 +11,7 @@ export async function run(): Promise<void> {
     color: true,
   });
 
-  const testsRoot = path.resolve(__dirname, '..');
+  const testsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
   const files = await glob('**/**.test.js', { cwd: testsRoot });
 

@@ -1,6 +1,5 @@
 /**
  * Service responsible for parsing TypeScript exports.
- * Follows Single Responsibility Principle by handling only export extraction logic.
  */
 export class ExportParser {
   /**
@@ -35,11 +34,14 @@ export class ExportParser {
     while ((match = exportListPattern.exec(contentWithoutComments)) !== null) {
       const names = match[1]
         .split(',')
-        .map((name) =>
-          name
-            .trim()
-            .split(/\s+as\s+/)[0]
-            .trim(),
+        .map(
+          (name) =>
+            name
+              .trim()
+              .split(/\s+as\s+/i)
+              .map((segment) => segment.trim())
+              .filter((segment) => segment.length > 0)
+              .pop() ?? '',
         )
         .filter((name) => name.length > 0);
       exports.push(...names);

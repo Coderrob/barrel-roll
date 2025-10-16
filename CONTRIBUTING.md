@@ -5,12 +5,14 @@ Thank you for your interest in contributing to Barrel Roll! This document provid
 ## Development Setup
 
 1. **Fork and Clone**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/barrel-roll.git
    cd barrel-roll
    ```
 
 2. **Install Dependencies**
+
    ```bash
    npm install
    ```
@@ -32,6 +34,7 @@ Thank you for your interest in contributing to Barrel Roll! This document provid
 ### Making Changes
 
 1. Create a new branch for your feature or bug fix:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -39,12 +42,14 @@ Thank you for your interest in contributing to Barrel Roll! This document provid
 2. Make your changes following the code style guidelines
 
 3. Run linting:
+
    ```bash
    npm run lint
    npm run lint:fix  # Auto-fix issues
    ```
 
 4. Run formatting:
+
    ```bash
    npm run format
    ```
@@ -95,6 +100,7 @@ Follow conventional commit format:
 - `chore:` Maintenance tasks
 
 Example:
+
 ```
 feat: add support for default exports
 ```

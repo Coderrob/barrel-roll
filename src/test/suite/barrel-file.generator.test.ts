@@ -1,9 +1,11 @@
 import * as assert from 'assert';
-import * as path from 'path';
 import * as fs from 'fs/promises';
 import * as os from 'os';
-import { BarrelFileGenerator } from '../../barrelFileGenerator';
+import * as path from 'path';
+
 import * as vscode from 'vscode';
+
+import { BarrelFileGenerator } from '../../core/services/barrel-file.generator';
 
 suite('BarrelFileGenerator Test Suite', () => {
   let testDir: string;
@@ -17,7 +19,7 @@ suite('BarrelFileGenerator Test Suite', () => {
     // Clean up test directory
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch (error) {
+    } catch {
       // Ignore cleanup errors
     }
   });
