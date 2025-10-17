@@ -68,7 +68,6 @@ barrel-roll/
 │   └── dependency-graph.md               # Dependency analysis reports
 ├── .vscode/                              # VS Code workspace config
 ├── .github/workflows/                    # CI/CD pipelines
-├── dist/                                 # Webpack bundled output
 └── out/                                  # TypeScript compiled output
 
 ```
@@ -214,7 +213,6 @@ All services throw descriptive errors that bubble up to the extension entry poin
 ### Development
 
 1. **TypeScript Compilation**: `tsc` → `out/` directory
-2. **Webpack Bundling**: `webpack` → `dist/extension.js`
 
 ### Production
 

@@ -45,7 +45,7 @@ const config = {
     warn(warning);
   },
   output: {
-    file: 'dist/index.mjs',
+    file: 'out/index.mjs',
     format: 'es',
     esModule: true,
     sourcemap: false,

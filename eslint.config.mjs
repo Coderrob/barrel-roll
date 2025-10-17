@@ -21,7 +21,6 @@ export default [
   {
     ignores: [
       '**/coverage/**',
-      '**/dist/**',
       '**/node_modules/**',
       '**/lib/**',
       '**/build/**',

@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { BarrelContentBuilder } from '../../core/services/barrel-content.builder';
+import { BarrelContentBuilder } from '../../core/services/barrel-content.builder.js';
 
 suite('BarrelContentBuilder Test Suite', () => {
   let builder: BarrelContentBuilder;

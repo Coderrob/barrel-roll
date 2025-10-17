@@ -1,9 +1,4 @@
 {
-  "activationEvents": [
-    "onCommand:barrel-roll.generateBarrel",
-    "onCommand:barrel-roll.generateBarrelRecursive",
-    "onCommand:barrel-roll.updateBarrel"
-  ],
   "author": {
     "name": "Coderrob"
   },
@@ -62,6 +57,9 @@
       ]
     }
   },
+  "dependencies": {
+    "pino": "^10.0.0"
+  },
   "description": "Automatically export types, functions, constants, and classes through barrel files",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
@@ -117,7 +115,7 @@
     "organization"
   ],
   "license": "Apache-2.0",
-  "main": "./dist/extension.js",
+  "main": "./out/extension.js",
   "name": "@coderrob/barrel-roll",
   "publisher": "coderrob",
   "repository": {
@@ -126,7 +124,7 @@
   },
   "scripts": {
     "compile": "webpack",
-    "compile-tests": "tsc -p . --outDir out",
+    "compile-tests": "tsc -p tsconfig.emit-test.json",
     "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
     "duplication": "jscpd src",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -143,8 +141,6 @@
     "watch": "webpack --watch",
     "watch-tests": "tsc -p . -w --outDir out"
   },
-  "version": "0.0.1",
-  "dependencies": {
-    "pino": "^10.0.0"
-  }
+  "type": "module",
+  "version": "0.0.1"
 }

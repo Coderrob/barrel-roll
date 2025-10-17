@@ -13,24 +13,24 @@ export async function run(): Promise<void> {
 
   const testsRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+  console.log('Test runner starting...');
+  console.log('Tests root:', testsRoot);
+
   const files = await glob('**/**.test.js', { cwd: testsRoot });
+
+  console.log('Found test files:', files);
 
   // Add files to the test suite
   files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
 
-  return new Promise<void>((resolve, reject) => {
-    try {
-      // Run the mocha test
-      mocha.run((failures) => {
-        if (failures > 0) {
-          reject(new Error(`${failures} tests failed.`));
-        } else {
-          resolve();
-        }
-      });
-    } catch (err) {
-      console.error(err);
-      reject(err);
-    }
+  // Run the tests
+  return new Promise((resolve, reject) => {
+    mocha.run((failures) => {
+      if (failures > 0) {
+        reject(new Error(`${failures} tests failed.`));
+      } else {
+        resolve();
+      }
+    });
   });
 }

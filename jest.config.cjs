@@ -6,14 +6,7 @@ module.exports = {
   collectCoverage: true,
   collectCoverageFrom: ['./src/**'],
   coverageDirectory: './coverage',
-  coveragePathIgnorePatterns: [
-    '__mocks__',
-    '/node_modules/',
-    '/dist/',
-    '/tests/',
-    '/out/',
-    '/.vscode-test/',
-  ],
+  coveragePathIgnorePatterns: ['__mocks__', '/node_modules/', '/tests/', '/out/', '/.vscode-test/'],
   coverageReporters: ['json-summary', 'text', 'lcov'],
   coverageThreshold: {
     global: {
@@ -34,7 +27,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/jest.setup.ts'],
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts', '**/*.test.js'],
-  testPathIgnorePatterns: ['/dist/', '/node_modules/', '/__mocks__/', '/.vscode-test/'],
+  testPathIgnorePatterns: ['/out/', '/node_modules/', '/__mocks__/', '/.vscode-test/'],
   transform: {
     '^.+\\.ts$': [
       'ts-jest',

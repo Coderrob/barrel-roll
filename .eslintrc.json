@@ -1,5 +1,5 @@
 {
-  "ignorePatterns": ["out", "dist", ".vscode-test", "**/*.d.ts"],
+  "ignorePatterns": ["out", ".vscode-test", "node_modules", "**/*.d.ts"],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 6,

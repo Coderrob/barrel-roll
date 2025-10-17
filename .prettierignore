@@ -2,7 +2,6 @@
 .vscode-test/
 audit/
 coverage/
-dist/
 node_modules/
 out/
 script/*.sh

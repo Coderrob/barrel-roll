@@ -14,7 +14,7 @@
     "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "outDir": "./out",
+    "outDir": "./out/test",
     "paths": {
       "@/*": ["src/*"]
     },
@@ -26,15 +26,5 @@
     "target": "ES2022",
     "useUnknownInCatchVariables": true
   },
-  "exclude": [
-    ".vscode-test",
-    "tests",
-    "__mocks__/**/*",
-    "node_modules",
-    "out",
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/**/__tests__/**/*"
-  ],
-  "include": ["src/**/*"]
+  "include": ["src/test/suite/*.ts", "src/core/**/*", "src/types/**/*", "src/logging/**/*"]
 }

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": false,
+    "module": "ES2022",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "outDir": "./out",
+    "removeComments": false,
+    "sourceMap": false,
+    "target": "ES2022",
+    "types": ["node", "mocha"]
+  },
+  "exclude": ["out", "node_modules", ".vscode-test", "src/__tests__"],
+  "include": ["src/**/*.test.ts", "src/**/__tests__/**/*"]
+}

@@ -5,7 +5,7 @@ import * as path from 'path';
 
 import * as vscode from 'vscode';
 
-import { BarrelFileGenerator } from '../../core/services/barrel-file.generator';
+import { BarrelFileGenerator } from '../../core/services/barrel-file.generator.js';
 
 suite('BarrelFileGenerator Test Suite', () => {
   let testDir: string;
