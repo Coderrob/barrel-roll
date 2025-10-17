@@ -8,7 +8,7 @@ async function main(): Promise<void> {
     const shouldSkipTests = shouldSkipVscodeTests();
 
     if (shouldSkipTests) {
-      console.log('Skipping VS Code integration tests in headless/CI/Windows environment');
+      console.log('Skipping VS Code integration tests in headless/CI/Linux environment');
       return;
     }
 
@@ -53,11 +53,7 @@ async function main(): Promise<void> {
 }
 
 function shouldSkipVscodeTests(): boolean {
-  return (
-    Boolean(process.env.CI) || !process.stdout.isTTY || process.platform === 'linux'
-    // Temporarily allow on Windows to test
-    // || process.platform.startsWith('win')
-  );
+  return Boolean(process.env.CI) || !process.stdout.isTTY || process.platform === 'linux';
 }
 
 main();
