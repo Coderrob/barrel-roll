@@ -6,7 +6,14 @@ module.exports = {
   collectCoverage: true,
   collectCoverageFrom: ['./src/**'],
   coverageDirectory: './coverage',
-  coveragePathIgnorePatterns: ['__mocks__', '/node_modules/', '/tests/', '/out/', '/.vscode-test/'],
+  coveragePathIgnorePatterns: [
+    '__mocks__',
+    '/node_modules/',
+    '/tests/',
+    '/out/',
+    '/.vscode-test/',
+    'test',
+  ],
   coverageReporters: ['json-summary', 'text', 'lcov'],
   coverageThreshold: {
     global: {

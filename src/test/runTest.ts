@@ -1,3 +1,4 @@
+import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -34,14 +35,10 @@ async function main(): Promise<void> {
         '--no-sandbox',
         '--disable-gpu',
         '--disable-dev-shm-usage',
-        '--disable-software-rasterizer',
-        '--disable-background-timer-throttling',
-        '--disable-renderer-backgrounding',
-        '--disable-features=TranslateUI',
-        '--disable-ipc-flooding-protection',
-        '--disable-extensions-except',
-        extensionDevelopmentPath,
         '--disable-extensions',
+        '--disable-workspace-trust',
+        '--user-data-dir',
+        path.join(os.tmpdir(), 'vscode-test-user-data'),
       ],
     };
 

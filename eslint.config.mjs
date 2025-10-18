@@ -29,6 +29,7 @@ export default [
       '*.config.{js,mjs,cjs}',
       'badges/**',
       'script/**',
+      'test-project/**',
     ],
   },
 
