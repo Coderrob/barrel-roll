@@ -111,7 +111,7 @@ describe('FilteredLogger', () => {
 
   describe('warning', () => {
     it('should log warning messages when no filters', () => {
-      filteredLogger.warning('warning message');
+      filteredLogger.warn('warning message');
 
       expect(mockLogger.getLastCall()).toEqual({
         level: LogLevel.WARNING,
@@ -122,7 +122,7 @@ describe('FilteredLogger', () => {
 
     it('should log warning messages with metadata when no filters', () => {
       const metadata = { component: 'test' };
-      filteredLogger.warning('warning message', metadata);
+      filteredLogger.warn('warning message', metadata);
 
       expect(mockLogger.getLastCall()).toEqual({
         level: LogLevel.WARNING,
@@ -339,7 +339,7 @@ describe('FilteredLogger', () => {
       const logger = new FilteredLogger(mockLogger, [], customSampling);
       const metadata = { test: true };
 
-      logger.warning('warning message', metadata);
+      logger.warn('warning message', metadata);
 
       expect(customSampling.shouldSample).toHaveBeenCalledWith(
         LogLevel.WARNING,
@@ -372,7 +372,7 @@ describe('FilteredLogger', () => {
       const sampling = { rate: 0.5 };
       const logger = new FilteredLogger(mockLogger, filters, sampling);
 
-      logger.warning('warning message'); // Should pass both filter and sampling
+      logger.warn('warning message'); // Should pass both filter and sampling
 
       expect(mockLogger.getCallsForLevel(LogLevel.WARNING)).toHaveLength(1);
 

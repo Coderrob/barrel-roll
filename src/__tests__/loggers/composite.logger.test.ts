@@ -99,14 +99,16 @@ describe('CompositeLogger', () => {
       expect(result).toBe('success');
       // Check that group operations were recorded
       expect(mockLogger1.calls.some((call) => call.level === LogLevel.GROUP)).toBe(true);
-      expect(mockLogger2.calls.some((call) => call.level === LogLevel.GROUP)).toBe(true);
+      const infoMessages = mockLogger2.getCallsForLevel(LogLevel.INFO).map((call) => call.message);
+      expect(infoMessages).toContain('Starting group: test group');
+      expect(infoMessages).toContain('Completed group: test group');
     });
 
     it('should handle group operation with logger failures', async () => {
       const failingLogger: jest.Mocked<ILogger> = {
         info: jest.fn(),
         debug: jest.fn(),
-        warning: jest.fn(),
+        warn: jest.fn(),
         error: jest.fn(),
         setFailed: jest.fn(),
         group: jest.fn().mockImplementation(() => {
@@ -152,10 +154,10 @@ describe('CompositeLogger', () => {
     });
   });
 
-  describe('warning', () => {
+  describe('warn', () => {
     it('should delegate warning calls to all loggers', () => {
       const metadata = { component: 'test' };
-      compositeLogger.warning('warning message', metadata);
+      compositeLogger.warn('warning message', metadata);
 
       expect(mockLogger1.calls).toHaveLength(1);
       expect(mockLogger2.calls).toHaveLength(1);

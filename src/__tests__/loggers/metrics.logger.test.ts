@@ -41,7 +41,7 @@ describe('MetricsLogger', () => {
   describe('warning', () => {
     it('should record metrics for warning logs', () => {
       const metadata: ILogMetadata = { title: 'Warning' };
-      metricsLogger.warning('warning message', metadata);
+      metricsLogger.warn('warning message', metadata);
 
       const metrics = metricsLogger.getMetrics();
       expect(metrics.totalLogs).toBe(1);

@@ -75,8 +75,8 @@ describe('PinoLogger', () => {
 
   describe('warning', () => {
     it('should handle warning calls', () => {
-      logger.warning('warning message');
-      logger.warning('warning with metadata', { component: 'test' });
+      logger.warn('warning message');
+      logger.warn('warning with metadata', { component: 'test' });
       // Test passes if no exception is thrown
       expect(true).toBe(true);
     });

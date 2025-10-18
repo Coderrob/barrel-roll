@@ -47,8 +47,8 @@ describe('NoopLogger', () => {
     });
 
     it('should call warning without error', () => {
-      expect(() => logger.warning('test')).not.toThrow();
-      expect(() => logger.warning('test', { key: 'value' })).not.toThrow();
+      expect(() => logger.warn('test')).not.toThrow();
+      expect(() => logger.warn('test', { key: 'value' })).not.toThrow();
     });
 
     it('should call error without error', () => {

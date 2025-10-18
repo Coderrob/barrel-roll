@@ -53,7 +53,7 @@ describe('MockLogger', () => {
   describe('warning', () => {
     it('should record warning calls with metadata', () => {
       const metadata = { title: 'Warning' };
-      mockLogger.warning('test warning', metadata);
+      mockLogger.warn('test warning', metadata);
       expect(mockLogger.calls).toHaveLength(1);
       expect(mockLogger.calls[0]).toMatchObject({
         level: LogLevel.WARNING,
