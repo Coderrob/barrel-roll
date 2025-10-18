@@ -53,11 +53,9 @@ export class FilteredLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warning(message: string, metadata?: ILogMetadata): void {
+  warn(message: string, metadata?: ILogMetadata): void {
     this.logIfAllowed(LogLevel.WARNING, message, metadata, () =>
-      metadata
-        ? this.wrappedLogger.warning(message, metadata)
-        : this.wrappedLogger.warning(message),
+      metadata ? this.wrappedLogger.warn(message, metadata) : this.wrappedLogger.warn(message),
     );
   }
 

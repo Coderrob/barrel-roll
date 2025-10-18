@@ -51,13 +51,20 @@ export class MockLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warning(message: string, metadata?: ILogMetadata): void {
+  warn(message: string, metadata?: ILogMetadata): void {
     this.calls.push({
       level: LogLevel.WARNING,
       message,
       metadata,
       timestamp: new Date(),
     });
+  }
+
+  /**
+   * @deprecated Use {@link warn} instead.
+   */
+  warning(message: string, metadata?: ILogMetadata): void {
+    this.warn(message, metadata);
   }
 
   /**

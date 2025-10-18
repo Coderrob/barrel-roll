@@ -71,9 +71,9 @@ export class MetricsLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warning(message: string, metadata?: ILogMetadata): void {
+  warn(message: string, metadata?: ILogMetadata): void {
     this.recordLog('warning', message, metadata);
-    this.wrappedLogger.warning(message, metadata);
+    this.wrappedLogger.warn(message, metadata);
   }
 
   /**

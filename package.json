@@ -116,7 +116,7 @@
   ],
   "license": "Apache-2.0",
   "main": "./out/extension.js",
-  "name": "@coderrob/barrel-roll",
+  "name": "barrel-roll",
   "publisher": "coderrob",
   "repository": {
     "type": "git",

@@ -224,7 +224,7 @@ export interface ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warning(message: string, metadata?: ILogMetadata): void;
+  warn(message: string, metadata?: ILogMetadata): void;
 
   /**
    * Logs an error message.

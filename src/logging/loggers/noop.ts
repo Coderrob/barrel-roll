@@ -50,7 +50,7 @@ export class NoopLogger implements ILogger {
    * @param _message - Message to log as failure.
    * @param _metadata - Optional metadata for the failure.
    */
-  warning(_message: string, _metadata?: ILogMetadata): void {
+  warn(_message: string, _metadata?: ILogMetadata): void {
     /* No-op */
   }
 

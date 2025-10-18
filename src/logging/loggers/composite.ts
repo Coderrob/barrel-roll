@@ -50,8 +50,8 @@ export class CompositeLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warning(message: string, metadata?: ILogMetadata): void {
-    this.loggers.forEach((logger) => logger.warning(message, metadata));
+  warn(message: string, metadata?: ILogMetadata): void {
+    this.loggers.forEach((logger) => logger.warn(message, metadata));
   }
 
   /**

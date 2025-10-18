@@ -38,7 +38,7 @@ export class BarrelFileGenerator {
   /**
    * Generates or updates an index.ts barrel file in the specified directory.
    * @param directoryUri The URI of the directory where the barrel file should be created/updated.
-   * @param options Behavioural options for generation.
+   * @param options Behavioral options for generation.
    * @returns Promise that resolves when barrel files have been created/updated.
    */
   async generateBarrelFile(directoryUri: Uri, options?: BarrelGenerationOptions): Promise<void> {
