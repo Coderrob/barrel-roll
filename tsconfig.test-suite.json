@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "noEmit": false,
+    "outDir": "./out",
+    "removeComments": false,
+    "sourceMap": false,
+    "types": ["node", "mocha"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/__tests__/**/*", "node_modules", "out", ".vscode-test"]
+}
