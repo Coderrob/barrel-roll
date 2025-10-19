@@ -16,6 +16,7 @@
  */
 
 import pino from 'pino';
+import type { OutputChannel } from 'vscode';
 
 import { NoopLogger } from '../loggers/noop.js';
 import { ILogger, ILogMetadata } from '../types.js';
@@ -26,6 +27,8 @@ import { ILogger, ILogMetadata } from '../types.js';
 export class PinoLogger implements ILogger {
   private logger: pino.Logger;
   private isAvailable: boolean = true;
+
+  private static sharedOutputChannel?: OutputChannel;
 
   constructor(options?: pino.LoggerOptions) {
     try {
@@ -51,6 +54,14 @@ export class PinoLogger implements ILogger {
   }
 
   /**
+   * Configure a shared VS Code output channel used by all logger instances.
+   * @param channel - Output channel to use for human-readable log messages.
+   */
+  static configureOutputChannel(channel: OutputChannel | undefined): void {
+    PinoLogger.sharedOutputChannel = channel;
+  }
+
+  /**
    * Check if Pino logger is available and functioning.
    * @returns True if the logger is available, false otherwise.
    */
@@ -65,6 +76,7 @@ export class PinoLogger implements ILogger {
    */
   info(message: string, metadata?: ILogMetadata): void {
     this.logger.info(metadata || {}, message);
+    this.appendToOutputChannel('INFO', message, metadata);
   }
 
   /**
@@ -73,6 +85,7 @@ export class PinoLogger implements ILogger {
    */
   debug(message: string): void {
     this.logger.debug({}, message);
+    this.appendToOutputChannel('DEBUG', message);
   }
 
   /**
@@ -82,6 +95,7 @@ export class PinoLogger implements ILogger {
    */
   warn(message: string, metadata?: ILogMetadata): void {
     this.logger.warn(metadata || {}, message);
+    this.appendToOutputChannel('WARN', message, metadata);
   }
 
   /**
@@ -91,6 +105,7 @@ export class PinoLogger implements ILogger {
    */
   error(message: string, metadata?: ILogMetadata): void {
     this.logger.error(metadata || {}, message);
+    this.appendToOutputChannel('ERROR', message, metadata);
   }
 
   /**
@@ -100,6 +115,7 @@ export class PinoLogger implements ILogger {
    */
   setFailed(message: string, metadata?: ILogMetadata): void {
     this.logger.fatal(metadata || {}, `Action failed: ${message}`);
+    this.appendToOutputChannel('FATAL', `Action failed: ${message}`, metadata);
   }
 
   /**
@@ -116,17 +132,76 @@ export class PinoLogger implements ILogger {
     // Temporarily replace the logger with the child logger
     this.logger = childLogger;
     childLogger.info(`Starting group: ${name}`);
+    this.appendToOutputChannel('GROUP', `Starting group: ${name}`);
 
     try {
       const result = await fn();
       childLogger.info(`Completed group: ${name}`);
+      this.appendToOutputChannel('GROUP', `Completed group: ${name}`);
       return result;
     } catch (error) {
       childLogger.error({ error }, `Failed in group: ${name}`);
+      this.appendToOutputChannel('ERROR', `Failed in group: ${name}`, {
+        error: this.normalizeError(error),
+      });
       throw error;
     } finally {
       // Restore the original logger
       this.logger = originalLogger;
+    }
+  }
+
+  private appendToOutputChannel(
+    level: string,
+    message: string,
+    metadata?: Record<string, unknown>,
+  ): void {
+    const channel = PinoLogger.sharedOutputChannel;
+    if (!channel) {
+      return;
+    }
+
+    const formattedMetadata = this.formatMetadata(metadata);
+    const line = formattedMetadata
+      ? `[${level}] ${message} ${formattedMetadata}`
+      : `[${level}] ${message}`;
+    channel.appendLine(line);
+  }
+
+  private formatMetadata(metadata?: Record<string, unknown>): string | undefined {
+    if (!metadata || Object.keys(metadata).length === 0) {
+      return undefined;
+    }
+
+    const normalized = Object.entries(metadata).reduce<Record<string, unknown>>(
+      (accumulator, [key, value]) => {
+        accumulator[key] = value instanceof Error ? value.message : value;
+        return accumulator;
+      },
+      {},
+    );
+
+    return this.safeStringify(normalized);
+  }
+
+  private normalizeError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.stack || error.message;
+    }
+    if (typeof error === 'object' && error !== null) {
+      return this.safeStringify(error);
+    }
+    return String(error);
+  }
+
+  private safeStringify(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
     }
   }
 }

@@ -6,6 +6,7 @@ import {
   BarrelFileGenerator,
   type BarrelGenerationOptions,
 } from './core/services/barrel-file.generator';
+import { PinoLogger } from './logging/pino/logger.js';
 
 type CommandDescriptor = {
   id: string;
@@ -16,6 +17,11 @@ type CommandDescriptor = {
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Barrel Roll extension is now active');
+
+  const outputChannel = vscode.window.createOutputChannel('Barrel Roll');
+  context.subscriptions.push(outputChannel);
+  PinoLogger.configureOutputChannel(outputChannel);
+  outputChannel.appendLine('Barrel Roll: logging initialized');
 
   const generator = new BarrelFileGenerator();
 

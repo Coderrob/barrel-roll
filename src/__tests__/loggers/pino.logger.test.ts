@@ -15,13 +15,38 @@
  *
  */
 
+import type { OutputChannel } from 'vscode';
+
 import { LogLevel, PinoLogger } from '../../logging/index.js';
+
+type MockOutputChannel = OutputChannel & {
+  append: jest.Mock;
+  appendLine: jest.Mock;
+  clear: jest.Mock;
+  replace: jest.Mock;
+  show: jest.Mock;
+  hide: jest.Mock;
+  dispose: jest.Mock;
+};
+
+const createMockOutputChannel = (): MockOutputChannel =>
+  ({
+    name: 'Test Channel',
+    append: jest.fn(),
+    appendLine: jest.fn(),
+    clear: jest.fn(),
+    replace: jest.fn(),
+    show: jest.fn(),
+    hide: jest.fn(),
+    dispose: jest.fn(),
+  }) as unknown as MockOutputChannel;
 
 describe('PinoLogger', () => {
   let logger: PinoLogger;
 
   afterEach(() => {
     jest.clearAllMocks();
+    PinoLogger.configureOutputChannel(undefined);
   });
 
   beforeEach(() => {
@@ -85,6 +110,41 @@ describe('PinoLogger', () => {
   describe('isLoggerAvailable', () => {
     it('should report logger availability', () => {
       expect(logger.isLoggerAvailable()).toBe(true);
+    });
+  });
+
+  describe('output channel integration', () => {
+    it('should append info logs to the configured output channel', () => {
+      const outputChannel = createMockOutputChannel();
+      PinoLogger.configureOutputChannel(outputChannel);
+      const channelLogger = new PinoLogger({ level: LogLevel.INFO });
+
+      channelLogger.info('I am a banana.', { fruit: 'banana' });
+
+      expect(outputChannel.appendLine).toHaveBeenCalledTimes(1);
+      const [loggedLine] = outputChannel.appendLine.mock.calls[0];
+      expect(loggedLine).toContain('[INFO] I am a banana.');
+      expect(loggedLine).toContain('"fruit":"banana"');
+    });
+
+    it('should record group lifecycle events in the output channel', async () => {
+      const outputChannel = createMockOutputChannel();
+      PinoLogger.configureOutputChannel(outputChannel);
+      const channelLogger = new PinoLogger({ level: LogLevel.INFO });
+
+      await expect(
+        channelLogger.group('citrus-run', async () => {
+          throw new Error('group failed');
+        }),
+      ).rejects.toThrow('group failed');
+
+      const recordedMessages = outputChannel.appendLine.mock.calls.map(([call]) => call as string);
+      expect(recordedMessages).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('Starting group: citrus-run'),
+          expect.stringContaining('Failed in group: citrus-run'),
+        ]),
+      );
     });
   });
 

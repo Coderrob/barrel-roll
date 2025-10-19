@@ -61,13 +61,6 @@ export class MockLogger implements ILogger {
   }
 
   /**
-   * @deprecated Use {@link warn} instead.
-   */
-  warning(message: string, metadata?: ILogMetadata): void {
-    this.warn(message, metadata);
-  }
-
-  /**
    * Records an error log call for testing.
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
