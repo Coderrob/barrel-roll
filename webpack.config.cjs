@@ -8,6 +8,7 @@ const path = require('path');
 const config = {
   target: 'node',
   entry: './src/extension.ts',
+  mode: 'production',
   output: {
     path: path.resolve(__dirname, 'out'),
     filename: 'extension.js',
@@ -20,6 +21,9 @@ const config = {
   },
   resolve: {
     extensions: ['.ts', '.js'],
+    extensionAlias: {
+      '.js': ['.ts', '.js'],
+    },
   },
   module: {
     rules: [

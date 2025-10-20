@@ -1,5 +1,4 @@
 import * as path from 'path';
-
 import type { Uri } from 'vscode';
 
 import { BarrelContentBuilder, BarrelEntry } from './barrel-content.builder';

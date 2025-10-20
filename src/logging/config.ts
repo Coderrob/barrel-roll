@@ -18,7 +18,6 @@
 import * as pino from 'pino';
 
 import type { IEnvironmentVariables } from '../types/env.js';
-
 import { IPinoLoggerConfig } from './pino/types.js';
 
 /**

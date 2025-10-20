@@ -19,7 +19,6 @@ import pino from 'pino';
 
 import { PinoLogger } from '../pino/logger.js';
 import { LogLevel } from '../types.js';
-
 import { CompositeLogger } from './composite.js';
 
 /**

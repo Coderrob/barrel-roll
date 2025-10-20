@@ -16,8 +16,8 @@
  */
 
 // Export types
-export * from './types.js';
 export * from './pino/types.js';
+export * from './types.js';
 
 // Export loggers
 export * from './loggers/index.js';

@@ -10,6 +10,7 @@ import tsParser from '@typescript-eslint/parser';
 import _import from 'eslint-plugin-import';
 import jest from 'eslint-plugin-jest';
 import prettier from 'eslint-plugin-prettier';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import sonarjs from 'eslint-plugin-sonarjs';
 import globals from 'globals';
 
@@ -64,6 +65,7 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       import: _import,
+      'simple-import-sort': simpleImportSort,
       sonarjs,
     },
     settings: {
@@ -113,26 +115,9 @@ export default [
       '@typescript-eslint/no-duplicate-type-constituents': 'error',
 
       // Import sorting and organization
-      'import/order': [
-        'error',
-        {
-          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
-          'newlines-between': 'always',
-          alphabetize: {
-            order: 'asc',
-            caseInsensitive: true,
-          },
-        },
-      ],
-      'sort-imports': [
-        'error',
-        {
-          ignoreCase: true,
-          ignoreDeclarationSort: true,
-          ignoreMemberSort: false,
-          memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
-        },
-      ],
+      'import/order': 'off',
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
 
       // Custom overrides
       camelcase: 'off',
@@ -175,6 +160,8 @@ export default [
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/require-await': 'off',
       'sonarjs/publicly-writable-directories': 'off',
+      'simple-import-sort/imports': 'off',
+      'simple-import-sort/exports': 'off',
     },
   },
 
@@ -206,6 +193,8 @@ export default [
       'jest/expect-expect': 'off',
       complexity: 'off',
       'sonarjs/cognitive-complexity': 'off',
+      'simple-import-sort/imports': 'off',
+      'simple-import-sort/exports': 'off',
     },
   },
 

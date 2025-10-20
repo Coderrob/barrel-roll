@@ -1,8 +1,7 @@
+import { runTests } from '@vscode/test-electron';
 import * as os from 'os';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-
-import { runTests } from '@vscode/test-electron';
 
 async function main(): Promise<void> {
   try {
