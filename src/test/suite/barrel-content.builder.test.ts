@@ -1,6 +1,11 @@
 import * as assert from 'assert';
 
-import { BarrelContentBuilder } from '../../core/services/barrel-content.builder.js';
+import {
+  BarrelContentBuilder,
+  BarrelEntryKind,
+  BarrelExportKind,
+  type BarrelEntry,
+} from '../../core/services/barrel-content.builder.js';
 
 suite('BarrelContentBuilder Test Suite', () => {
   let builder: BarrelContentBuilder;
@@ -39,10 +44,20 @@ suite('BarrelContentBuilder Test Suite', () => {
     assert.strictEqual(content, "export { default } from './myFile';\n");
   });
 
-  test('Should handle default and named exports together', () => {
-    const exportsByFile = new Map([['myFile.ts', ['default', 'MyClass']]]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+  test('Should handle default, type, and named exports together', () => {
+    const entries = new Map<string, BarrelEntry>();
+    entries.set('myFile.ts', {
+      kind: BarrelEntryKind.File,
+      exports: [
+        { kind: BarrelExportKind.Default },
+        { kind: BarrelExportKind.Type, name: 'MyInterface' },
+        { kind: BarrelExportKind.Value, name: 'MyClass' },
+      ],
+    });
+
+    const content = builder.buildContent(entries, '/some/path');
     assert.ok(content.includes("export { MyClass } from './myFile';"));
+    assert.ok(content.includes("export type { MyInterface } from './myFile';"));
     assert.ok(content.includes("export { default } from './myFile';"));
   });
 

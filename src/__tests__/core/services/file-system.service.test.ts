@@ -53,21 +53,27 @@ describe('FileSystemService', () => {
       expect(mockFs.readdir).toHaveBeenCalledWith(directoryPath, { withFileTypes: true });
     });
 
-    it.each<[string, Dirent, boolean]>([
-      ['include .ts files', createFileEntry('alpha.ts'), true],
-      ['include .tsx files', createFileEntry('component.tsx'), true],
-      ['exclude index.ts', createFileEntry('index.ts'), false],
-      ['exclude definition files', createFileEntry('types.d.ts'), false],
-      ['exclude non-TypeScript extensions', createFileEntry('main.js'), false],
-      ['exclude directory entries', createDirectoryEntry('nested'), false],
-    ])('should %s', async (_description: string, entry: Dirent, shouldInclude: boolean) => {
-      mockFs.readdir.mockResolvedValue([entry] as never);
+    const typeScriptEntryCases: Array<{ entry: Dirent; shouldInclude: boolean }> = [
+      { entry: createFileEntry('alpha.ts'), shouldInclude: true },
+      { entry: createFileEntry('component.tsx'), shouldInclude: true },
+      { entry: createFileEntry('index.ts'), shouldInclude: false },
+      { entry: createFileEntry('types.d.ts'), shouldInclude: false },
+      { entry: createFileEntry('main.js'), shouldInclude: false },
+      { entry: createDirectoryEntry('nested'), shouldInclude: false },
+    ];
 
-      const result = await service.getTypeScriptFiles(directoryPath);
+    // Data-table cases omit natural language labels per team convention; add individual tests when additional context is needed.
+    it.each(typeScriptEntryCases)(
+      'should handle TypeScript entry filtering %#',
+      async ({ entry, shouldInclude }) => {
+        mockFs.readdir.mockResolvedValue([entry] as never);
 
-      const expectedPath = path.join(directoryPath, entry.name);
-      expect(result).toEqual(shouldInclude ? [expectedPath] : []);
-    });
+        const result = await service.getTypeScriptFiles(directoryPath);
+
+        const expectedPath = path.join(directoryPath, entry.name);
+        expect(result).toEqual(shouldInclude ? [expectedPath] : []);
+      },
+    );
 
     it('should throw error if directory read fails', async () => {
       mockFs.readdir.mockRejectedValue(new Error('Read error'));
@@ -96,19 +102,24 @@ describe('FileSystemService', () => {
       expect(mockFs.readdir).toHaveBeenCalledWith(directoryPath, { withFileTypes: true });
     });
 
-    it.each<[string, Dirent, boolean]>([
-      ['include standard directory names', createDirectoryEntry('components'), true],
-      ['exclude node_modules directory', createDirectoryEntry('node_modules'), false],
-      ['exclude dot-prefixed directories', createDirectoryEntry('.git'), false],
-      ['exclude files', createFileEntry('readme.md'), false],
-    ])('should %s', async (_description: string, entry: Dirent, shouldInclude: boolean) => {
-      mockFs.readdir.mockResolvedValue([entry] as never);
+    const subdirectoryCases: Array<{ entry: Dirent; shouldInclude: boolean }> = [
+      { entry: createDirectoryEntry('components'), shouldInclude: true },
+      { entry: createDirectoryEntry('node_modules'), shouldInclude: false },
+      { entry: createDirectoryEntry('.git'), shouldInclude: false },
+      { entry: createFileEntry('readme.md'), shouldInclude: false },
+    ];
 
-      const result = await service.getSubdirectories(directoryPath);
+    it.each(subdirectoryCases)(
+      'should handle subdirectory filtering %#',
+      async ({ entry, shouldInclude }) => {
+        mockFs.readdir.mockResolvedValue([entry] as never);
 
-      const expectedPath = path.join(directoryPath, entry.name);
-      expect(result).toEqual(shouldInclude ? [expectedPath] : []);
-    });
+        const result = await service.getSubdirectories(directoryPath);
+
+        const expectedPath = path.join(directoryPath, entry.name);
+        expect(result).toEqual(shouldInclude ? [expectedPath] : []);
+      },
+    );
 
     it('should throw error if directory read fails', async () => {
       mockFs.readdir.mockRejectedValue(new Error('Read error'));
@@ -157,10 +168,9 @@ describe('FileSystemService', () => {
   });
 
   describe('fileExists', () => {
-    it.each<[string, boolean]>([
-      ['return true when access succeeds', true],
-      ['return false when access fails', false],
-    ])('should %s', async (_description: string, expected: boolean) => {
+    const fileExistsCases = [true, false] as const;
+
+    it.each(fileExistsCases)('should evaluate file existence %#', async (expected) => {
       const filePath = expected ? '/path/to/file.ts' : '/invalid/path';
 
       if (expected) {

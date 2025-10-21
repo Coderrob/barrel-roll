@@ -1,11 +1,18 @@
 import * as path from 'path';
 import type { Uri } from 'vscode';
 
-import { BarrelContentBuilder, BarrelEntry } from './barrel-content.builder';
-import { ExportParser } from './export.parser';
+import {
+  BarrelContentBuilder,
+  BarrelEntry,
+  BarrelEntryKind,
+  BarrelExport,
+  BarrelExportKind,
+} from './barrel-content.builder';
+import { ExportParser, ParsedExport } from './export.parser';
 import { FileSystemService } from './file-system.service';
 
 const INDEX_FILE_NAME = 'index.ts';
+const DEFAULT_EXPORT_NAME = 'default';
 
 export type BarrelGenerationMode = 'createOrUpdate' | 'updateExisting';
 
@@ -114,13 +121,14 @@ export class BarrelFileGenerator {
   ): Promise<void> {
     for (const filePath of tsFiles) {
       const content = await this.fileSystemService.readFile(filePath);
-      const exports = this.exportParser.extractExports(content);
+      const parsedExports = this.exportParser.extractExports(content);
+      const exports = this.normalizeParsedExports(parsedExports);
       if (exports.length === 0) {
         continue;
       }
 
       const relativePath = path.relative(directoryPath, filePath);
-      entries.set(relativePath, { kind: 'file', exports });
+      entries.set(relativePath, { kind: BarrelEntryKind.File, exports });
     }
   }
 
@@ -136,7 +144,7 @@ export class BarrelFileGenerator {
       }
 
       const relativePath = path.relative(directoryPath, subdirectoryPath);
-      entries.set(relativePath, { kind: 'directory' });
+      entries.set(relativePath, { kind: BarrelEntryKind.Directory });
     }
   }
 
@@ -165,5 +173,19 @@ export class BarrelFileGenerator {
       recursive: options?.recursive ?? false,
       mode: options?.mode ?? 'createOrUpdate',
     };
+  }
+
+  private normalizeParsedExports(exports: ParsedExport[]): BarrelExport[] {
+    return exports.map((exp) => {
+      if (exp.name === DEFAULT_EXPORT_NAME) {
+        return { kind: BarrelExportKind.Default } as BarrelExport;
+      }
+
+      if (exp.typeOnly) {
+        return { kind: BarrelExportKind.Type, name: exp.name } as BarrelExport;
+      }
+
+      return { kind: BarrelExportKind.Value, name: exp.name } as BarrelExport;
+    });
   }
 }

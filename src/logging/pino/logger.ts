@@ -18,15 +18,15 @@
 import pino from 'pino';
 import type { OutputChannel } from 'vscode';
 
-import { NoopLogger } from '../loggers/noop.js';
-import { ILogger, ILogMetadata } from '../types.js';
+type LogMetadata = Record<string, unknown>;
 
 /**
- * Implementation of ILogger that uses Pino for structured logging.
+ * Minimal structured logger used by the extension. Falls back to a no-op implementation if pino
+ * fails to initialise in the host environment.
  */
-export class PinoLogger implements ILogger {
+export class PinoLogger {
   private logger: pino.Logger;
-  private isAvailable: boolean = true;
+  private isAvailable = true;
 
   private static sharedOutputChannel?: OutputChannel;
 
@@ -48,8 +48,7 @@ export class PinoLogger implements ILogger {
     } catch (error) {
       this.isAvailable = false;
       console.warn('Pino logger initialization failed:', error);
-      // Create a fallback null logger
-      this.logger = new NoopLogger() as unknown as pino.Logger;
+      this.logger = createFallbackLogger();
     }
   }
 
@@ -74,7 +73,7 @@ export class PinoLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  info(message: string, metadata?: ILogMetadata): void {
+  info(message: string, metadata?: LogMetadata): void {
     this.logger.info(metadata || {}, message);
     this.appendToOutputChannel('INFO', message, metadata);
   }
@@ -93,7 +92,7 @@ export class PinoLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warn(message: string, metadata?: ILogMetadata): void {
+  warn(message: string, metadata?: LogMetadata): void {
     this.logger.warn(metadata || {}, message);
     this.appendToOutputChannel('WARN', message, metadata);
   }
@@ -103,7 +102,7 @@ export class PinoLogger implements ILogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  error(message: string, metadata?: ILogMetadata): void {
+  error(message: string, metadata?: LogMetadata): void {
     this.logger.error(metadata || {}, message);
     this.appendToOutputChannel('ERROR', message, metadata);
   }
@@ -113,7 +112,7 @@ export class PinoLogger implements ILogger {
    * @param message - The failure message.
    * @param metadata - Optional metadata to include with the failure.
    */
-  setFailed(message: string, metadata?: ILogMetadata): void {
+  setFailed(message: string, metadata?: LogMetadata): void {
     this.logger.fatal(metadata || {}, `Action failed: ${message}`);
     this.appendToOutputChannel('FATAL', `Action failed: ${message}`, metadata);
   }
@@ -125,11 +124,9 @@ export class PinoLogger implements ILogger {
    * @returns A promise that resolves when the group operation completes.
    */
   async group<T>(name: string, fn: () => Promise<T>): Promise<T> {
-    // Create a child logger for the group context
     const childLogger = this.logger.child({ group: name });
     const originalLogger = this.logger;
 
-    // Temporarily replace the logger with the child logger
     this.logger = childLogger;
     childLogger.info(`Starting group: ${name}`);
     this.appendToOutputChannel('GROUP', `Starting group: ${name}`);
@@ -146,16 +143,11 @@ export class PinoLogger implements ILogger {
       });
       throw error;
     } finally {
-      // Restore the original logger
       this.logger = originalLogger;
     }
   }
 
-  private appendToOutputChannel(
-    level: string,
-    message: string,
-    metadata?: Record<string, unknown>,
-  ): void {
+  private appendToOutputChannel(level: string, message: string, metadata?: LogMetadata): void {
     const channel = PinoLogger.sharedOutputChannel;
     if (!channel) {
       return;
@@ -168,7 +160,7 @@ export class PinoLogger implements ILogger {
     channel.appendLine(line);
   }
 
-  private formatMetadata(metadata?: Record<string, unknown>): string | undefined {
+  private formatMetadata(metadata?: LogMetadata): string | undefined {
     if (!metadata || Object.keys(metadata).length === 0) {
       return undefined;
     }
@@ -204,4 +196,20 @@ export class PinoLogger implements ILogger {
       return String(value);
     }
   }
+}
+
+function createFallbackLogger(): pino.Logger {
+  const noop = (..._args: unknown[]) => {
+    /* no-op */
+  };
+
+  const fallback: Record<string, unknown> = {};
+  fallback.info = noop;
+  fallback.debug = noop;
+  fallback.warn = noop;
+  fallback.error = noop;
+  fallback.fatal = noop;
+  fallback.child = () => fallback;
+
+  return fallback as unknown as pino.Logger;
 }

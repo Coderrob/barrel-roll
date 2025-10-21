@@ -2,13 +2,37 @@ const DEFAULT_KEYWORD = 'default';
 const NEWLINE = '\n';
 const PARENT_DIRECTORY = '..';
 
-export type BarrelEntry =
+export enum BarrelExportKind {
+  Value = 'value',
+  Type = 'type',
+  Default = 'default',
+}
+
+export enum BarrelEntryKind {
+  File = 'file',
+  Directory = 'directory',
+}
+
+export type BarrelExport =
   | {
-      kind: 'file';
-      exports: string[];
+      kind: BarrelExportKind.Value;
+      name: string;
     }
   | {
-      kind: 'directory';
+      kind: BarrelExportKind.Type;
+      name: string;
+    }
+  | {
+      kind: BarrelExportKind.Default;
+    };
+
+export type BarrelEntry =
+  | {
+      kind: BarrelEntryKind.File;
+      exports: BarrelExport[];
+    }
+  | {
+      kind: BarrelEntryKind.Directory;
     };
 
 /**
@@ -50,13 +74,24 @@ export class BarrelContentBuilder {
 
     for (const [relativePath, entry] of entries) {
       if (Array.isArray(entry)) {
-        normalized.set(relativePath, { kind: 'file', exports: entry });
+        normalized.set(relativePath, {
+          kind: BarrelEntryKind.File,
+          exports: entry.map((name) => this.toLegacyExport(name)),
+        });
       } else {
         normalized.set(relativePath, entry);
       }
     }
 
     return normalized;
+  }
+
+  private toLegacyExport(name: string): BarrelExport {
+    if (name === DEFAULT_KEYWORD) {
+      return { kind: BarrelExportKind.Default };
+    }
+
+    return { kind: BarrelExportKind.Value, name };
   }
 
   /**
@@ -66,7 +101,7 @@ export class BarrelContentBuilder {
    * @returns export lines for the entry
    */
   private createLinesForEntry(relativePath: string, entry: BarrelEntry): string[] {
-    if (entry.kind === 'directory') {
+    if (entry.kind === BarrelEntryKind.Directory) {
       return this.buildDirectoryExportLines(relativePath);
     }
 
@@ -92,9 +127,10 @@ export class BarrelContentBuilder {
    * @param exports The exports from the file
    * @returns The export statement(s)
    */
-  private buildFileExportLines(filePath: string, exports: string[]): string[] {
-    // Filter out exports that reference parent folders (shouldn't happen at this stage but defensive)
-    const cleanedExports = exports.filter((exp) => !exp.includes(PARENT_DIRECTORY));
+  private buildFileExportLines(filePath: string, exports: BarrelExport[]): string[] {
+    const cleanedExports = exports.filter((exp) =>
+      exp.kind === BarrelExportKind.Default ? true : !exp.name.includes(PARENT_DIRECTORY),
+    );
 
     if (cleanedExports.length === 0) {
       return [];
@@ -117,23 +153,35 @@ export class BarrelContentBuilder {
    * @param exports The exports
    * @returns The export statement(s)
    */
-  private generateExportStatements(modulePath: string, exports: string[]): string[] {
-    const hasDefaultExport = exports.includes(DEFAULT_KEYWORD);
-    const hasNamedExports = exports.some((exp) => exp !== DEFAULT_KEYWORD);
-
-    if (hasDefaultExport && !hasNamedExports) {
-      // Only default export
-      return [`export { default } from './${modulePath}';`];
-    }
-
+  private generateExportStatements(modulePath: string, exports: BarrelExport[]): string[] {
     const lines: string[] = [];
-    if (hasNamedExports) {
-      const namedExports = exports.filter((exp) => exp !== DEFAULT_KEYWORD);
-      lines.push(`export { ${namedExports.join(', ')} } from './${modulePath}';`);
+
+    const valueExports = exports
+      .filter(
+        (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Value }> =>
+          exp.kind === BarrelExportKind.Value,
+      )
+      .map((exp) => exp.name);
+    const typeExports = exports
+      .filter(
+        (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Type }> =>
+          exp.kind === BarrelExportKind.Type,
+      )
+      .map((exp) => exp.name);
+    const hasDefaultExport = exports.some((exp) => exp.kind === BarrelExportKind.Default);
+
+    if (valueExports.length > 0) {
+      lines.push(`export { ${valueExports.join(', ')} } from './${modulePath}';`);
     }
+
+    if (typeExports.length > 0) {
+      lines.push(`export type { ${typeExports.join(', ')} } from './${modulePath}';`);
+    }
+
     if (hasDefaultExport) {
       lines.push(`export { default } from './${modulePath}';`);
     }
+
     return lines;
   }
 

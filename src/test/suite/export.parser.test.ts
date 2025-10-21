@@ -12,43 +12,43 @@ suite('ExportParser Test Suite', () => {
   test('Should extract class exports', () => {
     const content = 'export class MyClass {}';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['MyClass']);
+    assert.deepStrictEqual(exports, [{ name: 'MyClass', typeOnly: false }]);
   });
 
   test('Should extract interface exports', () => {
     const content = 'export interface MyInterface {}';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['MyInterface']);
+    assert.deepStrictEqual(exports, [{ name: 'MyInterface', typeOnly: true }]);
   });
 
   test('Should extract type exports', () => {
     const content = 'export type MyType = string;';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['MyType']);
+    assert.deepStrictEqual(exports, [{ name: 'MyType', typeOnly: true }]);
   });
 
   test('Should extract function exports', () => {
     const content = 'export function myFunction() {}';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['myFunction']);
+    assert.deepStrictEqual(exports, [{ name: 'myFunction', typeOnly: false }]);
   });
 
   test('Should extract const exports', () => {
     const content = 'export const myConst = 42;';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['myConst']);
+    assert.deepStrictEqual(exports, [{ name: 'myConst', typeOnly: false }]);
   });
 
   test('Should extract enum exports', () => {
     const content = 'export enum MyEnum { A, B }';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['MyEnum']);
+    assert.deepStrictEqual(exports, [{ name: 'MyEnum', typeOnly: false }]);
   });
 
   test('Should extract default exports', () => {
     const content = 'export default class MyClass {}';
     const exports = parser.extractExports(content);
-    assert.ok(exports.includes('default'));
+    assert.ok(exports.some((entry) => entry.name === 'default'));
   });
 
   test('Should extract multiple exports', () => {
@@ -59,22 +59,22 @@ suite('ExportParser Test Suite', () => {
     `;
     const exports = parser.extractExports(content);
     assert.strictEqual(exports.length, 3);
-    assert.ok(exports.includes('MyClass'));
-    assert.ok(exports.includes('MyInterface'));
-    assert.ok(exports.includes('myConst'));
+    assert.ok(exports.some((entry) => entry.name === 'MyClass' && entry.typeOnly === false));
+    assert.ok(exports.some((entry) => entry.name === 'MyInterface' && entry.typeOnly === true));
+    assert.ok(exports.some((entry) => entry.name === 'myConst' && entry.typeOnly === false));
   });
 
   test('Should extract export lists', () => {
     const content = 'export { MyClass, MyInterface };';
     const exports = parser.extractExports(content);
-    assert.ok(exports.includes('MyClass'));
-    assert.ok(exports.includes('MyInterface'));
+    assert.ok(exports.some((entry) => entry.name === 'MyClass'));
+    assert.ok(exports.some((entry) => entry.name === 'MyInterface'));
   });
 
   test('Should handle export with as keyword', () => {
     const content = 'export { MyClass as RenamedClass };';
     const exports = parser.extractExports(content);
-    assert.ok(exports.includes('MyClass'));
+    assert.ok(exports.some((entry) => entry.name === 'RenamedClass'));
   });
 
   test('Should ignore comments', () => {
@@ -84,7 +84,7 @@ suite('ExportParser Test Suite', () => {
       export class RealClass {}
     `;
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, ['RealClass']);
+    assert.deepStrictEqual(exports, [{ name: 'RealClass', typeOnly: false }]);
   });
 
   test('Should remove duplicates', () => {
@@ -94,6 +94,6 @@ suite('ExportParser Test Suite', () => {
     `;
     const exports = parser.extractExports(content);
     assert.strictEqual(exports.length, 1);
-    assert.deepStrictEqual(exports, ['myConst']);
+    assert.deepStrictEqual(exports, [{ name: 'myConst', typeOnly: false }]);
   });
 });

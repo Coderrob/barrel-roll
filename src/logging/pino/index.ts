@@ -15,8 +15,4 @@
  *
  */
 
-// Pino logger implementation
 export { PinoLogger } from './logger.js';
-
-// Pino-specific types
-export * from './types.js';

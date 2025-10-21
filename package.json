@@ -12,15 +12,11 @@
     "commands": [
       {
         "command": "barrel-roll.generateBarrel",
-        "title": "Barrel Roll: Generate/Update index.ts"
+        "title": "Barrel Roll: Update Barrel Directory"
       },
       {
         "command": "barrel-roll.generateBarrelRecursive",
-        "title": "Barrel Roll: Generate/Update index.ts (Recursive)"
-      },
-      {
-        "command": "barrel-roll.updateBarrel",
-        "title": "Barrel Roll: Update Existing index.ts Files"
+        "title": "Barrel Roll: Update Barrel Directory (Recursive)"
       }
     ],
     "menus": {
@@ -31,10 +27,6 @@
         },
         {
           "command": "barrel-roll.generateBarrelRecursive",
-          "when": "true"
-        },
-        {
-          "command": "barrel-roll.updateBarrel",
           "when": "true"
         }
       ],
@@ -47,11 +39,6 @@
         {
           "command": "barrel-roll.generateBarrelRecursive",
           "group": "navigation@2",
-          "when": "explorerResourceIsFolder"
-        },
-        {
-          "command": "barrel-roll.updateBarrel",
-          "group": "navigation@3",
           "when": "explorerResourceIsFolder"
         }
       ]

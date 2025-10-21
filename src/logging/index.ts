@@ -15,18 +15,4 @@
  *
  */
 
-// Export types
-export * from './pino/types.js';
-export * from './types.js';
-
-// Export loggers
-export * from './loggers/index.js';
-
-// Export Pino logger
-export * from './pino/index.js';
-
-// Export filters
-export * from './filters/index.js';
-
-// Export config
-export { LoggerConfigResolver } from './config.js';
+export { PinoLogger } from './pino/logger.js';

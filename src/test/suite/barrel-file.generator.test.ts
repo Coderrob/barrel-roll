@@ -45,9 +45,9 @@ suite('BarrelFileGenerator Test Suite', () => {
     const content = await fs.readFile(barrelPath, 'utf-8');
 
     // Verify the barrel file contains expected exports
-    assert.ok(content.includes('MyClass'));
+    assert.ok(content.includes('export { MyClass } from'));
     assert.ok(content.includes('myConst'));
-    assert.ok(content.includes('MyInterface'));
+    assert.ok(content.includes('export type { MyInterface }'));
     assert.ok(content.includes('myFunction'));
     assert.ok(content.includes("from './file1'"));
     assert.ok(content.includes("from './file2'"));
@@ -103,7 +103,7 @@ suite('BarrelFileGenerator Test Suite', () => {
     const content = await fs.readFile(barrelPath, 'utf-8');
 
     // Verify the barrel file contains exports from file1 but not the old index.ts content
-    assert.ok(content.includes('MyClass'));
+    assert.ok(content.includes('export { MyClass } from'));
     assert.ok(!content.includes('IndexClass'));
   });
 });

@@ -1,3 +1,10 @@
+const DEFAULT_EXPORT_NAME = 'default';
+
+export interface ParsedExport {
+  name: string;
+  typeOnly: boolean;
+}
+
 /**
  * Service responsible for parsing TypeScript exports.
  */
@@ -14,45 +21,21 @@ export class ExportParser {
    * @param content The TypeScript file content
    * @returns Array of export names
    */
-  extractExports(content: string): string[] {
-    const exports: string[] = [];
-
-    // Remove comments to avoid false matches
+  extractExports(content: string): ParsedExport[] {
+    const exportMap = new Map<string, ParsedExport>();
     const contentWithoutComments = this.removeComments(content);
 
-    // Pattern for named exports (export class, interface, type, function, const, enum, let, var)
-    const namedExportPattern =
-      /export\s+(?:abstract\s+)?(?:class|interface|type|function|const|enum|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
-    let match;
+    this.collectNamedExports(contentWithoutComments, exportMap);
+    const hasListDefault = this.collectNamedExportLists(contentWithoutComments, exportMap);
 
-    while ((match = namedExportPattern.exec(contentWithoutComments)) !== null) {
-      exports.push(match[1]);
+    const hasDefaultExport = hasListDefault || /export\s+default\s+/.test(contentWithoutComments);
+
+    const result = Array.from(exportMap.values());
+    if (hasDefaultExport) {
+      result.push({ name: DEFAULT_EXPORT_NAME, typeOnly: false });
     }
 
-    // Pattern for export { name1, name2 }
-    const exportListPattern = /export\s*\{([^}]+)\}/g;
-    while ((match = exportListPattern.exec(contentWithoutComments)) !== null) {
-      const names = match[1]
-        .split(',')
-        .map(
-          (name) =>
-            name
-              .trim()
-              .split(/\s+as\s+/i)
-              .map((segment) => segment.trim())
-              .filter((segment) => segment.length > 0)
-              .pop() ?? '',
-        )
-        .filter((name) => name.length > 0);
-      exports.push(...names);
-    }
-
-    // Check for default export
-    if (/export\s+default\s+/.test(contentWithoutComments)) {
-      exports.push('default');
-    }
-
-    return [...new Set(exports)]; // Remove duplicates
+    return result;
   }
 
   /**
@@ -66,5 +49,77 @@ export class ExportParser {
     // Remove single-line comments
     result = result.replace(/\/\/.*$/gm, '');
     return result;
+  }
+
+  private collectNamedExports(content: string, exportMap: Map<string, ParsedExport>): void {
+    const namedExportPattern =
+      /export\s+(?:abstract\s+)?(class|interface|type|function|const|enum|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = namedExportPattern.exec(content)) !== null) {
+      const keyword = match[1];
+      const identifier = match[2];
+      const typeOnly = keyword === 'interface' || keyword === 'type';
+      this.recordNamedExport(exportMap, identifier, typeOnly);
+    }
+  }
+
+  private collectNamedExportLists(content: string, exportMap: Map<string, ParsedExport>): boolean {
+    const exportListPattern = /export\s*(type\s+)?\{([^}]+)\}/g;
+    let match: RegExpExecArray | null;
+    let hasDefault = false;
+
+    while ((match = exportListPattern.exec(content)) !== null) {
+      const entries = this.parseExportListEntries(match[2], Boolean(match[1]));
+
+      for (const { name, typeOnly } of entries) {
+        if (name.toLowerCase() === DEFAULT_EXPORT_NAME) {
+          hasDefault = true;
+          continue;
+        }
+
+        this.recordNamedExport(exportMap, name, typeOnly);
+      }
+    }
+
+    return hasDefault;
+  }
+
+  private parseExportListEntries(
+    rawList: string,
+    typeModifierPresent: boolean,
+  ): Array<{ name: string; typeOnly: boolean }> {
+    return rawList
+      .split(',')
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0)
+      .map((segment) => {
+        const tokens = segment
+          .split(/\s+as\s+/i)
+          .map((token) => token.trim())
+          .filter((token) => token.length > 0);
+
+        const sourceToken = tokens[0] ?? '';
+        const aliasToken = tokens[tokens.length - 1] ?? '';
+
+        const typeOnly = typeModifierPresent || /^type\s+/i.test(sourceToken);
+        const cleanedName = typeOnly ? aliasToken.replace(/^type\s+/i, '') : aliasToken;
+
+        return { name: cleanedName, typeOnly };
+      })
+      .filter((entry): entry is { name: string; typeOnly: boolean } =>
+        Boolean(entry?.name?.length),
+      );
+  }
+
+  private recordNamedExport(map: Map<string, ParsedExport>, name: string, typeOnly: boolean): void {
+    const existing = map.get(name);
+
+    if (!existing) {
+      map.set(name, { name, typeOnly });
+      return;
+    }
+
+    map.set(name, { name, typeOnly: existing.typeOnly && typeOnly });
   }
 }

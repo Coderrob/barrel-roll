@@ -28,20 +28,14 @@ export function activate(context: vscode.ExtensionContext) {
     {
       id: 'barrel-roll.generateBarrel',
       options: { recursive: false, mode: 'createOrUpdate' },
-      progressTitle: 'Barrel Roll: Generating barrel...',
-      successMessage: 'Barrel Roll: barrel file generated successfully.',
+      progressTitle: 'Barrel Roll: Updating barrel...',
+      successMessage: 'Barrel Roll: index.ts updated.',
     },
     {
       id: 'barrel-roll.generateBarrelRecursive',
       options: { recursive: true, mode: 'createOrUpdate' },
-      progressTitle: 'Barrel Roll: Generating barrels recursively...',
-      successMessage: 'Barrel Roll: barrel files generated recursively.',
-    },
-    {
-      id: 'barrel-roll.updateBarrel',
-      options: { recursive: true, mode: 'updateExisting' },
-      progressTitle: 'Barrel Roll: Updating barrels...',
-      successMessage: 'Barrel Roll: barrel files sanitized successfully.',
+      progressTitle: 'Barrel Roll: Updating barrels recursively...',
+      successMessage: 'Barrel Roll: index.ts files updated recursively.',
     },
   ];
 
