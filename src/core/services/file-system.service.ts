@@ -93,6 +93,55 @@ export class FileSystemService {
   }
 
   /**
+   * Creates a directory and all intermediate directories if needed.
+   * @param directoryPath The directory to create
+   */
+  async ensureDirectory(directoryPath: string): Promise<void> {
+    try {
+      await fs.mkdir(directoryPath, { recursive: true });
+    } catch (error) {
+      throw new Error(
+        `Failed to create directory ${directoryPath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Removes a file or directory tree.
+   * @param targetPath The path to remove
+   */
+  async removePath(targetPath: string): Promise<void> {
+    try {
+      await fs.rm(targetPath, { recursive: true, force: true });
+    } catch (error) {
+      throw new Error(
+        `Failed to remove path ${targetPath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Creates a temporary directory using the provided prefix.
+   * @param prefix The prefix for the temporary directory
+   * @returns The created directory path
+   */
+  async createTempDirectory(prefix: string): Promise<string> {
+    try {
+      return await fs.mkdtemp(prefix);
+    } catch (error) {
+      throw new Error(
+        `Failed to create temporary directory with prefix ${prefix}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
    * Checks whether a file exists.
    * @param filePath The file path to check
    * @returns True if the file exists

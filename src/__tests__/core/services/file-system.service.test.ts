@@ -167,6 +167,61 @@ describe('FileSystemService', () => {
     });
   });
 
+  describe('ensureDirectory', () => {
+    it('should create directory recursively', async () => {
+      mockFs.mkdir.mockResolvedValue(undefined as never);
+
+      await service.ensureDirectory('/path/to/dir');
+
+      expect(mockFs.mkdir).toHaveBeenCalledWith('/path/to/dir', { recursive: true });
+    });
+
+    it('should throw error when directory creation fails', async () => {
+      mockFs.mkdir.mockRejectedValue(new Error('mkdir error'));
+
+      await expect(service.ensureDirectory('/path/to/dir')).rejects.toThrow(
+        'Failed to create directory /path/to/dir: mkdir error',
+      );
+    });
+  });
+
+  describe('removePath', () => {
+    it('should remove path recursively', async () => {
+      mockFs.rm.mockResolvedValue(undefined as never);
+
+      await service.removePath('/path/to/remove');
+
+      expect(mockFs.rm).toHaveBeenCalledWith('/path/to/remove', { recursive: true, force: true });
+    });
+
+    it('should throw error when removal fails', async () => {
+      mockFs.rm.mockRejectedValue(new Error('rm error'));
+
+      await expect(service.removePath('/path/to/remove')).rejects.toThrow(
+        'Failed to remove path /path/to/remove: rm error',
+      );
+    });
+  });
+
+  describe('createTempDirectory', () => {
+    it('should create temp directory with prefix', async () => {
+      mockFs.mkdtemp.mockResolvedValue('/tmp/foo123');
+
+      const result = await service.createTempDirectory('/tmp/foo-');
+
+      expect(result).toBe('/tmp/foo123');
+      expect(mockFs.mkdtemp).toHaveBeenCalledWith('/tmp/foo-');
+    });
+
+    it('should throw error when temp directory creation fails', async () => {
+      mockFs.mkdtemp.mockRejectedValue(new Error('mkdtemp error'));
+
+      await expect(service.createTempDirectory('/tmp/foo-')).rejects.toThrow(
+        'Failed to create temporary directory with prefix /tmp/foo-: mkdtemp error',
+      );
+    });
+  });
+
   describe('fileExists', () => {
     const fileExistsCases = [true, false] as const;
 

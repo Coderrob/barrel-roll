@@ -1,20 +1,22 @@
-import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
 import type { Uri } from 'vscode';
 
 import { BarrelFileGenerator } from '../../../core/services/barrel-file.generator';
+import { FileSystemService } from '../../../core/services/file-system.service';
 
 describe('BarrelFileGenerator', () => {
   let tmpDir: string;
+  let fileSystem: FileSystemService;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'barrel-roll-'));
+    fileSystem = new FileSystemService();
+    tmpDir = await fileSystem.createTempDirectory(path.join(os.tmpdir(), 'barrel-roll-'));
   });
 
   afterEach(async () => {
-    await fs.rm(tmpDir, { recursive: true, force: true });
+    await fileSystem.removePath(tmpDir);
   });
 
   describe('generateBarrelFile', () => {
@@ -22,37 +24,34 @@ describe('BarrelFileGenerator', () => {
       const nestedDir = path.join(tmpDir, 'nested');
       const deeperDir = path.join(nestedDir, 'deeper');
 
-      await fs.mkdir(deeperDir, { recursive: true });
+      await fileSystem.ensureDirectory(deeperDir);
 
-      await fs.writeFile(path.join(tmpDir, 'alpha.ts'), 'export const alpha = 1;');
-      await fs.writeFile(
+      await fileSystem.writeFile(path.join(tmpDir, 'alpha.ts'), 'export const alpha = 1;');
+      await fileSystem.writeFile(
         path.join(nestedDir, 'bravo.ts'),
         `
         export interface Bravo {}
         export default function bravo() {}
       `,
-        'utf-8',
       );
-      await fs.writeFile(
+      await fileSystem.writeFile(
         path.join(deeperDir, 'charlie.ts'),
         `
         export { default as charlie } from './impl';
       `,
-        'utf-8',
       );
-      await fs.writeFile(
+      await fileSystem.writeFile(
         path.join(deeperDir, 'impl.ts'),
         'export default function impl() {}',
-        'utf-8',
       );
 
       const generator = new BarrelFileGenerator();
       const rootUri = { fsPath: tmpDir } as unknown as Uri;
       await generator.generateBarrelFile(rootUri, { recursive: true });
 
-      const rootIndex = await fs.readFile(path.join(tmpDir, 'index.ts'), 'utf-8');
-      const nestedIndex = await fs.readFile(path.join(nestedDir, 'index.ts'), 'utf-8');
-      const deeperIndex = await fs.readFile(path.join(deeperDir, 'index.ts'), 'utf-8');
+      const rootIndex = await fileSystem.readFile(path.join(tmpDir, 'index.ts'));
+      const nestedIndex = await fileSystem.readFile(path.join(nestedDir, 'index.ts'));
+      const deeperIndex = await fileSystem.readFile(path.join(deeperDir, 'index.ts'));
 
       expect(rootIndex).toBe(
         ["export { alpha } from './alpha';", "export * from './nested';", ''].join('\n'),
@@ -79,11 +78,11 @@ describe('BarrelFileGenerator', () => {
       const generator = new BarrelFileGenerator();
       const rootUri = { fsPath: tmpDir } as unknown as Uri;
 
-      await fs.writeFile(path.join(tmpDir, 'index.ts'), "export * from '../outside';", 'utf-8');
+      await fileSystem.writeFile(path.join(tmpDir, 'index.ts'), "export * from '../outside';");
 
       await generator.generateBarrelFile(rootUri, { mode: 'updateExisting' });
 
-      const rootIndex = await fs.readFile(path.join(tmpDir, 'index.ts'), 'utf-8');
+      const rootIndex = await fileSystem.readFile(path.join(tmpDir, 'index.ts'));
 
       expect(rootIndex).toBe('\n');
     });
@@ -91,12 +90,14 @@ describe('BarrelFileGenerator', () => {
     it('should skip creating barrels when updating non-existent ones', async () => {
       const generator = new BarrelFileGenerator();
       const nestedDir = path.join(tmpDir, 'missing');
-      await fs.mkdir(nestedDir);
+      await fileSystem.ensureDirectory(nestedDir);
 
       const nestedUri = { fsPath: nestedDir } as unknown as Uri;
       await generator.generateBarrelFile(nestedUri, { mode: 'updateExisting' });
 
-      await expect(fs.stat(path.join(nestedDir, 'index.ts'))).rejects.toThrow();
+      const exists = await fileSystem.fileExists(path.join(nestedDir, 'index.ts'));
+
+      expect(exists).toBe(false);
     });
 
     it('should throw when no TypeScript files are present and recursion is disabled', async () => {
