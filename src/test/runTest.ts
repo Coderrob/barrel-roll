@@ -1,7 +1,8 @@
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { runTests } from '@vscode/test-electron';
-import * as os from 'os';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 
 async function main(): Promise<void> {
   try {

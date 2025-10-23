@@ -15,4 +15,4 @@
  *
  */
 
-export { PinoLogger } from './pino/logger.js';
+export { PinoLogger } from './pino.logger.js';

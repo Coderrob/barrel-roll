@@ -1,4 +1,4 @@
-import { ExportParser } from '../../../core/services/export.parser';
+import { ExportParser } from './export.parser';
 
 describe('ExportParser', () => {
   let parser: ExportParser;
@@ -34,11 +34,8 @@ describe('ExportParser', () => {
       expect(result).toHaveLength(7);
     });
 
-    it('should return an empty array when no exports exist', () => {
-      const result = parser.extractExports('const unused = 1;');
-
-      expect(result).toEqual([]);
-    });
+    it('should return an empty array when no exports exist', () =>
+      expect(parser.extractExports('const unused = 1;')).toEqual([]));
 
     const extractCases: Array<{ source: string; expected: { name: string; typeOnly: boolean } }> = [
       {
@@ -56,10 +53,8 @@ describe('ExportParser', () => {
     ];
 
     // Table-driven tests follow the convention of omitting human-readable titles; prefer standalone tests when unique naming is needed.
-    it.each(extractCases)('should capture simple export pattern %#', ({ source, expected }) => {
-      const result = parser.extractExports(source);
-
-      expect(result).toContainEqual(expected);
-    });
+    it.each(extractCases)('should capture simple export pattern %#', ({ source, expected }) =>
+      expect(parser.extractExports(source)).toContainEqual(expected),
+    );
   });
 });

@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 
-import { ExportParser } from '../../core/services/export.parser.js';
+import { ExportParser } from '../../core/parser/export.parser.js';
 
 suite('ExportParser Test Suite', () => {
   let parser: ExportParser;

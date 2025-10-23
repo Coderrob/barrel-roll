@@ -4,7 +4,7 @@ import * as path from 'path';
 
 import { beforeEach, describe, expect, it } from '@jest/globals';
 
-import { FileSystemService } from '../../../core/services/file-system.service.js';
+import { FileSystemService } from './file-system.service.js';
 
 jest.mock('fs/promises');
 
@@ -26,9 +26,12 @@ describe('FileSystemService', () => {
       isDirectory: () => true,
     }) as unknown as Dirent;
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   beforeEach(() => {
     service = new FileSystemService();
-    jest.clearAllMocks();
   });
 
   describe('getTypeScriptFiles', () => {

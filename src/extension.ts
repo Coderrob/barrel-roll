@@ -1,11 +1,10 @@
-import * as path from 'path';
+import * as path from 'node:path';
+
 import * as vscode from 'vscode';
 
-import {
-  BarrelFileGenerator,
-  type BarrelGenerationOptions,
-} from './core/services/barrel-file.generator';
-import { PinoLogger } from './logging/pino/logger.js';
+import { BarrelFileGenerator } from './core/barrel/barrel-file.generator.js';
+import { PinoLogger } from './logging/pino.logger.js';
+import { BarrelGenerationMode, type BarrelGenerationOptions } from './types/index.js';
 
 type CommandDescriptor = {
   id: string;
@@ -27,13 +26,19 @@ export function activate(context: vscode.ExtensionContext) {
   const descriptors: CommandDescriptor[] = [
     {
       id: 'barrel-roll.generateBarrel',
-      options: { recursive: false, mode: 'createOrUpdate' },
+      options: {
+        recursive: false,
+        mode: BarrelGenerationMode.CreateOrUpdate,
+      },
       progressTitle: 'Barrel Roll: Updating barrel...',
       successMessage: 'Barrel Roll: index.ts updated.',
     },
     {
       id: 'barrel-roll.generateBarrelRecursive',
-      options: { recursive: true, mode: 'createOrUpdate' },
+      options: {
+        recursive: true,
+        mode: BarrelGenerationMode.CreateOrUpdate,
+      },
       progressTitle: 'Barrel Roll: Updating barrels recursively...',
       successMessage: 'Barrel Roll: index.ts files updated recursively.',
     },
@@ -45,7 +50,9 @@ export function activate(context: vscode.ExtensionContext) {
   }
 }
 
-export function deactivate() {}
+export function deactivate(): void {
+  /* no-op */
+}
 
 function registerBarrelCommand(
   generator: BarrelFileGenerator,

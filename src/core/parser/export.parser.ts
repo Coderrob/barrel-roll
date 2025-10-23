@@ -1,9 +1,5 @@
-const DEFAULT_EXPORT_NAME = 'default';
-
-export interface ParsedExport {
-  name: string;
-  typeOnly: boolean;
-}
+import { BARREL_DEFAULT_EXPORT_NAME, type ParsedExport } from '../../types/index.js';
+import { splitAndClean } from '../../utils/string.js';
 
 /**
  * Service responsible for parsing TypeScript exports.
@@ -32,7 +28,7 @@ export class ExportParser {
 
     const result = Array.from(exportMap.values());
     if (hasDefaultExport) {
-      result.push({ name: DEFAULT_EXPORT_NAME, typeOnly: false });
+      result.push({ name: BARREL_DEFAULT_EXPORT_NAME, typeOnly: false });
     }
 
     return result;
@@ -45,9 +41,9 @@ export class ExportParser {
    */
   private removeComments(content: string): string {
     // Remove multi-line comments
-    let result = content.replace(/\/\*[\s\S]*?\*\//g, '');
+    let result = content.replaceAll(/\/\*[\s\S]*?\*\//g, '');
     // Remove single-line comments
-    result = result.replace(/\/\/.*$/gm, '');
+    result = result.replaceAll(/\/\/.*$/gm, '');
     return result;
   }
 
@@ -73,7 +69,7 @@ export class ExportParser {
       const entries = this.parseExportListEntries(match[2], Boolean(match[1]));
 
       for (const { name, typeOnly } of entries) {
-        if (name.toLowerCase() === DEFAULT_EXPORT_NAME) {
+        if (name.toLowerCase() === BARREL_DEFAULT_EXPORT_NAME) {
           hasDefault = true;
           continue;
         }
@@ -91,17 +87,11 @@ export class ExportParser {
   ): Array<{ name: string; typeOnly: boolean }> {
     return rawList
       .split(',')
-      .map((segment) => segment.trim())
-      .filter((segment) => segment.length > 0)
+      .flatMap((segment) => splitAndClean(segment))
       .map((segment) => {
-        const tokens = segment
-          .split(/\s+as\s+/i)
-          .map((token) => token.trim())
-          .filter((token) => token.length > 0);
-
+        const tokens = splitAndClean(segment, /\s+as\s+/i);
         const sourceToken = tokens[0] ?? '';
-        const aliasToken = tokens[tokens.length - 1] ?? '';
-
+        const aliasToken = tokens.at(-1) ?? '';
         const typeOnly = typeModifierPresent || /^type\s+/i.test(sourceToken);
         const cleanedName = typeOnly ? aliasToken.replace(/^type\s+/i, '') : aliasToken;
 

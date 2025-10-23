@@ -1,9 +1,5 @@
-import {
-  BarrelContentBuilder,
-  BarrelEntry,
-  BarrelEntryKind,
-  BarrelExportKind,
-} from '../../../core/services/barrel-content.builder';
+import { BarrelContentBuilder } from './barrel-content.builder';
+import { BarrelEntry, BarrelEntryKind, BarrelExportKind } from '../../types';
 
 describe('BarrelContentBuilder', () => {
   let builder: BarrelContentBuilder;

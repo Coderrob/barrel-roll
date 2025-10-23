@@ -1,11 +1,7 @@
-import * as assert from 'assert';
+import * as assert from 'node:assert';
 
-import {
-  BarrelContentBuilder,
-  BarrelEntryKind,
-  BarrelExportKind,
-  type BarrelEntry,
-} from '../../core/services/barrel-content.builder.js';
+import { BarrelContentBuilder } from '../../core/barrel/barrel-content.builder.js';
+import { BarrelEntryKind, BarrelExportKind, type BarrelEntry } from '../../types/index.js';
 
 suite('BarrelContentBuilder Test Suite', () => {
   let builder: BarrelContentBuilder;

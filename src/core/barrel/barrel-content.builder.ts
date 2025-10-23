@@ -1,39 +1,13 @@
-const DEFAULT_KEYWORD = 'default';
-const NEWLINE = '\n';
-const PARENT_DIRECTORY = '..';
-
-export enum BarrelExportKind {
-  Value = 'value',
-  Type = 'type',
-  Default = 'default',
-}
-
-export enum BarrelEntryKind {
-  File = 'file',
-  Directory = 'directory',
-}
-
-export type BarrelExport =
-  | {
-      kind: BarrelExportKind.Value;
-      name: string;
-    }
-  | {
-      kind: BarrelExportKind.Type;
-      name: string;
-    }
-  | {
-      kind: BarrelExportKind.Default;
-    };
-
-export type BarrelEntry =
-  | {
-      kind: BarrelEntryKind.File;
-      exports: BarrelExport[];
-    }
-  | {
-      kind: BarrelEntryKind.Directory;
-    };
+import {
+  BARREL_DEFAULT_EXPORT_NAME,
+  BARREL_EXPORT_LINE_SEPARATOR,
+  BARREL_PARENT_DIRECTORY_SEGMENT,
+  BarrelEntry,
+  BarrelEntryKind,
+  BarrelExport,
+  BarrelExportKind,
+} from '../../types/index.js';
+import { sortAlphabetically } from '../../utils/string.js';
 
 /**
  * Service to build the content of a barrel file from exports.
@@ -46,7 +20,7 @@ export class BarrelContentBuilder {
     const normalizedEntries = this.normalizeEntries(entries);
 
     // Sort files alphabetically for consistent output
-    const sortedPaths = Array.from(normalizedEntries.keys()).sort();
+    const sortedPaths = sortAlphabetically(normalizedEntries.keys());
 
     for (const relativePath of sortedPaths) {
       const entry = normalizedEntries.get(relativePath);
@@ -61,7 +35,7 @@ export class BarrelContentBuilder {
     }
 
     // Add newline at end of file
-    return lines.join(NEWLINE) + NEWLINE;
+    return lines.join(BARREL_EXPORT_LINE_SEPARATOR) + BARREL_EXPORT_LINE_SEPARATOR;
   }
 
   /**
@@ -87,7 +61,7 @@ export class BarrelContentBuilder {
   }
 
   private toLegacyExport(name: string): BarrelExport {
-    if (name === DEFAULT_KEYWORD) {
+    if (name === BARREL_DEFAULT_EXPORT_NAME) {
       return { kind: BarrelExportKind.Default };
     }
 
@@ -115,7 +89,7 @@ export class BarrelContentBuilder {
    */
   private buildDirectoryExportLines(relativePath: string): string[] {
     const modulePath = this.getModulePath(relativePath);
-    if (modulePath.startsWith(PARENT_DIRECTORY)) {
+    if (modulePath.startsWith(BARREL_PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
     return [`export * from './${modulePath}';`];
@@ -129,7 +103,9 @@ export class BarrelContentBuilder {
    */
   private buildFileExportLines(filePath: string, exports: BarrelExport[]): string[] {
     const cleanedExports = exports.filter((exp) =>
-      exp.kind === BarrelExportKind.Default ? true : !exp.name.includes(PARENT_DIRECTORY),
+      exp.kind === BarrelExportKind.Default
+        ? true
+        : !exp.name.includes(BARREL_PARENT_DIRECTORY_SEGMENT),
     );
 
     if (cleanedExports.length === 0) {
@@ -140,7 +116,7 @@ export class BarrelContentBuilder {
     const modulePath = this.getModulePath(filePath);
 
     // Skip if this references a parent folder
-    if (modulePath.startsWith(PARENT_DIRECTORY)) {
+    if (modulePath.startsWith(BARREL_PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
 
@@ -194,7 +170,7 @@ export class BarrelContentBuilder {
     // Remove .ts or .tsx extension
     let modulePath = filePath.replace(/\.tsx?$/, '');
     // Normalize path separators for cross-platform compatibility
-    modulePath = modulePath.replace(/\\/g, '/');
+    modulePath = modulePath.replaceAll('\\', '/');
     return modulePath;
   }
 }

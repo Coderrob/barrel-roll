@@ -1,44 +1,43 @@
-import * as path from 'path';
+import * as path from 'node:path';
+
 import type { Uri } from 'vscode';
 
+import { BarrelExport } from '@/types/barrel/BarrelExport.js';
+
 import {
-  BarrelContentBuilder,
-  BarrelEntry,
+  BARREL_DEFAULT_EXPORT_NAME,
+  BARREL_INDEX_FILENAME,
+  type BarrelEntry,
   BarrelEntryKind,
-  BarrelExport,
   BarrelExportKind,
-} from './barrel-content.builder';
-import { ExportParser, ParsedExport } from './export.parser';
-import { FileSystemService } from './file-system.service';
+  BarrelGenerationMode,
+  type BarrelGenerationOptions,
+  type NormalizedBarrelGenerationOptions,
+  type ParsedExport,
+} from '../../types/index.js';
+import { isEmptyArray } from '../../utils/array.js';
+import { FileSystemService } from '../io/file-system.service.js';
+import { ExportParser } from '../parser/export.parser.js';
+import { BarrelContentBuilder } from './barrel-content.builder.js';
 
-const INDEX_FILE_NAME = 'index.ts';
-const DEFAULT_EXPORT_NAME = 'default';
-
-export type BarrelGenerationMode = 'createOrUpdate' | 'updateExisting';
-
-export interface BarrelGenerationOptions {
-  recursive?: boolean;
-  mode?: BarrelGenerationMode;
-}
-
-type NormalizedGenerationOptions = Required<BarrelGenerationOptions>;
+type NormalizedGenerationOptions = NormalizedBarrelGenerationOptions;
 
 /**
  * Service to generate or update a barrel (index.ts) file in a directory.
  */
 export class BarrelFileGenerator {
-  private fileSystemService: FileSystemService;
-  private exportParser: ExportParser;
-  private barrelContentBuilder: BarrelContentBuilder;
+  private readonly barrelContentBuilder: BarrelContentBuilder;
+  private readonly exportParser: ExportParser;
+  private readonly fileSystemService: FileSystemService;
 
   constructor(
     fileSystemService?: FileSystemService,
     exportParser?: ExportParser,
     barrelContentBuilder?: BarrelContentBuilder,
   ) {
-    this.fileSystemService = fileSystemService || new FileSystemService();
-    this.exportParser = exportParser || new ExportParser();
     this.barrelContentBuilder = barrelContentBuilder || new BarrelContentBuilder();
+    this.exportParser = exportParser || new ExportParser();
+    this.fileSystemService = fileSystemService || new FileSystemService();
   }
 
   /**
@@ -52,11 +51,17 @@ export class BarrelFileGenerator {
     await this.generateBarrelFileFromPath(directoryUri.fsPath, normalizedOptions);
   }
 
+  /**
+   * Generates or updates a barrel file from a given directory path.
+   * @param directoryPath The directory path
+   * @param options Generation options
+   * @returns Promise that resolves when the barrel file has been created/updated.
+   */
   private async generateBarrelFileFromPath(
     directoryPath: string,
     options: NormalizedGenerationOptions,
   ): Promise<void> {
-    const barrelFilePath = path.join(directoryPath, INDEX_FILE_NAME);
+    const barrelFilePath = path.join(directoryPath, BARREL_INDEX_FILENAME);
     const { tsFiles, subdirectories } = await this.readDirectoryInfo(directoryPath);
 
     if (options.recursive) {
@@ -90,11 +95,14 @@ export class BarrelFileGenerator {
     options: NormalizedGenerationOptions,
   ): Promise<void> {
     for (const subdirectoryPath of subdirectories) {
-      if (
-        options.mode === 'updateExisting' &&
-        !(await this.fileSystemService.fileExists(path.join(subdirectoryPath, INDEX_FILE_NAME)))
-      ) {
-        continue;
+      if (options.mode === BarrelGenerationMode.UpdateExisting) {
+        const hasIndex = await this.fileSystemService.fileExists(
+          path.join(subdirectoryPath, BARREL_INDEX_FILENAME),
+        );
+
+        if (!hasIndex) {
+          continue;
+        }
       }
 
       await this.generateBarrelFileFromPath(subdirectoryPath, options);
@@ -123,7 +131,7 @@ export class BarrelFileGenerator {
       const content = await this.fileSystemService.readFile(filePath);
       const parsedExports = this.exportParser.extractExports(content);
       const exports = this.normalizeParsedExports(parsedExports);
-      if (exports.length === 0) {
+      if (isEmptyArray(exports)) {
         continue;
       }
 
@@ -138,7 +146,7 @@ export class BarrelFileGenerator {
     entries: Map<string, BarrelEntry>,
   ): Promise<void> {
     for (const subdirectoryPath of subdirectories) {
-      const barrelPath = path.join(subdirectoryPath, INDEX_FILE_NAME);
+      const barrelPath = path.join(subdirectoryPath, BARREL_INDEX_FILENAME);
       if (!(await this.fileSystemService.fileExists(barrelPath))) {
         continue;
       }
@@ -157,7 +165,7 @@ export class BarrelFileGenerator {
       return true;
     }
 
-    if (options.mode === 'updateExisting') {
+    if (options.mode === BarrelGenerationMode.UpdateExisting) {
       return hasExistingIndex;
     }
 
@@ -171,21 +179,21 @@ export class BarrelFileGenerator {
   private normalizeOptions(options?: BarrelGenerationOptions): NormalizedGenerationOptions {
     return {
       recursive: options?.recursive ?? false,
-      mode: options?.mode ?? 'createOrUpdate',
+      mode: options?.mode ?? BarrelGenerationMode.CreateOrUpdate,
     };
   }
 
   private normalizeParsedExports(exports: ParsedExport[]): BarrelExport[] {
     return exports.map((exp) => {
-      if (exp.name === DEFAULT_EXPORT_NAME) {
-        return { kind: BarrelExportKind.Default } as BarrelExport;
+      if (exp.name === BARREL_DEFAULT_EXPORT_NAME) {
+        return { kind: BarrelExportKind.Default };
       }
 
-      if (exp.typeOnly) {
-        return { kind: BarrelExportKind.Type, name: exp.name } as BarrelExport;
-      }
+      const entry: BarrelExport = exp.typeOnly
+        ? { kind: BarrelExportKind.Type, name: exp.name }
+        : { kind: BarrelExportKind.Value, name: exp.name };
 
-      return { kind: BarrelExportKind.Value, name: exp.name } as BarrelExport;
+      return entry;
     });
   }
 }

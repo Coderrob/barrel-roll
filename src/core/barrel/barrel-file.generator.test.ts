@@ -2,9 +2,8 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { Uri } from 'vscode';
-
-import { BarrelFileGenerator } from '../../../core/services/barrel-file.generator';
-import { FileSystemService } from '../../../core/services/file-system.service';
+import { BarrelGenerationMode } from '../../types';
+import { FileSystemService } from '../io/file-system.service';
 
 describe('BarrelFileGenerator', () => {
   let tmpDir: string;
@@ -80,7 +79,9 @@ describe('BarrelFileGenerator', () => {
 
       await fileSystem.writeFile(path.join(tmpDir, 'index.ts'), "export * from '../outside';");
 
-      await generator.generateBarrelFile(rootUri, { mode: 'updateExisting' });
+      await generator.generateBarrelFile(rootUri, {
+        mode: BarrelGenerationMode.UpdateExisting,
+      });
 
       const rootIndex = await fileSystem.readFile(path.join(tmpDir, 'index.ts'));
 
@@ -93,7 +94,9 @@ describe('BarrelFileGenerator', () => {
       await fileSystem.ensureDirectory(nestedDir);
 
       const nestedUri = { fsPath: nestedDir } as unknown as Uri;
-      await generator.generateBarrelFile(nestedUri, { mode: 'updateExisting' });
+      await generator.generateBarrelFile(nestedUri, {
+        mode: BarrelGenerationMode.UpdateExisting,
+      });
 
       const exists = await fileSystem.fileExists(path.join(nestedDir, 'index.ts'));
 

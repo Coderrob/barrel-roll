@@ -1,6 +1,6 @@
-import { Dirent } from 'fs';
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import { Dirent } from 'node:fs';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 const INDEX_FILE_NAME = 'index.ts';
 const IGNORED_DIRECTORIES = new Set(['node_modules', '.git']);
@@ -37,7 +37,7 @@ export class FileSystemService {
   /**
    * Checks if a directory entry is a TypeScript file (excluding index.ts).
    * @param entry The directory entry
-   * @returns True if it's a TypeScript file
+   * @returns True if it's a TypeScript file; otherwise, false
    */
   private isTypeScriptFile(entry: Dirent): boolean {
     if (!entry.isFile()) {
@@ -54,7 +54,7 @@ export class FileSystemService {
   /**
    * Determines if the entry is a traversable directory.
    * @param entry The directory entry
-   * @returns True if the directory should be traversed
+   * @returns True if the directory should be traversed; otherwise, false
    */
   private isTraversableDirectory(entry: Dirent): boolean {
     return (
@@ -66,6 +66,7 @@ export class FileSystemService {
    * Reads the content of a file.
    * @param filePath The file path to read
    * @returns The file content as a string
+   * @throws Error if the read operation fails
    */
   async readFile(filePath: string): Promise<string> {
     try {
@@ -81,6 +82,7 @@ export class FileSystemService {
    * Writes content to a file.
    * @param filePath The file path to write to
    * @param content The content to write
+   * @throws Error if the write operation fails
    */
   async writeFile(filePath: string, content: string): Promise<void> {
     try {
@@ -95,6 +97,7 @@ export class FileSystemService {
   /**
    * Creates a directory and all intermediate directories if needed.
    * @param directoryPath The directory to create
+   * @throws Error if the directory creation fails
    */
   async ensureDirectory(directoryPath: string): Promise<void> {
     try {
@@ -111,6 +114,7 @@ export class FileSystemService {
   /**
    * Removes a file or directory tree.
    * @param targetPath The path to remove
+   * @throws Error if the removal fails
    */
   async removePath(targetPath: string): Promise<void> {
     try {
@@ -128,6 +132,7 @@ export class FileSystemService {
    * Creates a temporary directory using the provided prefix.
    * @param prefix The prefix for the temporary directory
    * @returns The created directory path
+   * @throws Error if the directory creation fails
    */
   async createTempDirectory(prefix: string): Promise<string> {
     try {
@@ -144,7 +149,8 @@ export class FileSystemService {
   /**
    * Checks whether a file exists.
    * @param filePath The file path to check
-   * @returns True if the file exists
+   * @returns True if the file exists; otherwise, false
+   * @throws Error if an unexpected error occurs
    */
   async fileExists(filePath: string): Promise<boolean> {
     try {
