@@ -19,13 +19,12 @@ module.exports = {
       from: {
         orphan: true,
         pathNot: [
-          '(^|/)\\.[^/]+\\.(js|cjs|mjs|ts|json)$', // dot files
-          '\\.d\\.ts$', // TypeScript declaration files
-          '(^|/)tsconfig\\.json$', // TypeScript config
-          '(^|/)webpack\\.config\\.(js|cjs|mjs)$', // Webpack config
-          '(^|/)jest\\.config\\.(js|cjs|mjs)$', // Jest config
-          '(^|/)rollup\\.config\\.(js|cjs|mjs)$', // Rollup config
-          '(^|/)eslint\\.config\\.(js|cjs|mjs)$', // ESLint config
+          String.raw`(^|/)\\.[^/]+\\.(js|cjs|mjs|ts|json)$`, // dot files
+          String.raw`\\.d\\.ts$`, // TypeScript declaration files
+          String.raw`(^|/)tsconfig\\.json$`, // TypeScript config
+          String.raw`(^|/)webpack\\.config\\.(js|cjs|mjs)$`, // Webpack config
+          String.raw`(^|/)rollup\\.config\\.(js|cjs|mjs)$`, // Rollup config
+          String.raw`(^|/)eslint\.config\.(js|cjs|mjs)$`, // ESLint config
         ],
       },
       to: {},

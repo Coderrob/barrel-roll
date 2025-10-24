@@ -1,29 +1,31 @@
-import * as assert from 'node:assert';
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-suite('BarrelFileGenerator Test Suite', () => {
+import { afterEach, beforeEach, describe, expect, it } from '../../test-utils/testHarness.js';
+
+import { BarrelFileGenerator } from '../../core/barrel/barrel-file.generator.js';
+
+describe('BarrelFileGenerator Test Suite', () => {
   let testDir: string;
 
-  setup(async () => {
-    // Create a temporary test directory
+  beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'barrel-test-'));
   });
 
-  teardown(async () => {
-    // Clean up test directory
+  afterEach(async () => {
     try {
       await fs.rm(testDir, { recursive: true, force: true });
     } catch {
-      // Ignore cleanup errors
+      // Swallow cleanup errors to avoid masking test outcomes.
     }
   });
 
-  test('Should generate barrel file with exports from multiple files', async () => {
-    // Create test TypeScript files
+  it('should generate barrel file with exports from multiple files', async () => {
     await fs.writeFile(
       path.join(testDir, 'file1.ts'),
       'export class MyClass {}\nexport const myConst = 42;',
@@ -38,24 +40,19 @@ suite('BarrelFileGenerator Test Suite', () => {
 
     await generator.generateBarrelFile(uri);
 
-    // Read the generated barrel file
     const barrelPath = path.join(testDir, 'index.ts');
     const content = await fs.readFile(barrelPath, 'utf-8');
 
-    // Verify the barrel file contains expected exports
-    assert.ok(content.includes('export { MyClass } from'));
-    assert.ok(content.includes('myConst'));
-    assert.ok(content.includes('export type { MyInterface }'));
-    assert.ok(content.includes('myFunction'));
-    assert.ok(content.includes("from './file1'"));
-    assert.ok(content.includes("from './file2'"));
+    expect(content).toContain('export { MyClass } from');
+    expect(content).toContain('myConst');
+    expect(content).toContain('export type { MyInterface }');
+    expect(content).toContain('myFunction');
+    expect(content).toContain("from './file1'");
+    expect(content).toContain("from './file2'");
   });
 
-  test('Should update existing barrel file', async () => {
-    // Create test TypeScript file
+  it('should update existing barrel file', async () => {
     await fs.writeFile(path.join(testDir, 'newFile.ts'), 'export class NewClass {}');
-
-    // Create initial barrel file
     await fs.writeFile(path.join(testDir, 'index.ts'), '// Old content');
 
     const generator = new BarrelFileGenerator();
@@ -63,31 +60,23 @@ suite('BarrelFileGenerator Test Suite', () => {
 
     await generator.generateBarrelFile(uri);
 
-    // Read the updated barrel file
     const barrelPath = path.join(testDir, 'index.ts');
     const content = await fs.readFile(barrelPath, 'utf-8');
 
-    // Verify the barrel file was updated
-    assert.ok(content.includes('NewClass'));
-    assert.ok(!content.includes('// Old content'));
+    expect(content).toContain('NewClass');
+    expect(content).not.toContain('// Old content');
   });
 
-  test('Should throw error when no TypeScript files found', async () => {
+  it('should throw error when no TypeScript files found', async () => {
     const generator = new BarrelFileGenerator();
     const uri = vscode.Uri.file(testDir);
 
-    await assert.rejects(
-      async () => {
-        await generator.generateBarrelFile(uri);
-      },
-      {
-        message: 'No TypeScript files found in the selected directory',
-      },
+    await expect(generator.generateBarrelFile(uri)).rejects.toThrow(
+      'No TypeScript files found in the selected directory',
     );
   });
 
-  test('Should ignore index.ts when scanning files', async () => {
-    // Create test TypeScript files including an index.ts
+  it('should ignore index.ts when scanning files', async () => {
     await fs.writeFile(path.join(testDir, 'file1.ts'), 'export class MyClass {}');
     await fs.writeFile(path.join(testDir, 'index.ts'), 'export class IndexClass {}');
 
@@ -96,12 +85,10 @@ suite('BarrelFileGenerator Test Suite', () => {
 
     await generator.generateBarrelFile(uri);
 
-    // Read the generated barrel file
     const barrelPath = path.join(testDir, 'index.ts');
     const content = await fs.readFile(barrelPath, 'utf-8');
 
-    // Verify the barrel file contains exports from file1 but not the old index.ts content
-    assert.ok(content.includes('export { MyClass } from'));
-    assert.ok(!content.includes('IndexClass'));
+    expect(content).toContain('export { MyClass } from');
+    expect(content).not.toContain('IndexClass');
   });
 });

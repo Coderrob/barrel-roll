@@ -1,4 +1,4 @@
-import { BARREL_DEFAULT_EXPORT_NAME, type ParsedExport } from '../../types/index.js';
+import { DEFAULT_EXPORT_NAME, type ParsedExport } from '../../types/index.js';
 import { splitAndClean } from '../../utils/string.js';
 
 /**
@@ -28,7 +28,7 @@ export class ExportParser {
 
     const result = Array.from(exportMap.values());
     if (hasDefaultExport) {
-      result.push({ name: BARREL_DEFAULT_EXPORT_NAME, typeOnly: false });
+      result.push({ name: DEFAULT_EXPORT_NAME, typeOnly: false });
     }
 
     return result;
@@ -69,7 +69,7 @@ export class ExportParser {
       const entries = this.parseExportListEntries(match[2], Boolean(match[1]));
 
       for (const { name, typeOnly } of entries) {
-        if (name.toLowerCase() === BARREL_DEFAULT_EXPORT_NAME) {
+        if (name.toLowerCase() === DEFAULT_EXPORT_NAME) {
           hasDefault = true;
           continue;
         }

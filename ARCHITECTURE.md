@@ -8,19 +8,23 @@ Barrel Roll follows SOLID principles with clean separation of concerns. The exte
 
 ## Project Structure
 
-```
+```text
 barrel-roll/
 ├── src/
 │   ├── extension.ts                      # Extension entry point
 │   ├── index.ts                          # Public API exports
 │   ├── core/                             # Core barrel generation functionality
 │   │   ├── index.ts                      # Core exports
-│   │   └── services/                     # Service layer
-│   │       ├── index.ts                  # Service exports
-│   │       ├── barrel-file.generator.ts  # Main orchestrator
-│   │       ├── barrel-content.builder.ts # Content generation
-│   │       ├── export.parser.ts          # Export extraction logic
-│   │       └── file-system.service.ts    # File I/O operations
+│   │   └── barrel/                       # Barrel-generation modules
+│   │       ├── index.ts                  # Barrel exports
+│   │       ├── builder/
+│   │       │   └── content.builder.ts    # Content generation
+│   │       ├── generator/
+│   │       │   └── file.generator.ts     # Main orchestrator
+│   │       ├── io/
+│   │       │   └── file-system.service.ts # File I/O operations
+│   │       └── parser/
+│   │           └── export.parser.ts      # Export extraction logic
 │   ├── logging/                          # Logging infrastructure
 │   │   ├── index.ts
 │   │   ├── config.ts
@@ -84,7 +88,7 @@ barrel-roll/
 
 **Code Stats**: ~25 lines
 
-### 2. Barrel File Generator (`src/core/services/barrel-file.generator.ts`)
+### 2. Barrel File Generator (`src/core/barrel/generator/file.generator.ts`)
 
 **Responsibility**: Orchestrate the barrel file generation process
 
@@ -94,15 +98,15 @@ barrel-roll/
 - Implements dependency injection for testability
 - Handles the main workflow:
   1. Get TypeScript files from directory
-  2. Parse exports from each file
-  3. Build barrel file content
-  4. Write the barrel file
+  1. Parse exports from each file
+  1. Build barrel file content
+  1. Write the barrel file
 
 **Code Stats**: ~60 lines
 
 ### 3. Service Layer
 
-#### FileSystemService (`src/core/services/file-system.service.ts`)
+#### FileSystemService (`src/core/barrel/io/file-system.service.ts`)
 
 **Responsibility**: File system operations
 
@@ -118,7 +122,7 @@ barrel-roll/
 
 **Code Stats**: ~60 lines
 
-#### ExportParser (`src/core/services/export.parser.ts`)
+#### ExportParser (`src/core/barrel/parser/export.parser.ts`)
 
 **Responsibility**: Extract TypeScript exports from source code
 
@@ -140,7 +144,7 @@ barrel-roll/
 
 **Code Stats**: ~70 lines
 
-#### BarrelContentBuilder (`src/core/services/barrel-content.builder.ts`)
+#### BarrelContentBuilder (`src/core/barrel/builder/content.builder.ts`)
 
 **Responsibility**: Generate barrel file content from parsed exports
 

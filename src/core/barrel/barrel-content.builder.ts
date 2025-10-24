@@ -1,7 +1,7 @@
 import {
-  BARREL_DEFAULT_EXPORT_NAME,
-  BARREL_EXPORT_LINE_SEPARATOR,
-  BARREL_PARENT_DIRECTORY_SEGMENT,
+  DEFAULT_EXPORT_NAME,
+  NEWLINE,
+  PARENT_DIRECTORY_SEGMENT,
   BarrelEntry,
   BarrelEntryKind,
   BarrelExport,
@@ -35,7 +35,7 @@ export class BarrelContentBuilder {
     }
 
     // Add newline at end of file
-    return lines.join(BARREL_EXPORT_LINE_SEPARATOR) + BARREL_EXPORT_LINE_SEPARATOR;
+    return lines.join(NEWLINE) + NEWLINE;
   }
 
   /**
@@ -61,7 +61,7 @@ export class BarrelContentBuilder {
   }
 
   private toLegacyExport(name: string): BarrelExport {
-    if (name === BARREL_DEFAULT_EXPORT_NAME) {
+    if (name === DEFAULT_EXPORT_NAME) {
       return { kind: BarrelExportKind.Default };
     }
 
@@ -89,7 +89,7 @@ export class BarrelContentBuilder {
    */
   private buildDirectoryExportLines(relativePath: string): string[] {
     const modulePath = this.getModulePath(relativePath);
-    if (modulePath.startsWith(BARREL_PARENT_DIRECTORY_SEGMENT)) {
+    if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
     return [`export * from './${modulePath}';`];
@@ -103,9 +103,7 @@ export class BarrelContentBuilder {
    */
   private buildFileExportLines(filePath: string, exports: BarrelExport[]): string[] {
     const cleanedExports = exports.filter((exp) =>
-      exp.kind === BarrelExportKind.Default
-        ? true
-        : !exp.name.includes(BARREL_PARENT_DIRECTORY_SEGMENT),
+      exp.kind === BarrelExportKind.Default ? true : !exp.name.includes(PARENT_DIRECTORY_SEGMENT),
     );
 
     if (cleanedExports.length === 0) {
@@ -116,7 +114,7 @@ export class BarrelContentBuilder {
     const modulePath = this.getModulePath(filePath);
 
     // Skip if this references a parent folder
-    if (modulePath.startsWith(BARREL_PARENT_DIRECTORY_SEGMENT)) {
+    if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
 

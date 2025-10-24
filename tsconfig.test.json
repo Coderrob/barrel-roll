@@ -7,8 +7,8 @@
     "moduleResolution": "NodeNext",
     "noEmit": true,
     "sourceMap": true,
-    "types": ["jest", "node"]
+    "types": ["node"]
   },
-  "include": ["src/**/*.ts", "__tests__/**/*", "__mocks__/**/*", "jest.config.cjs"],
+  "include": ["src/**/*.ts", "__tests__/**/*", "__mocks__/**/*"],
   "exclude": ["out", "node_modules", ".vscode-test"]
 }

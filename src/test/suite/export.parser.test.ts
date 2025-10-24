@@ -1,99 +1,121 @@
-import * as assert from 'assert';
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
+import { beforeEach, describe, expect, it } from '../../test-utils/testHarness.js';
 
 import { ExportParser } from '../../core/parser/export.parser.js';
 
-suite('ExportParser Test Suite', () => {
+describe('ExportParser Test Suite', () => {
   let parser: ExportParser;
 
-  setup(() => {
+  beforeEach(() => {
     parser = new ExportParser();
   });
 
-  test('Should extract class exports', () => {
+  it('should extract class exports', () => {
     const content = 'export class MyClass {}';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'MyClass', typeOnly: false }]);
+
+    expect(exports).toEqual([{ name: 'MyClass', typeOnly: false }]);
   });
 
-  test('Should extract interface exports', () => {
+  it('should extract interface exports', () => {
     const content = 'export interface MyInterface {}';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'MyInterface', typeOnly: true }]);
+
+    expect(exports).toEqual([{ name: 'MyInterface', typeOnly: true }]);
   });
 
-  test('Should extract type exports', () => {
+  it('should extract type exports', () => {
     const content = 'export type MyType = string;';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'MyType', typeOnly: true }]);
+
+    expect(exports).toEqual([{ name: 'MyType', typeOnly: true }]);
   });
 
-  test('Should extract function exports', () => {
+  it('should extract function exports', () => {
     const content = 'export function myFunction() {}';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'myFunction', typeOnly: false }]);
+
+    expect(exports).toEqual([{ name: 'myFunction', typeOnly: false }]);
   });
 
-  test('Should extract const exports', () => {
+  it('should extract const exports', () => {
     const content = 'export const myConst = 42;';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'myConst', typeOnly: false }]);
+
+    expect(exports).toEqual([{ name: 'myConst', typeOnly: false }]);
   });
 
-  test('Should extract enum exports', () => {
+  it('should extract enum exports', () => {
     const content = 'export enum MyEnum { A, B }';
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'MyEnum', typeOnly: false }]);
+
+    expect(exports).toEqual([{ name: 'MyEnum', typeOnly: false }]);
   });
 
-  test('Should extract default exports', () => {
+  it('should extract default exports', () => {
     const content = 'export default class MyClass {}';
     const exports = parser.extractExports(content);
-    assert.ok(exports.some((entry) => entry.name === 'default'));
+
+    expect(exports).toEqual(expect.arrayContaining([{ name: 'default', typeOnly: false }]));
   });
 
-  test('Should extract multiple exports', () => {
+  it('should extract multiple exports', () => {
     const content = `
       export class MyClass {}
       export interface MyInterface {}
       export const myConst = 42;
     `;
     const exports = parser.extractExports(content);
-    assert.strictEqual(exports.length, 3);
-    assert.ok(exports.some((entry) => entry.name === 'MyClass' && entry.typeOnly === false));
-    assert.ok(exports.some((entry) => entry.name === 'MyInterface' && entry.typeOnly === true));
-    assert.ok(exports.some((entry) => entry.name === 'myConst' && entry.typeOnly === false));
+
+    expect(exports).toHaveLength(3);
+    expect(exports).toEqual(
+      expect.arrayContaining([
+        { name: 'MyClass', typeOnly: false },
+        { name: 'MyInterface', typeOnly: true },
+        { name: 'myConst', typeOnly: false },
+      ]),
+    );
   });
 
-  test('Should extract export lists', () => {
+  it('should extract export lists', () => {
     const content = 'export { MyClass, MyInterface };';
     const exports = parser.extractExports(content);
-    assert.ok(exports.some((entry) => entry.name === 'MyClass'));
-    assert.ok(exports.some((entry) => entry.name === 'MyInterface'));
+
+    expect(exports).toEqual(
+      expect.arrayContaining([
+        { name: 'MyClass', typeOnly: false },
+        { name: 'MyInterface', typeOnly: false },
+      ]),
+    );
   });
 
-  test('Should handle export with as keyword', () => {
+  it('should handle export with as keyword', () => {
     const content = 'export { MyClass as RenamedClass };';
     const exports = parser.extractExports(content);
-    assert.ok(exports.some((entry) => entry.name === 'RenamedClass'));
+
+    expect(exports).toEqual(expect.arrayContaining([{ name: 'RenamedClass', typeOnly: false }]));
   });
 
-  test('Should ignore comments', () => {
+  it('should ignore comments', () => {
     const content = `
       // export class CommentedClass {}
       /* export const commentedConst = 42; */
       export class RealClass {}
     `;
     const exports = parser.extractExports(content);
-    assert.deepStrictEqual(exports, [{ name: 'RealClass', typeOnly: false }]);
+
+    expect(exports).toEqual([{ name: 'RealClass', typeOnly: false }]);
   });
 
-  test('Should remove duplicates', () => {
+  it('should remove duplicates', () => {
     const content = `
       export const myConst = 42;
       export { myConst };
     `;
     const exports = parser.extractExports(content);
-    assert.strictEqual(exports.length, 1);
-    assert.deepStrictEqual(exports, [{ name: 'myConst', typeOnly: false }]);
+
+    expect(exports).toHaveLength(1);
+    expect(exports).toEqual([{ name: 'myConst', typeOnly: false }]);
   });
 });

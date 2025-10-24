@@ -8,7 +8,6 @@ import js from '@eslint/js';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import _import from 'eslint-plugin-import';
-import jest from 'eslint-plugin-jest';
 import prettier from 'eslint-plugin-prettier';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import sonarjs from 'eslint-plugin-sonarjs';
@@ -148,13 +147,6 @@ export default [
       jest,
     },
     rules: {
-      // Jest recommended rules
-      ...jest.configs.recommended.rules,
-      'jest/expect-expect': 'error',
-      'jest/no-disabled-tests': 'warn',
-      'jest/no-focused-tests': 'error',
-      'jest/prefer-to-have-length': 'warn',
-
       // Relax some rules for test files
       'sonarjs/no-duplicate-string': 'off',
       '@typescript-eslint/unbound-method': 'off',

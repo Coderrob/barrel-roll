@@ -1,12 +1,9 @@
-import { Dirent } from 'fs';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
-import { beforeEach, describe, expect, it } from '@jest/globals';
+import { Dirent } from 'node:fs';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 import { FileSystemService } from './file-system.service.js';
-
-jest.mock('fs/promises');
+import { INDEX_FILENAME } from '../../types/index.js';
 
 describe('FileSystemService', () => {
   let service: FileSystemService;
@@ -40,7 +37,7 @@ describe('FileSystemService', () => {
     it('should return TypeScript files excluding index.ts and definition files', async () => {
       const mockEntries: Dirent[] = [
         createFileEntry('file.ts'),
-        createFileEntry('index.ts'),
+        createFileEntry(INDEX_FILENAME),
         createFileEntry('types.d.ts'),
         createFileEntry('component.tsx'),
         createDirectoryEntry('nested'),
@@ -59,7 +56,7 @@ describe('FileSystemService', () => {
     const typeScriptEntryCases: Array<{ entry: Dirent; shouldInclude: boolean }> = [
       { entry: createFileEntry('alpha.ts'), shouldInclude: true },
       { entry: createFileEntry('component.tsx'), shouldInclude: true },
-      { entry: createFileEntry('index.ts'), shouldInclude: false },
+      { entry: createFileEntry(INDEX_FILENAME), shouldInclude: false },
       { entry: createFileEntry('types.d.ts'), shouldInclude: false },
       { entry: createFileEntry('main.js'), shouldInclude: false },
       { entry: createDirectoryEntry('nested'), shouldInclude: false },

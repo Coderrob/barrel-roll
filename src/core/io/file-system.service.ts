@@ -2,7 +2,8 @@ import { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-const INDEX_FILE_NAME = 'index.ts';
+import { INDEX_FILENAME } from '../../types/index.js';
+
 const IGNORED_DIRECTORIES = new Set(['node_modules', '.git']);
 
 /**
@@ -44,7 +45,7 @@ export class FileSystemService {
       return false;
     }
 
-    const isIndexFile = entry.name === INDEX_FILE_NAME;
+    const isIndexFile = entry.name === INDEX_FILENAME;
     const isDefinitionFile = entry.name.endsWith('.d.ts');
     const isTsFile = entry.name.endsWith('.ts') || entry.name.endsWith('.tsx');
 

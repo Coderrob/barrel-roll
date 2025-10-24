@@ -5,8 +5,8 @@ import type { Uri } from 'vscode';
 import { BarrelExport } from '@/types/barrel/BarrelExport.js';
 
 import {
-  BARREL_DEFAULT_EXPORT_NAME,
-  BARREL_INDEX_FILENAME,
+  DEFAULT_EXPORT_NAME,
+  INDEX_FILENAME,
   type BarrelEntry,
   BarrelEntryKind,
   BarrelExportKind,
@@ -61,7 +61,7 @@ export class BarrelFileGenerator {
     directoryPath: string,
     options: NormalizedGenerationOptions,
   ): Promise<void> {
-    const barrelFilePath = path.join(directoryPath, BARREL_INDEX_FILENAME);
+    const barrelFilePath = path.join(directoryPath, INDEX_FILENAME);
     const { tsFiles, subdirectories } = await this.readDirectoryInfo(directoryPath);
 
     if (options.recursive) {
@@ -97,7 +97,7 @@ export class BarrelFileGenerator {
     for (const subdirectoryPath of subdirectories) {
       if (options.mode === BarrelGenerationMode.UpdateExisting) {
         const hasIndex = await this.fileSystemService.fileExists(
-          path.join(subdirectoryPath, BARREL_INDEX_FILENAME),
+          path.join(subdirectoryPath, INDEX_FILENAME),
         );
 
         if (!hasIndex) {
@@ -146,7 +146,7 @@ export class BarrelFileGenerator {
     entries: Map<string, BarrelEntry>,
   ): Promise<void> {
     for (const subdirectoryPath of subdirectories) {
-      const barrelPath = path.join(subdirectoryPath, BARREL_INDEX_FILENAME);
+      const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
       if (!(await this.fileSystemService.fileExists(barrelPath))) {
         continue;
       }
@@ -185,7 +185,7 @@ export class BarrelFileGenerator {
 
   private normalizeParsedExports(exports: ParsedExport[]): BarrelExport[] {
     return exports.map((exp) => {
-      if (exp.name === BARREL_DEFAULT_EXPORT_NAME) {
+      if (exp.name === DEFAULT_EXPORT_NAME) {
         return { kind: BarrelExportKind.Default };
       }
 

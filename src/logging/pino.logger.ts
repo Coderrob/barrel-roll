@@ -18,15 +18,17 @@
 import pino from 'pino';
 import type { OutputChannel } from 'vscode';
 
+import { isObject, isString } from '../utils/guards.js';
+
 type LogMetadata = Record<string, unknown>;
 
 /**
  * Minimal structured logger used by the extension. Falls back to a no-op implementation if pino
- * fails to initialise in the host environment.
+ * fails to initialize in the host environment.
  */
 export class PinoLogger {
   private logger: pino.Logger;
-  private isAvailable = true;
+  private readonly isAvailable: boolean = true;
 
   private static sharedOutputChannel?: OutputChannel;
 
@@ -112,7 +114,7 @@ export class PinoLogger {
    * @param message - The failure message.
    * @param metadata - Optional metadata to include with the failure.
    */
-  setFailed(message: string, metadata?: LogMetadata): void {
+  fatal(message: string, metadata?: LogMetadata): void {
     this.logger.fatal(metadata || {}, `Action failed: ${message}`);
     this.appendToOutputChannel('FATAL', `Action failed: ${message}`, metadata);
   }
@@ -180,14 +182,14 @@ export class PinoLogger {
     if (error instanceof Error) {
       return error.stack || error.message;
     }
-    if (typeof error === 'object' && error !== null) {
+    if (isObject(error) && error !== null) {
       return this.safeStringify(error);
     }
     return String(error);
   }
 
   private safeStringify(value: unknown): string {
-    if (typeof value === 'string') {
+    if (isString(value)) {
       return value;
     }
     try {

@@ -1,5 +1,9 @@
-import { BarrelContentBuilder } from './barrel-content.builder';
-import { BarrelEntry, BarrelEntryKind, BarrelExportKind } from '../../types';
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
+import { beforeEach, describe, expect, it } from '../../test-utils/testHarness.js';
+
+import { BarrelContentBuilder } from './barrel-content.builder.js';
+import { BarrelEntry, BarrelEntryKind, BarrelExportKind } from '../../types/index.js';
 
 describe('BarrelContentBuilder', () => {
   let builder: BarrelContentBuilder;
@@ -67,11 +71,13 @@ describe('BarrelContentBuilder', () => {
       },
     ];
 
-    it.each(buildContentCases)('should build expected output %#', ({ entries, expected }) => {
-      const result = builder.buildContent(entries, '');
+    for (const [index, { entries, expected }] of buildContentCases.entries()) {
+      it(`should build expected output ${index}`, () => {
+        const result = builder.buildContent(entries, '');
 
-      expect(result.trim()).toBe(expected);
-    });
+        expect(result.trim()).toBe(expected);
+      });
+    }
 
     it('should build output for legacy entry arrays', () => {
       const entries = new Map<string, string[]>([['delta.ts', ['Delta', 'default']]]);
@@ -96,10 +102,12 @@ describe('BarrelContentBuilder', () => {
       ]),
     ];
 
-    it.each(parentDirectoryCases)('should ignore parent-directory entries %#', (entries) => {
-      const result = builder.buildContent(entries, '');
+    for (const [index, entries] of parentDirectoryCases.entries()) {
+      it(`should ignore parent-directory entries ${index}`, () => {
+        const result = builder.buildContent(entries, '');
 
-      expect(result).toBe('\n');
-    });
+        expect(result).toBe('\n');
+      });
+    }
   });
 });

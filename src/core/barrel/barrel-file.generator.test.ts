@@ -1,9 +1,10 @@
-import * as os from 'os';
-import * as path from 'path';
+import * as os from 'node:os';
+import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
-import { BarrelGenerationMode } from '../../types';
+import { BarrelGenerationMode, INDEX_FILENAME } from '../../types';
 import { FileSystemService } from '../io/file-system.service';
+import { BarrelFileGenerator } from './barrel-file.generator';
 
 describe('BarrelFileGenerator', () => {
   let tmpDir: string;
@@ -48,9 +49,9 @@ describe('BarrelFileGenerator', () => {
       const rootUri = { fsPath: tmpDir } as unknown as Uri;
       await generator.generateBarrelFile(rootUri, { recursive: true });
 
-      const rootIndex = await fileSystem.readFile(path.join(tmpDir, 'index.ts'));
-      const nestedIndex = await fileSystem.readFile(path.join(nestedDir, 'index.ts'));
-      const deeperIndex = await fileSystem.readFile(path.join(deeperDir, 'index.ts'));
+      const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+      const nestedIndex = await fileSystem.readFile(path.join(nestedDir, INDEX_FILENAME));
+      const deeperIndex = await fileSystem.readFile(path.join(deeperDir, INDEX_FILENAME));
 
       expect(rootIndex).toBe(
         ["export { alpha } from './alpha';", "export * from './nested';", ''].join('\n'),
@@ -77,13 +78,13 @@ describe('BarrelFileGenerator', () => {
       const generator = new BarrelFileGenerator();
       const rootUri = { fsPath: tmpDir } as unknown as Uri;
 
-      await fileSystem.writeFile(path.join(tmpDir, 'index.ts'), "export * from '../outside';");
+      await fileSystem.writeFile(path.join(tmpDir, INDEX_FILENAME), "export * from '../outside';");
 
       await generator.generateBarrelFile(rootUri, {
         mode: BarrelGenerationMode.UpdateExisting,
       });
 
-      const rootIndex = await fileSystem.readFile(path.join(tmpDir, 'index.ts'));
+      const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
 
       expect(rootIndex).toBe('\n');
     });
@@ -98,7 +99,7 @@ describe('BarrelFileGenerator', () => {
         mode: BarrelGenerationMode.UpdateExisting,
       });
 
-      const exists = await fileSystem.fileExists(path.join(nestedDir, 'index.ts'));
+      const exists = await fileSystem.fileExists(path.join(nestedDir, INDEX_FILENAME));
 
       expect(exists).toBe(false);
     });

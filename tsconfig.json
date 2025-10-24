@@ -26,15 +26,6 @@
     "target": "ES2022",
     "useUnknownInCatchVariables": true
   },
-  "exclude": [
-    ".vscode-test",
-    "tests",
-    "__mocks__/**/*",
-    "node_modules",
-    "out",
-    "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/**/__tests__/**/*"
-  ],
-  "include": ["src/**/*"]
+  "exclude": [".vscode-test", "tests", "test-utils", "node_modules", "out", "src/**/*.test.ts"],
+  "include": ["src/**/*.ts"]
 }
