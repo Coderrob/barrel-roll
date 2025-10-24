@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
+import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
-import { afterEach, beforeEach, describe, expect, it } from '../../test-utils/testHarness.js';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 
 import { BarrelFileGenerator } from '../../core/barrel/barrel-file.generator.js';
 
@@ -43,12 +44,12 @@ describe('BarrelFileGenerator Test Suite', () => {
     const barrelPath = path.join(testDir, 'index.ts');
     const content = await fs.readFile(barrelPath, 'utf-8');
 
-    expect(content).toContain('export { MyClass } from');
-    expect(content).toContain('myConst');
-    expect(content).toContain('export type { MyInterface }');
-    expect(content).toContain('myFunction');
-    expect(content).toContain("from './file1'");
-    expect(content).toContain("from './file2'");
+    assert.ok(content.includes('export { MyClass } from'));
+    assert.ok(content.includes('myConst'));
+    assert.ok(content.includes('export type { MyInterface }'));
+    assert.ok(content.includes('myFunction'));
+    assert.ok(content.includes("from './file1'"));
+    assert.ok(content.includes("from './file2'"));
   });
 
   it('should update existing barrel file', async () => {
@@ -63,16 +64,17 @@ describe('BarrelFileGenerator Test Suite', () => {
     const barrelPath = path.join(testDir, 'index.ts');
     const content = await fs.readFile(barrelPath, 'utf-8');
 
-    expect(content).toContain('NewClass');
-    expect(content).not.toContain('// Old content');
+    assert.ok(content.includes('NewClass'));
+    assert.ok(!content.includes('// Old content'));
   });
 
   it('should throw error when no TypeScript files found', async () => {
     const generator = new BarrelFileGenerator();
     const uri = vscode.Uri.file(testDir);
 
-    await expect(generator.generateBarrelFile(uri)).rejects.toThrow(
-      'No TypeScript files found in the selected directory',
+    await assert.rejects(
+      generator.generateBarrelFile(uri),
+      /No TypeScript files found in the selected directory/,
     );
   });
 
@@ -88,7 +90,7 @@ describe('BarrelFileGenerator Test Suite', () => {
     const barrelPath = path.join(testDir, 'index.ts');
     const content = await fs.readFile(barrelPath, 'utf-8');
 
-    expect(content).toContain('export { MyClass } from');
-    expect(content).not.toContain('IndexClass');
+    assert.ok(content.includes('export { MyClass } from'));
+    assert.ok(!content.includes('IndexClass'));
   });
 });

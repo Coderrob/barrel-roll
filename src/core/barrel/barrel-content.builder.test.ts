@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
-import { beforeEach, describe, expect, it } from '../../test-utils/testHarness.js';
+import assert from 'node:assert/strict';
+import { beforeEach, describe, it } from 'node:test';
 
 import { BarrelContentBuilder } from './barrel-content.builder.js';
 import { BarrelEntry, BarrelEntryKind, BarrelExportKind } from '../../types/index.js';
@@ -32,7 +33,8 @@ describe('BarrelContentBuilder', () => {
 
       const source = builder.buildContent(entries, '');
 
-      expect(source).toBe(
+      assert.strictEqual(
+        source,
         [
           "export { Alpha } from './alpha';",
           "export type { Bravo } from './beta';",
@@ -75,7 +77,7 @@ describe('BarrelContentBuilder', () => {
       it(`should build expected output ${index}`, () => {
         const result = builder.buildContent(entries, '');
 
-        expect(result.trim()).toBe(expected);
+        assert.strictEqual(result.trim(), expected);
       });
     }
 
@@ -84,7 +86,8 @@ describe('BarrelContentBuilder', () => {
 
       const result = builder.buildContent(entries, '');
 
-      expect(result.trim()).toBe(
+      assert.strictEqual(
+        result.trim(),
         "export { Delta } from './delta';\nexport { default } from './delta';",
       );
     });
@@ -106,7 +109,7 @@ describe('BarrelContentBuilder', () => {
       it(`should ignore parent-directory entries ${index}`, () => {
         const result = builder.buildContent(entries, '');
 
-        expect(result).toBe('\n');
+        assert.strictEqual(result, '\n');
       });
     }
   });

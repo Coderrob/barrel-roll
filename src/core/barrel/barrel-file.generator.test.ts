@@ -1,10 +1,16 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
+import assert from 'node:assert/strict';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
-import { BarrelGenerationMode, INDEX_FILENAME } from '../../types';
-import { FileSystemService } from '../io/file-system.service';
-import { BarrelFileGenerator } from './barrel-file.generator';
+
+import { afterEach, beforeEach, describe, it } from 'node:test';
+
+import { BarrelGenerationMode, INDEX_FILENAME } from '../../types/index.js';
+import { FileSystemService } from '../io/file-system.service.js';
+import { BarrelFileGenerator } from './barrel-file.generator.js';
 
 describe('BarrelFileGenerator', () => {
   let tmpDir: string;
@@ -53,11 +59,13 @@ describe('BarrelFileGenerator', () => {
       const nestedIndex = await fileSystem.readFile(path.join(nestedDir, INDEX_FILENAME));
       const deeperIndex = await fileSystem.readFile(path.join(deeperDir, INDEX_FILENAME));
 
-      expect(rootIndex).toBe(
+      assert.strictEqual(
+        rootIndex,
         ["export { alpha } from './alpha';", "export * from './nested';", ''].join('\n'),
       );
 
-      expect(nestedIndex).toBe(
+      assert.strictEqual(
+        nestedIndex,
         [
           "export type { Bravo } from './bravo';",
           "export { default } from './bravo';",
@@ -71,7 +79,7 @@ describe('BarrelFileGenerator', () => {
         '',
       ].join('\n');
 
-      expect(deeperIndex).toBe(expectedDeeperIndex);
+      assert.strictEqual(deeperIndex, expectedDeeperIndex);
     });
 
     it('should sanitize existing barrels when updating', async () => {
@@ -86,7 +94,7 @@ describe('BarrelFileGenerator', () => {
 
       const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
 
-      expect(rootIndex).toBe('\n');
+      assert.strictEqual(rootIndex, '\n');
     });
 
     it('should skip creating barrels when updating non-existent ones', async () => {
@@ -101,15 +109,16 @@ describe('BarrelFileGenerator', () => {
 
       const exists = await fileSystem.fileExists(path.join(nestedDir, INDEX_FILENAME));
 
-      expect(exists).toBe(false);
+      assert.strictEqual(exists, false);
     });
 
     it('should throw when no TypeScript files are present and recursion is disabled', async () => {
       const generator = new BarrelFileGenerator();
       const emptyDirUri = { fsPath: tmpDir } as unknown as Uri;
 
-      await expect(generator.generateBarrelFile(emptyDirUri)).rejects.toThrow(
-        'No TypeScript files found in the selected directory',
+      await assert.rejects(
+        generator.generateBarrelFile(emptyDirUri),
+        /No TypeScript files found in the selected directory/,
       );
     });
   });

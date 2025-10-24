@@ -1,58 +1,62 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
-import { describe, expect, it } from '../test-utils/testHarness.js';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 
 import { splitAndClean, sortAlphabetically } from './string.js';
 
 describe('splitAndClean', () => {
   it('should split by default comma delimiter, trim, and remove empty fragments', () => {
-    expect(splitAndClean('a, b , c')).toEqual(['a', 'b', 'c']);
-    expect(splitAndClean('a,,b, ,c')).toEqual(['a', 'b', 'c']);
+    assert.deepStrictEqual(splitAndClean('a, b , c'), ['a', 'b', 'c']);
+    assert.deepStrictEqual(splitAndClean('a,,b, ,c'), ['a', 'b', 'c']);
   });
 
   it('should split by custom string delimiter', () => {
-    expect(splitAndClean('a;b;c', ';')).toEqual(['a', 'b', 'c']);
+    assert.deepStrictEqual(splitAndClean('a;b;c', ';'), ['a', 'b', 'c']);
   });
 
   it('should split by RegExp delimiter', () => {
-    expect(splitAndClean('a1b2c', /\d/)).toEqual(['a', 'b', 'c']);
+    assert.deepStrictEqual(splitAndClean('a1b2c', /\d/), ['a', 'b', 'c']);
   });
 
   it('should handle empty string', () => {
-    expect(splitAndClean('')).toEqual([]);
+    assert.deepStrictEqual(splitAndClean(''), []);
   });
 
   it('should handle string with only delimiters and spaces', () => {
-    expect(splitAndClean(', , ,')).toEqual([]);
+    assert.deepStrictEqual(splitAndClean(', , ,'), []);
   });
 
   it('should handle no splits needed', () => {
-    expect(splitAndClean('abc')).toEqual(['abc']);
+    assert.deepStrictEqual(splitAndClean('abc'), ['abc']);
   });
 });
 
 describe('sortAlphabetically', () => {
   it('should sort strings alphabetically', () => {
-    expect(sortAlphabetically(['c', 'a', 'b'])).toEqual(['a', 'b', 'c']);
+    assert.deepStrictEqual(sortAlphabetically(['c', 'a', 'b']), ['a', 'b', 'c']);
   });
 
   it('should handle empty array', () => {
-    expect(sortAlphabetically([])).toEqual([]);
+    assert.deepStrictEqual(sortAlphabetically([]), []);
   });
 
   it('should handle single item', () => {
-    expect(sortAlphabetically(['a'])).toEqual(['a']);
+    assert.deepStrictEqual(sortAlphabetically(['a']), ['a']);
   });
 
   it('should sort with locale', () => {
-    expect(sortAlphabetically(['ä', 'a'], 'de')).toEqual(['a', 'ä']);
+    assert.deepStrictEqual(sortAlphabetically(['ä', 'a'], 'de'), ['a', 'ä']);
   });
 
   it('should sort with options', () => {
-    expect(sortAlphabetically(['A', 'a'], undefined, { sensitivity: 'base' })).toEqual(['A', 'a']);
+    assert.deepStrictEqual(sortAlphabetically(['A', 'a'], undefined, { sensitivity: 'base' }), [
+      'A',
+      'a',
+    ]);
   });
 
   it('should handle iterable input', () => {
-    expect(sortAlphabetically(new Set(['c', 'a', 'b']))).toEqual(['a', 'b', 'c']);
+    assert.deepStrictEqual(sortAlphabetically(new Set(['c', 'a', 'b'])), ['a', 'b', 'c']);
   });
 });

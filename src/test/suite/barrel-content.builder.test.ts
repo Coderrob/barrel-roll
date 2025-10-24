@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
 
-import { beforeEach, describe, expect, it } from '../../test-utils/testHarness.js';
+import assert from 'node:assert/strict';
+import { beforeEach, describe, it } from 'node:test';
 
 import { BarrelContentBuilder } from '../../core/barrel/barrel-content.builder.js';
 import { BarrelEntryKind, BarrelExportKind, type BarrelEntry } from '../../types/index.js';
@@ -16,14 +17,14 @@ describe('BarrelContentBuilder Test Suite', () => {
     const exportsByFile = new Map([['myFile.ts', ['MyClass']]]);
     const content = builder.buildContent(exportsByFile, '/some/path');
 
-    expect(content).toBe("export { MyClass } from './myFile';\n");
+    assert.strictEqual(content, "export { MyClass } from './myFile';\n");
   });
 
   it('should build content for single file with multiple exports', () => {
     const exportsByFile = new Map([['myFile.ts', ['MyClass', 'MyInterface', 'myConst']]]);
     const content = builder.buildContent(exportsByFile, '/some/path');
 
-    expect(content).toBe("export { MyClass, MyInterface, myConst } from './myFile';\n");
+    assert.strictEqual(content, "export { MyClass, MyInterface, myConst } from './myFile';\n");
   });
 
   it('should build content for multiple files', () => {
@@ -34,16 +35,16 @@ describe('BarrelContentBuilder Test Suite', () => {
     const content = builder.buildContent(exportsByFile, '/some/path');
     const lines = content.split('\n').filter(Boolean);
 
-    expect(lines).toHaveLength(2);
-    expect(content).toContain("export { ClassA } from './fileA';");
-    expect(content).toContain("export { ClassB } from './fileB';");
+    assert.strictEqual(lines.length, 2);
+    assert.ok(content.includes("export { ClassA } from './fileA';"));
+    assert.ok(content.includes("export { ClassB } from './fileB';"));
   });
 
   it('should handle default exports', () => {
     const exportsByFile = new Map([['myFile.ts', ['default']]]);
     const content = builder.buildContent(exportsByFile, '/some/path');
 
-    expect(content).toBe("export { default } from './myFile';\n");
+    assert.strictEqual(content, "export { default } from './myFile';\n");
   });
 
   it('should handle default, type, and named exports together', () => {
@@ -59,9 +60,9 @@ describe('BarrelContentBuilder Test Suite', () => {
 
     const content = builder.buildContent(entries, '/some/path');
 
-    expect(content).toContain("export { MyClass } from './myFile';");
-    expect(content).toContain("export type { MyInterface } from './myFile';");
-    expect(content).toContain("export { default } from './myFile';");
+    assert.ok(content.includes("export { MyClass } from './myFile';"));
+    assert.ok(content.includes("export type { MyInterface } from './myFile';"));
+    assert.ok(content.includes("export { default } from './myFile';"));
   });
 
   it('should sort files alphabetically', () => {
@@ -73,9 +74,9 @@ describe('BarrelContentBuilder Test Suite', () => {
     const content = builder.buildContent(exportsByFile, '/some/path');
     const lines = content.split('\n').filter(Boolean);
 
-    expect(lines[0]).toContain('alpha');
-    expect(lines[1]).toContain('beta');
-    expect(lines[2]).toContain('zebra');
+    assert.ok(lines[0]?.includes('alpha'));
+    assert.ok(lines[1]?.includes('beta'));
+    assert.ok(lines[2]?.includes('zebra'));
   });
 
   it('should filter out parent folder references', () => {
@@ -85,7 +86,7 @@ describe('BarrelContentBuilder Test Suite', () => {
     ]);
     const content = builder.buildContent(exportsByFile, '/some/path');
 
-    expect(content).not.toContain('ParentClass');
-    expect(content).toContain('LocalClass');
+    assert.ok(!content.includes('ParentClass'));
+    assert.ok(content.includes('LocalClass'));
   });
 });

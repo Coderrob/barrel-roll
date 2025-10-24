@@ -3,11 +3,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "allowJs": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "noEmit": false,
     "outDir": "./out",
     "removeComments": false,
     "sourceMap": false,
-    "types": ["node", "mocha"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/__tests__/**/*", "node_modules", "out", ".vscode-test"]

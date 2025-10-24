@@ -1,13 +1,16 @@
+/* eslint-disable @typescript-eslint/no-floating-promises */
+
+import assert from 'node:assert/strict';
 import { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { FileSystemService } from './file-system.service.js';
+import { afterEach, beforeEach, describe, it, jest } from '../../test/testHarness.js';
 import { INDEX_FILENAME } from '../../types/index.js';
+import { FileSystemService } from './file-system.service.js';
 
 describe('FileSystemService', () => {
   let service: FileSystemService;
-  const mockFs = fs as jest.Mocked<typeof fs>;
 
   const createFileEntry = (name: string): Dirent =>
     ({
@@ -23,12 +26,12 @@ describe('FileSystemService', () => {
       isDirectory: () => true,
     }) as unknown as Dirent;
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   beforeEach(() => {
     service = new FileSystemService();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('getTypeScriptFiles', () => {
@@ -42,15 +45,15 @@ describe('FileSystemService', () => {
         createFileEntry('component.tsx'),
         createDirectoryEntry('nested'),
       ];
-      mockFs.readdir.mockResolvedValue(mockEntries as never);
+      const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue(mockEntries as never);
 
       const result = await service.getTypeScriptFiles(directoryPath);
 
-      expect(result).toEqual([
+      assert.deepStrictEqual(result, [
         path.join(directoryPath, 'file.ts'),
         path.join(directoryPath, 'component.tsx'),
       ]);
-      expect(mockFs.readdir).toHaveBeenCalledWith(directoryPath, { withFileTypes: true });
+      assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
     });
 
     const typeScriptEntryCases: Array<{ entry: Dirent; shouldInclude: boolean }> = [
@@ -62,24 +65,26 @@ describe('FileSystemService', () => {
       { entry: createDirectoryEntry('nested'), shouldInclude: false },
     ];
 
-    // Data-table cases omit natural language labels per team convention; add individual tests when additional context is needed.
-    it.each(typeScriptEntryCases)(
-      'should handle TypeScript entry filtering %#',
-      async ({ entry, shouldInclude }) => {
-        mockFs.readdir.mockResolvedValue([entry] as never);
+    for (const [index, { entry, shouldInclude }] of typeScriptEntryCases.entries()) {
+      it(`should handle TypeScript entry filtering ${index}`, async () => {
+        const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue([entry] as never);
 
         const result = await service.getTypeScriptFiles(directoryPath);
 
         const expectedPath = path.join(directoryPath, entry.name);
-        expect(result).toEqual(shouldInclude ? [expectedPath] : []);
-      },
-    );
+        const expected = shouldInclude ? [expectedPath] : [];
+
+        assert.deepStrictEqual(result, expected);
+        assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
+      });
+    }
 
     it('should throw error if directory read fails', async () => {
-      mockFs.readdir.mockRejectedValue(new Error('Read error'));
+      jest.spyOn(fs, 'readdir').mockRejectedValue(new Error('Read error'));
 
-      await expect(service.getTypeScriptFiles('/invalid/path')).rejects.toThrow(
-        'Failed to read directory: Read error',
+      await assert.rejects(
+        service.getTypeScriptFiles('/invalid/path'),
+        /Failed to read directory: Read error/,
       );
     });
   });
@@ -94,12 +99,12 @@ describe('FileSystemService', () => {
         createDirectoryEntry('.hidden'),
         createFileEntry('file.ts'),
       ];
-      mockFs.readdir.mockResolvedValue(mockEntries as never);
+      const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue(mockEntries as never);
 
       const result = await service.getSubdirectories(directoryPath);
 
-      expect(result).toEqual([path.join(directoryPath, 'subdir')]);
-      expect(mockFs.readdir).toHaveBeenCalledWith(directoryPath, { withFileTypes: true });
+      assert.deepStrictEqual(result, [path.join(directoryPath, 'subdir')]);
+      assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
     });
 
     const subdirectoryCases: Array<{ entry: Dirent; shouldInclude: boolean }> = [
@@ -109,115 +114,125 @@ describe('FileSystemService', () => {
       { entry: createFileEntry('readme.md'), shouldInclude: false },
     ];
 
-    it.each(subdirectoryCases)(
-      'should handle subdirectory filtering %#',
-      async ({ entry, shouldInclude }) => {
-        mockFs.readdir.mockResolvedValue([entry] as never);
+    for (const [index, { entry, shouldInclude }] of subdirectoryCases.entries()) {
+      it(`should handle subdirectory filtering ${index}`, async () => {
+        const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue([entry] as never);
 
         const result = await service.getSubdirectories(directoryPath);
 
         const expectedPath = path.join(directoryPath, entry.name);
-        expect(result).toEqual(shouldInclude ? [expectedPath] : []);
-      },
-    );
+        const expected = shouldInclude ? [expectedPath] : [];
+
+        assert.deepStrictEqual(result, expected);
+        assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
+      });
+    }
 
     it('should throw error if directory read fails', async () => {
-      mockFs.readdir.mockRejectedValue(new Error('Read error'));
+      jest.spyOn(fs, 'readdir').mockRejectedValue(new Error('Read error'));
 
-      await expect(service.getSubdirectories('/invalid/path')).rejects.toThrow(
-        'Failed to read directory: Read error',
+      await assert.rejects(
+        service.getSubdirectories('/invalid/path'),
+        /Failed to read directory: Read error/,
       );
     });
   });
 
   describe('readFile', () => {
     it('should read file content successfully', async () => {
-      mockFs.readFile.mockResolvedValue('file content');
+      const readFileMock = jest.spyOn(fs, 'readFile').mockResolvedValue('file content' as never);
 
       const result = await service.readFile('/path/to/file.ts');
 
-      expect(result).toBe('file content');
-      expect(mockFs.readFile).toHaveBeenCalledWith('/path/to/file.ts', 'utf-8');
+      assert.strictEqual(result, 'file content');
+      assert.deepStrictEqual(readFileMock.mock.calls, [['/path/to/file.ts', 'utf-8']]);
     });
 
     it('should throw error if file read fails', async () => {
-      mockFs.readFile.mockRejectedValue(new Error('Read error'));
+      jest.spyOn(fs, 'readFile').mockRejectedValue(new Error('Read error'));
 
-      await expect(service.readFile('/invalid/path')).rejects.toThrow(
-        'Failed to read file /invalid/path: Read error',
+      await assert.rejects(
+        service.readFile('/invalid/path'),
+        /Failed to read file \/invalid\/path: Read error/,
       );
     });
   });
 
   describe('writeFile', () => {
     it('should write file content successfully', async () => {
-      mockFs.writeFile.mockResolvedValue(undefined);
+      const writeFileMock = jest.spyOn(fs, 'writeFile').mockResolvedValue(undefined as never);
 
       await service.writeFile('/path/to/file.ts', 'content');
 
-      expect(mockFs.writeFile).toHaveBeenCalledWith('/path/to/file.ts', 'content', 'utf-8');
+      assert.deepStrictEqual(writeFileMock.mock.calls, [['/path/to/file.ts', 'content', 'utf-8']]);
     });
 
     it('should throw error if file write fails', async () => {
-      mockFs.writeFile.mockRejectedValue(new Error('Write error'));
+      jest.spyOn(fs, 'writeFile').mockRejectedValue(new Error('Write error'));
 
-      await expect(service.writeFile('/invalid/path', 'content')).rejects.toThrow(
-        'Failed to write file /invalid/path: Write error',
+      await assert.rejects(
+        service.writeFile('/invalid/path', 'content'),
+        /Failed to write file \/invalid\/path: Write error/,
       );
     });
   });
 
   describe('ensureDirectory', () => {
     it('should create directory recursively', async () => {
-      mockFs.mkdir.mockResolvedValue(undefined as never);
+      const mkdirMock = jest.spyOn(fs, 'mkdir').mockResolvedValue(undefined as never);
 
       await service.ensureDirectory('/path/to/dir');
 
-      expect(mockFs.mkdir).toHaveBeenCalledWith('/path/to/dir', { recursive: true });
+      assert.deepStrictEqual(mkdirMock.mock.calls, [['/path/to/dir', { recursive: true }]]);
     });
 
     it('should throw error when directory creation fails', async () => {
-      mockFs.mkdir.mockRejectedValue(new Error('mkdir error'));
+      jest.spyOn(fs, 'mkdir').mockRejectedValue(new Error('mkdir error'));
 
-      await expect(service.ensureDirectory('/path/to/dir')).rejects.toThrow(
-        'Failed to create directory /path/to/dir: mkdir error',
+      await assert.rejects(
+        service.ensureDirectory('/path/to/dir'),
+        /Failed to create directory \/path\/to\/dir: mkdir error/,
       );
     });
   });
 
   describe('removePath', () => {
     it('should remove path recursively', async () => {
-      mockFs.rm.mockResolvedValue(undefined as never);
+      const rmMock = jest.spyOn(fs, 'rm').mockResolvedValue(undefined as never);
 
       await service.removePath('/path/to/remove');
 
-      expect(mockFs.rm).toHaveBeenCalledWith('/path/to/remove', { recursive: true, force: true });
+      assert.deepStrictEqual(rmMock.mock.calls, [
+        ['/path/to/remove', { recursive: true, force: true }],
+      ]);
     });
 
     it('should throw error when removal fails', async () => {
-      mockFs.rm.mockRejectedValue(new Error('rm error'));
+      jest.spyOn(fs, 'rm').mockRejectedValue(new Error('rm error'));
 
-      await expect(service.removePath('/path/to/remove')).rejects.toThrow(
-        'Failed to remove path /path/to/remove: rm error',
+      await assert.rejects(
+        service.removePath('/path/to/remove'),
+        /Failed to remove path \/path\/to\/remove: rm error/,
       );
     });
   });
 
   describe('createTempDirectory', () => {
     it('should create temp directory with prefix', async () => {
-      mockFs.mkdtemp.mockResolvedValue('/tmp/foo123');
+      const mkdtempMock = jest.spyOn(fs, 'mkdtemp').mockResolvedValue('/tmp/foo123' as never);
 
       const result = await service.createTempDirectory('/tmp/foo-');
 
-      expect(result).toBe('/tmp/foo123');
-      expect(mockFs.mkdtemp).toHaveBeenCalledWith('/tmp/foo-');
+      assert.strictEqual(result, '/tmp/foo123');
+      assert.deepStrictEqual(mkdtempMock.mock.calls, [['/tmp/foo-']]);
     });
 
     it('should throw error when temp directory creation fails', async () => {
-      mockFs.mkdtemp.mockRejectedValue(new Error('mkdtemp error'));
+      jest.spyOn(fs, 'mkdtemp').mockRejectedValue(new Error('mkdtemp error'));
 
-      await expect(service.createTempDirectory('/tmp/foo-')).rejects.toThrow(
-        'Failed to create temporary directory with prefix /tmp/foo-: mkdtemp error',
+      await assert.rejects(
+        service.createTempDirectory('/tmp/foo-'),
+        /Failed to create temporary directory with prefix \/tmp\/foo-: mkdtemp error/,
       );
     });
   });
@@ -225,19 +240,22 @@ describe('FileSystemService', () => {
   describe('fileExists', () => {
     const fileExistsCases = [true, false] as const;
 
-    it.each(fileExistsCases)('should evaluate file existence %#', async (expected) => {
-      const filePath = expected ? '/path/to/file.ts' : '/invalid/path';
+    for (const [index, expected] of fileExistsCases.entries()) {
+      it(`should evaluate file existence ${index}`, async () => {
+        const filePath = expected ? '/path/to/file.ts' : '/invalid/path';
+        const accessMock = jest.spyOn(fs, 'access');
 
-      if (expected) {
-        mockFs.access.mockResolvedValue(undefined);
-      } else {
-        mockFs.access.mockRejectedValue(new Error('Access error'));
-      }
+        if (expected) {
+          accessMock.mockResolvedValue(undefined as never);
+        } else {
+          accessMock.mockRejectedValue(new Error('Access error'));
+        }
 
-      const result = await service.fileExists(filePath);
+        const result = await service.fileExists(filePath);
 
-      expect(result).toBe(expected);
-      expect(mockFs.access).toHaveBeenCalledWith(filePath);
-    });
+        assert.strictEqual(result, expected);
+        assert.deepStrictEqual(accessMock.mock.calls, [[filePath]]);
+      });
+    }
   });
 });

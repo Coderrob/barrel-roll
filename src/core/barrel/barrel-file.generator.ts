@@ -5,13 +5,13 @@ import type { Uri } from 'vscode';
 import { BarrelExport } from '@/types/barrel/BarrelExport.js';
 
 import {
-  DEFAULT_EXPORT_NAME,
-  INDEX_FILENAME,
   type BarrelEntry,
   BarrelEntryKind,
   BarrelExportKind,
   BarrelGenerationMode,
   type BarrelGenerationOptions,
+  DEFAULT_EXPORT_NAME,
+  INDEX_FILENAME,
   type NormalizedBarrelGenerationOptions,
   type ParsedExport,
 } from '../../types/index.js';

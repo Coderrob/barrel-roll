@@ -1,11 +1,11 @@
 import {
-  DEFAULT_EXPORT_NAME,
-  NEWLINE,
-  PARENT_DIRECTORY_SEGMENT,
   BarrelEntry,
   BarrelEntryKind,
   BarrelExport,
   BarrelExportKind,
+  DEFAULT_EXPORT_NAME,
+  NEWLINE,
+  PARENT_DIRECTORY_SEGMENT,
 } from '../../types/index.js';
 import { sortAlphabetically } from '../../utils/string.js';
 

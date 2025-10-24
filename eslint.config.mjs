@@ -127,7 +127,7 @@ export default [
     },
   },
 
-  // Jest test files and mock files configuration
+  // Node test files and mock files configuration
   {
     files: [
       '**/__tests__/**/*.{ts,tsx}',
@@ -138,14 +138,10 @@ export default [
     languageOptions: {
       globals: {
         ...globals.node,
-        ...globals.jest,
         NodeJS: 'readonly',
-        jest: 'readonly',
       },
     },
-    plugins: {
-      jest,
-    },
+    plugins: {},
     rules: {
       // Relax some rules for test files
       'sonarjs/no-duplicate-string': 'off',
@@ -182,7 +178,6 @@ export default [
       '@typescript-eslint/require-await': 'off',
       'sonarjs/publicly-writable-directories': 'off',
       'no-console': 'off',
-      'jest/expect-expect': 'off',
       complexity: 'off',
       'sonarjs/cognitive-complexity': 'off',
       'simple-import-sort/imports': 'off',
