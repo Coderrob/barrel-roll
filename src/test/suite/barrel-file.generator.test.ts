@@ -26,6 +26,14 @@ describe('BarrelFileGenerator Test Suite', () => {
     }
   });
 
+  async function generateAndReadBarrel(): Promise<string> {
+    const generator = new BarrelFileGenerator();
+    const uri = vscode.Uri.file(testDir);
+    await generator.generateBarrelFile(uri);
+    const barrelPath = path.join(testDir, 'index.ts');
+    return fs.readFile(barrelPath, 'utf-8');
+  }
+
   it('should generate barrel file with exports from multiple files', async () => {
     await fs.writeFile(
       path.join(testDir, 'file1.ts'),
@@ -36,13 +44,7 @@ describe('BarrelFileGenerator Test Suite', () => {
       'export interface MyInterface {}\nexport function myFunction() {}',
     );
 
-    const generator = new BarrelFileGenerator();
-    const uri = vscode.Uri.file(testDir);
-
-    await generator.generateBarrelFile(uri);
-
-    const barrelPath = path.join(testDir, 'index.ts');
-    const content = await fs.readFile(barrelPath, 'utf-8');
+    const content = await generateAndReadBarrel();
 
     assert.ok(content.includes('export { MyClass } from'));
     assert.ok(content.includes('myConst'));
@@ -56,13 +58,7 @@ describe('BarrelFileGenerator Test Suite', () => {
     await fs.writeFile(path.join(testDir, 'newFile.ts'), 'export class NewClass {}');
     await fs.writeFile(path.join(testDir, 'index.ts'), '// Old content');
 
-    const generator = new BarrelFileGenerator();
-    const uri = vscode.Uri.file(testDir);
-
-    await generator.generateBarrelFile(uri);
-
-    const barrelPath = path.join(testDir, 'index.ts');
-    const content = await fs.readFile(barrelPath, 'utf-8');
+    const content = await generateAndReadBarrel();
 
     assert.ok(content.includes('NewClass'));
     assert.ok(!content.includes('// Old content'));
@@ -82,13 +78,7 @@ describe('BarrelFileGenerator Test Suite', () => {
     await fs.writeFile(path.join(testDir, 'file1.ts'), 'export class MyClass {}');
     await fs.writeFile(path.join(testDir, 'index.ts'), 'export class IndexClass {}');
 
-    const generator = new BarrelFileGenerator();
-    const uri = vscode.Uri.file(testDir);
-
-    await generator.generateBarrelFile(uri);
-
-    const barrelPath = path.join(testDir, 'index.ts');
-    const content = await fs.readFile(barrelPath, 'utf-8');
+    const content = await generateAndReadBarrel();
 
     assert.ok(content.includes('export { MyClass } from'));
     assert.ok(!content.includes('IndexClass'));

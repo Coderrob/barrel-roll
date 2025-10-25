@@ -9,6 +9,27 @@ import { afterEach, beforeEach, describe, it, jest } from '../../test/testHarnes
 import { INDEX_FILENAME } from '../../types/index.js';
 import { FileSystemService } from './file-system.service.js';
 
+async function testEntriesFiltering(
+  testCases: Array<{ entry: Dirent; shouldInclude: boolean }>,
+  methodUnderTest: (path: string) => Promise<string[]>,
+  directoryPath: string,
+  testNamePrefix: string,
+): Promise<void> {
+  for (const [index, { entry, shouldInclude }] of testCases.entries()) {
+    it(`${testNamePrefix} ${index}`, async () => {
+      const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue([entry] as never);
+
+      const result = await methodUnderTest(directoryPath);
+
+      const expectedPath = path.join(directoryPath, entry.name);
+      const expected = shouldInclude ? [expectedPath] : [];
+
+      assert.deepStrictEqual(result, expected);
+      assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
+    });
+  }
+}
+
 describe('FileSystemService', () => {
   let service: FileSystemService;
 
@@ -65,19 +86,12 @@ describe('FileSystemService', () => {
       { entry: createDirectoryEntry('nested'), shouldInclude: false },
     ];
 
-    for (const [index, { entry, shouldInclude }] of typeScriptEntryCases.entries()) {
-      it(`should handle TypeScript entry filtering ${index}`, async () => {
-        const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue([entry] as never);
-
-        const result = await service.getTypeScriptFiles(directoryPath);
-
-        const expectedPath = path.join(directoryPath, entry.name);
-        const expected = shouldInclude ? [expectedPath] : [];
-
-        assert.deepStrictEqual(result, expected);
-        assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
-      });
-    }
+    testEntriesFiltering(
+      typeScriptEntryCases,
+      (path) => service.getTypeScriptFiles(path),
+      directoryPath,
+      'should handle TypeScript entry filtering',
+    );
 
     it('should throw error if directory read fails', async () => {
       jest.spyOn(fs, 'readdir').mockRejectedValue(new Error('Read error'));
@@ -114,19 +128,12 @@ describe('FileSystemService', () => {
       { entry: createFileEntry('readme.md'), shouldInclude: false },
     ];
 
-    for (const [index, { entry, shouldInclude }] of subdirectoryCases.entries()) {
-      it(`should handle subdirectory filtering ${index}`, async () => {
-        const readdirMock = jest.spyOn(fs, 'readdir').mockResolvedValue([entry] as never);
-
-        const result = await service.getSubdirectories(directoryPath);
-
-        const expectedPath = path.join(directoryPath, entry.name);
-        const expected = shouldInclude ? [expectedPath] : [];
-
-        assert.deepStrictEqual(result, expected);
-        assert.deepStrictEqual(readdirMock.mock.calls, [[directoryPath, { withFileTypes: true }]]);
-      });
-    }
+    testEntriesFiltering(
+      subdirectoryCases,
+      (path) => service.getSubdirectories(path),
+      directoryPath,
+      'should handle subdirectory filtering',
+    );
 
     it('should throw error if directory read fails', async () => {
       jest.spyOn(fs, 'readdir').mockRejectedValue(new Error('Read error'));
