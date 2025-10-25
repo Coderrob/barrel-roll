@@ -92,6 +92,19 @@ describe('BarrelContentBuilder', () => {
       );
     });
 
+    it('should ignore undefined entries produced by legacy callers', () => {
+      const entries = new Map<string, BarrelEntry>();
+      entries.set('ghost.ts', undefined as unknown as BarrelEntry);
+      entries.set('echo.ts', {
+        kind: BarrelEntryKind.File,
+        exports: [{ kind: BarrelExportKind.Value, name: 'Echo' }],
+      });
+
+      const result = builder.buildContent(entries, '');
+
+      assert.strictEqual(result.trim(), "export { Echo } from './echo';");
+    });
+
     const parentDirectoryCases: Array<Map<string, BarrelEntry>> = [
       new Map<string, BarrelEntry>([['../outside', { kind: BarrelEntryKind.Directory }]]),
       new Map<string, BarrelEntry>([
