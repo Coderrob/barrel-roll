@@ -12,31 +12,40 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [18.x, 20.x]
+        node-version: [18.x, 20.x, 22.x]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npm run typecheck
+
       - name: Run linter
         run: npm run lint
 
-      - name: Run formatter check
-        run: npm run format:check
+      - name: Check for code duplication
+        run: npm run duplication
 
-      - name: Compile
+      - name: Check for circular dependencies
+        run: npm run madge
+
+      - name: Compile TypeScript
         run: npm run compile
 
-      - name: Run tests
+      - name: Compile tests
+        run: npm run compile-tests
+
+      - name: Run unit tests
         run: npm test
-        if: runner.os == 'Linux'
 
       - name: Package extension
         run: npm run package
