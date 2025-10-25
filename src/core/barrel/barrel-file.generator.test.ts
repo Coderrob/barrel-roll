@@ -112,6 +112,36 @@ describe('BarrelFileGenerator', () => {
       assert.strictEqual(exists, false);
     });
 
+    it('should only recurse into subdirectories that already contain barrels when updating', async () => {
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      const keepDir = path.join(tmpDir, 'keep');
+      const skipDir = path.join(tmpDir, 'skip');
+
+      await fileSystem.ensureDirectory(keepDir);
+      await fileSystem.ensureDirectory(skipDir);
+
+      await fileSystem.writeFile(path.join(keepDir, 'keep.ts'), 'export const keep = 1;');
+      await fileSystem.writeFile(path.join(skipDir, 'skip.ts'), 'export const skip = 1;');
+
+      await fileSystem.writeFile(path.join(keepDir, INDEX_FILENAME), "export * from '../legacy';");
+
+      await generator.generateBarrelFile(rootUri, {
+        recursive: true,
+        mode: BarrelGenerationMode.UpdateExisting,
+      });
+
+      const keepIndex = await fileSystem.readFile(path.join(keepDir, INDEX_FILENAME));
+      assert.strictEqual(keepIndex, ["export { keep } from './keep';", ''].join('\n'));
+
+      const skipIndexExists = await fileSystem.fileExists(path.join(skipDir, INDEX_FILENAME));
+      assert.strictEqual(skipIndexExists, false);
+
+      const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+      assert.strictEqual(rootIndex, ["export * from './keep';", ''].join('\n'));
+    });
+
     it('should throw when no TypeScript files are present and recursion is disabled', async () => {
       const generator = new BarrelFileGenerator();
       const emptyDirUri = { fsPath: tmpDir } as unknown as Uri;

@@ -76,5 +76,18 @@ describe('ExportParser', () => {
         );
       });
     }
+
+    it('should merge duplicate exports and prefer value exports over type-only', () => {
+      const source = `
+        export type { Hotel };
+        export { Hotel };
+      `;
+
+      const exports = parser.extractExports(source);
+      const hotel = exports.find((entry) => entry.name === 'Hotel');
+
+      assert.ok(hotel);
+      assert.strictEqual(hotel.typeOnly, false);
+    });
   });
 });
