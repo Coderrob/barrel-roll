@@ -1,4 +1,4 @@
-export { afterEach, beforeEach, describe, it } from 'node:test';
+export { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
 const activeSpies = new Set<SpyInstance>();
 

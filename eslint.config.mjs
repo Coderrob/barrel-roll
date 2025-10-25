@@ -190,6 +190,7 @@ export default [
     files: ['**/src/test/runTest.ts'],
     rules: {
       '@typescript-eslint/no-floating-promises': 'off',
+      'unicorn/prefer-top-level-await': 'off',
     },
   },
 ];
