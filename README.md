@@ -4,7 +4,7 @@
 [![VS Code Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/Coderrob.barrel-roll)](https://marketplace.visualstudio.com/items?itemName=Coderrob.barrel-roll)
 [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/Coderrob.barrel-roll)](https://marketplace.visualstudio.com/items?itemName=Coderrob.barrel-roll)
 [![License: Apache-2.0](https://img.shields.io/github/license/Coderrob/barrel-roll)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-94.8%25-4c1)](badges/coverage.svg)
+[![Coverage](https://img.shields.io/badge/coverage-94.8%25-4c1)](https://github.com/Coderrob/barrel-roll/actions/workflows/ci.yml)
 [![Quality Checks](https://img.shields.io/badge/quality--checks-eslint%20%7C%20madge%20%7C%20jscpd-1f6feb)](package.json)
 
 Barrel Roll is a Visual Studio Code extension that makes barrel file creation and upkeep effortless. Right-click any folder, pick a Barrel Roll command, and the extension assembles a curated `index.ts` that reflects the exports your module actually exposes—no tedious manual wiring, no temptation to `export *` the entire directory.
