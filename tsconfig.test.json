@@ -10,5 +10,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts", "__tests__/**/*", "__mocks__/**/*"],
-  "exclude": ["out", "node_modules", ".vscode-test"]
+  "exclude": ["dist", "node_modules", ".vscode-test"]
 }

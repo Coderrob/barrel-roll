@@ -13,7 +13,7 @@ package-lock.json*
 
 # Build outputs
 lib/
-out/
+dist/
 build/
 
 # Test outputs

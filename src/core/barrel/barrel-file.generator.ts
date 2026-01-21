@@ -2,18 +2,17 @@ import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
 
-import { BarrelExport } from '@/types/barrel/BarrelExport.js';
-
 import {
   type BarrelEntry,
   BarrelEntryKind,
+  BarrelExport,
   BarrelExportKind,
   BarrelGenerationMode,
-  type BarrelGenerationOptions,
   DEFAULT_EXPORT_NAME,
+  type IBarrelGenerationOptions,
   INDEX_FILENAME,
+  type IParsedExport,
   type NormalizedBarrelGenerationOptions,
-  type ParsedExport,
 } from '../../types/index.js';
 import { isEmptyArray } from '../../utils/array.js';
 import { FileSystemService } from '../io/file-system.service.js';
@@ -46,7 +45,7 @@ export class BarrelFileGenerator {
    * @param options Behavioral options for generation.
    * @returns Promise that resolves when barrel files have been created/updated.
    */
-  async generateBarrelFile(directoryUri: Uri, options?: BarrelGenerationOptions): Promise<void> {
+  async generateBarrelFile(directoryUri: Uri, options?: IBarrelGenerationOptions): Promise<void> {
     const normalizedOptions = this.normalizeOptions(options);
     await this.generateBarrelFileFromPath(directoryUri.fsPath, normalizedOptions);
   }
@@ -176,14 +175,14 @@ export class BarrelFileGenerator {
     return hasExistingIndex;
   }
 
-  private normalizeOptions(options?: BarrelGenerationOptions): NormalizedGenerationOptions {
+  private normalizeOptions(options?: IBarrelGenerationOptions): NormalizedGenerationOptions {
     return {
       recursive: options?.recursive ?? false,
       mode: options?.mode ?? BarrelGenerationMode.CreateOrUpdate,
     };
   }
 
-  private normalizeParsedExports(exports: ParsedExport[]): BarrelExport[] {
+  private normalizeParsedExports(exports: IParsedExport[]): BarrelExport[] {
     return exports.map((exp) => {
       if (exp.name === DEFAULT_EXPORT_NAME) {
         return { kind: BarrelExportKind.Default };

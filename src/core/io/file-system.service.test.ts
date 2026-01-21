@@ -51,9 +51,7 @@ describe('FileSystemService', () => {
     service = new FileSystemService();
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+  afterEach(() => {});
 
   describe('getTypeScriptFiles', () => {
     const directoryPath = '/path/to/dir';

@@ -14,7 +14,7 @@
     "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "outDir": "./out",
+    "outDir": "./dist",
     "paths": {
       "@/*": ["src/*"]
     },
@@ -26,6 +26,6 @@
     "target": "ES2022",
     "useUnknownInCatchVariables": true
   },
-  "exclude": [".vscode-test", "tests", "test-utils", "node_modules", "out", "src/**/*.test.ts"],
+  "exclude": [".vscode-test", "tests", "test-utils", "node_modules", "dist", "src/**/*.test.ts"],
   "include": ["src/**/*.ts"]
 }

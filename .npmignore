@@ -24,7 +24,7 @@ badges/
 # Build artifacts
 .vscode-test/
 audit/
-out/
+dist/
 coverage/
 node_modules/
 *.log

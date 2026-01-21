@@ -24,7 +24,7 @@ export default [
       '**/node_modules/**',
       '**/lib/**',
       '**/build/**',
-      '**/out/**',
+      '**/dist/**',
       '**/.vscode-test/**',
       '*.config.{js,mjs,cjs}',
       'badges/**',
