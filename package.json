@@ -124,7 +124,7 @@
     "vscode": "^1.80.0"
   },
   "homepage": "https://github.com/Coderrob/barrel-roll#readme",
-  "icon": "public/img/barrel-roll.png",
+  "icon": "public/img/barrel-roll-icon.png",
   "keywords": [
     "barrel",
     "export",

@@ -33,6 +33,6 @@ CONTRIBUTING.md
 badges/**
 !badges/coverage.svg
 public/img/**
-!public/img/barrel-roll.png
+!public/img/barrel-roll-icon.png
 dist/**
 !dist/extension.js
