@@ -3,6 +3,7 @@
 'use strict';
 
 const path = require('node:path');
+const webpack = require('webpack');
 
 /**@type {import('webpack').Configuration}*/
 const config = {
@@ -16,6 +17,10 @@ const config = {
     devtoolModuleFilenameTemplate: '../[resource-path]',
   },
   devtool: 'source-map',
+  plugins: [
+    // Ignore optional transports and thread-stream used by pino to avoid bundling them
+    new webpack.IgnorePlugin({ resourceRegExp: /pino-pretty|thread-stream/ }),
+  ],
   externals: {
     vscode: 'commonjs vscode',
   },

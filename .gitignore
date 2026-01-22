@@ -21,6 +21,7 @@ build/
 coverage/
 .nyc_output/
 *.lcov
+.depcheck.json
 
 # Logs
 logs/

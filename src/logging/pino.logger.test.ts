@@ -3,111 +3,148 @@ import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import type { Logger, LoggerOptions } from 'pino';
 import type { OutputChannel } from 'vscode';
 
-type PinoLoggerClass = (typeof import('./pino.logger.js'))['PinoLogger'];
+describe('PinoLogger', () => {
+  type PinoLoggerClass = (typeof import('./pino.logger.js'))['PinoLogger'];
 
-type CallStore = {
-  info: Array<[unknown, string]>;
-  debug: Array<[unknown, string]>;
-  warn: Array<[unknown, string]>;
-  error: Array<[unknown, string]>;
-  fatal: Array<[unknown, string]>;
-};
-
-const createCallStore = (): CallStore => ({
-  info: [],
-  debug: [],
-  warn: [],
-  error: [],
-  fatal: [],
-});
-
-const makeLogger = (calls: CallStore, childArgs: unknown[], childLogger?: Logger): Logger => {
-  return {
-    info(metadata: unknown, message: string) {
-      calls.info.push([metadata, message]);
-    },
-    debug(metadata: unknown, message: string) {
-      calls.debug.push([metadata, message]);
-    },
-    warn(metadata: unknown, message: string) {
-      calls.warn.push([metadata, message]);
-    },
-    error(metadata: unknown, message: string) {
-      calls.error.push([metadata, message]);
-    },
-    fatal(metadata: unknown, message: string) {
-      calls.fatal.push([metadata, message]);
-    },
-    child(metadata: unknown) {
-      childArgs.push(metadata);
-      return childLogger ?? makeLogger(createCallStore(), childArgs);
-    },
-  } as unknown as Logger;
-};
-
-let mockPinoLogger: Logger;
-let mockChildLogger: Logger;
-let rootCalls: CallStore;
-let childCalls: CallStore;
-let childMetadataArgs: unknown[];
-let outputLines: string[];
-let lastOptions: LoggerOptions | undefined;
-let shouldThrowOnCreate = false;
-let consoleWarnings: unknown[][];
-let PinoLogger: PinoLoggerClass;
-
-const originalWarn = console.warn.bind(console);
-
-mock.module('pino', {
-  defaultExport: (options?: LoggerOptions) => {
-    lastOptions = options;
-    if (shouldThrowOnCreate) {
-      throw new Error('pino init failure');
-    }
-    return mockPinoLogger;
-  },
-});
-
-beforeEach(async () => {
-  rootCalls = createCallStore();
-  childCalls = createCallStore();
-  childMetadataArgs = [];
-  outputLines = [];
-  lastOptions = undefined;
-  shouldThrowOnCreate = false;
-  consoleWarnings = [];
-  console.warn = (...args: unknown[]) => {
-    consoleWarnings.push(args);
+  type CallStore = {
+    info: Array<[unknown, string]>;
+    debug: Array<[unknown, string]>;
+    warn: Array<[unknown, string]>;
+    error: Array<[unknown, string]>;
+    fatal: Array<[unknown, string]>;
   };
 
-  mockChildLogger = makeLogger(childCalls, childMetadataArgs);
-  mockPinoLogger = makeLogger(rootCalls, childMetadataArgs, mockChildLogger);
-
-  ({ PinoLogger } = await import('./pino.logger.js'));
-
-  PinoLogger.configureOutputChannel({
-    appendLine(line: string) {
-      outputLines.push(line);
-    },
-  } as OutputChannel);
-});
-
-afterEach(() => {
-  PinoLogger.configureOutputChannel(undefined);
-  console.warn = originalWarn;
-});
-
-describe('PinoLogger', () => {
-  it('uses default configuration when no options are provided', () => {
-    const logger = new PinoLogger();
-
-    assert.ok(lastOptions);
-    const transport = lastOptions?.transport as unknown as { target?: string } | undefined;
-    assert.strictEqual(transport?.target, 'pino-pretty');
-    assert.strictEqual(logger.isLoggerAvailable(), true);
+  const createCallStore = (): CallStore => ({
+    info: [],
+    debug: [],
+    warn: [],
+    error: [],
+    fatal: [],
   });
 
-  it('passes provided options through to pino', () => {
+  const makeLogger = (calls: CallStore, childArgs: unknown[], childLogger?: Logger): Logger => {
+    return {
+      info(metadata: unknown, message: string) {
+        calls.info.push([metadata, message]);
+      },
+      debug(metadata: unknown, message: string) {
+        calls.debug.push([metadata, message]);
+      },
+      warn(metadata: unknown, message: string) {
+        calls.warn.push([metadata, message]);
+      },
+      error(metadata: unknown, message: string) {
+        calls.error.push([metadata, message]);
+      },
+      fatal(metadata: unknown, message: string) {
+        calls.fatal.push([metadata, message]);
+      },
+      child(metadata: unknown) {
+        childArgs.push(metadata);
+        return childLogger ?? makeLogger(createCallStore(), childArgs);
+      },
+    } as unknown as Logger;
+  };
+
+  const mockIsoTime = () => '2025-01-01T00:00:00.000Z';
+  const restoreLogLevel = (value: string | undefined): void => {
+    if (value === undefined) {
+      delete process.env.LOG_LEVEL;
+      return;
+    }
+    process.env.LOG_LEVEL = value;
+  };
+
+  let mockPinoLogger: Logger;
+  let mockChildLogger: Logger;
+  let rootCalls: CallStore;
+  let childCalls: CallStore;
+  let childMetadataArgs: unknown[];
+  let outputLines: string[];
+  let lastOptions: LoggerOptions | undefined;
+  let shouldThrowOnCreate = false;
+  let consoleWarnings: unknown[][];
+  let PinoLogger: PinoLoggerClass;
+  let originalWarn: typeof console.warn;
+  let previousLogLevel: string | undefined;
+
+  mock.module('pino', {
+    defaultExport: Object.assign(
+      (options?: LoggerOptions) => {
+        lastOptions = options;
+        if (shouldThrowOnCreate) {
+          throw new Error('pino init failure');
+        }
+        return mockPinoLogger;
+      },
+      {
+        stdTimeFunctions: {
+          isoTime: mockIsoTime,
+        },
+      },
+    ),
+  });
+
+  beforeEach(async () => {
+    previousLogLevel = process.env.LOG_LEVEL;
+
+    rootCalls = createCallStore();
+    childCalls = createCallStore();
+    childMetadataArgs = [];
+    outputLines = [];
+    lastOptions = undefined;
+    shouldThrowOnCreate = false;
+    consoleWarnings = [];
+
+    // Capture and override console.warn for test inspection
+    originalWarn = console.warn.bind(console);
+    console.warn = (...args: unknown[]) => {
+      consoleWarnings.push(args);
+    };
+
+    mockChildLogger = makeLogger(childCalls, childMetadataArgs);
+    mockPinoLogger = makeLogger(rootCalls, childMetadataArgs, mockChildLogger);
+
+    ({ PinoLogger } = await import('./pino.logger.js'));
+
+    PinoLogger.configureOutputChannel({
+      appendLine(line: string) {
+        outputLines.push(line);
+      },
+    } as OutputChannel);
+  });
+
+  afterEach(() => {
+    PinoLogger.configureOutputChannel(undefined);
+    console.warn = originalWarn;
+    // Restore LOG_LEVEL if tests changed it
+    restoreLogLevel(previousLogLevel);
+  });
+
+  it('should use default configuration when LOG_LEVEL env is set', () => {
+    const previousLogLevel = process.env.LOG_LEVEL;
+    process.env.LOG_LEVEL = 'warn';
+    try {
+      const logger = new PinoLogger();
+
+      assert.ok(lastOptions);
+      assert.strictEqual(lastOptions?.level, 'warn');
+      assert.strictEqual(logger.isLoggerAvailable(), true);
+    } finally {
+      restoreLogLevel(previousLogLevel);
+    }
+  });
+
+  it('should set timestamp and formatter defaults when no options are provided', () => {
+    const logger = new PinoLogger();
+    assert.ok(logger);
+
+    assert.strictEqual(lastOptions?.transport, undefined);
+    assert.strictEqual(lastOptions?.timestamp, mockIsoTime);
+    assert.strictEqual(typeof lastOptions?.formatters?.level, 'function');
+  });
+
+  it('should pass provided options through to pino', () => {
     const options: LoggerOptions = { level: 'debug' };
     const logger = new PinoLogger(options);
 
@@ -116,7 +153,7 @@ describe('PinoLogger', () => {
     assert.strictEqual(rootCalls.info.length, 1);
   });
 
-  it('logs info messages with metadata', () => {
+  it('should log info messages with metadata', () => {
     const logger = new PinoLogger();
 
     logger.info('initialized', { service: 'barrel' });
@@ -125,7 +162,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[INFO] initialized {"service":"barrel"}']);
   });
 
-  it('omits metadata from debug output when none is provided', () => {
+  it('should omit metadata from debug output when none is provided', () => {
     const logger = new PinoLogger();
 
     logger.debug('diagnostic');
@@ -134,7 +171,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[DEBUG] diagnostic']);
   });
 
-  it('logs warnings with metadata', () => {
+  it('should log warnings with metadata', () => {
     const logger = new PinoLogger();
 
     logger.warn('threshold exceeded', { attempt: 3 });
@@ -143,7 +180,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[WARN] threshold exceeded {"attempt":3}']);
   });
 
-  it('normalizes errors before logging', () => {
+  it('should normalize errors before logging', () => {
     const logger = new PinoLogger();
     const error = new Error('boom');
 
@@ -153,7 +190,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[ERROR] operation failed {"error":"boom"}']);
   });
 
-  it('leaves string errors unchanged during normalization', () => {
+  it('should leave string errors unchanged during normalization', () => {
     const logger = new PinoLogger();
     const normalizeError = (
       logger as unknown as { normalizeError(error: unknown): string }
@@ -162,7 +199,7 @@ describe('PinoLogger', () => {
     assert.strictEqual(normalizeError('fail'), 'fail');
   });
 
-  it('prefixes fatal messages for action failures', () => {
+  it('should prefix fatal messages for action failures', () => {
     const logger = new PinoLogger();
 
     logger.fatal('deploy');
@@ -171,7 +208,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[FATAL] Action failed: deploy']);
   });
 
-  it('skips output channel writes when none is configured', () => {
+  it('should skip output channel writes when none is configured', () => {
     const logger = new PinoLogger();
     PinoLogger.configureOutputChannel(undefined);
 
@@ -180,7 +217,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, []);
   });
 
-  it('stringifies circular metadata safely', () => {
+  it('should stringify circular metadata safely', () => {
     const logger = new PinoLogger();
     const circular: Record<string, unknown> = {};
     circular.self = circular;
@@ -191,7 +228,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[INFO] circular [object Object]']);
   });
 
-  it('uses a child logger when grouping operations and restores afterward', async () => {
+  it('should use a child logger when grouping operations and restore afterward', async () => {
     const logger = new PinoLogger();
 
     const result = await logger.group('build', async () => 42);
@@ -212,7 +249,7 @@ describe('PinoLogger', () => {
     assert.deepStrictEqual(rootCalls.debug.at(-1), [{}, 'post-group']);
   });
 
-  it('propagates errors from grouped operations with normalized metadata', async () => {
+  it('should propagate errors from grouped operations with normalized metadata', async () => {
     const logger = new PinoLogger();
     const failure = { code: 'EFAIL' };
 
@@ -228,7 +265,7 @@ describe('PinoLogger', () => {
     assert.strictEqual(outputLines.at(-1), `[ERROR] Failed in group: failures ${expectedMetadata}`);
   });
 
-  it('falls back to a no-op logger when pino initialization fails', () => {
+  it('should fall back to a no-op logger when pino initialization fails', () => {
     shouldThrowOnCreate = true;
 
     const logger = new PinoLogger();

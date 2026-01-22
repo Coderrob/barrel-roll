@@ -84,6 +84,21 @@ export default [
 
       // SonarJS rules for static analysis (selective adoption)
       'sonarjs/cognitive-complexity': ['error', 8],
+
+      // Disallow TypeScript `typeof import(...)` patterns and indexed import types.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSTypeQuery > TSImportType',
+          message:
+            "Avoid using 'typeof import(...)' types. Import the type directly instead (easier and clearer).",
+        },
+        {
+          selector: 'TSIndexedAccessType > TSTypeQuery > TSImportType',
+          message:
+            'Avoid using \'typeof import(...)["T"]\' indexed import types; import the type and refer to it directly.',
+        },
+      ],
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/prefer-immediate-return': 'error',
@@ -190,6 +205,15 @@ export default [
     files: ['**/*.test.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-floating-promises': 'off',
+      // Enforce test naming convention: tests must start with 'should '
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.name=/^(it|test)$/][arguments.0.type='Literal'][arguments.0.value=/^(?!should ).*/]",
+          message: "Test titles must start with 'should ' (e.g., 'should do X').",
+        },
+      ],
     },
   },
 

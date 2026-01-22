@@ -37,7 +37,15 @@ const ProgressLocation = {
   Window: 10,
 };
 
-const windowApi = {
+interface TestWindowApi {
+  createOutputChannel(name: string): { appendLine(value: string): void };
+  showInformationMessage(message: string): unknown;
+  showErrorMessage(message: string): unknown;
+  showOpenDialog(): Promise<FakeUri[] | undefined>;
+  withProgress<T>(options: ProgressOptions, task: () => Promise<T>): Promise<T>;
+}
+
+const windowApi: TestWindowApi = {
   createOutputChannel(name: string) {
     createOutputChannelCalls.push(name);
     const channel = {
@@ -66,7 +74,11 @@ const windowApi = {
   },
 };
 
-const commandsApi = {
+interface TestCommandsApi {
+  registerCommand(command: string, handler: CommandHandler): { dispose(): void };
+}
+
+const commandsApi: TestCommandsApi = {
   registerCommand(command: string, handler: CommandHandler): { dispose(): void } {
     commandHandlers.set(command, handler);
     return {
@@ -77,13 +89,13 @@ const commandsApi = {
   },
 };
 
-const uriApi = {
+const uriApi: { file(fsPath: string): FakeUri } = {
   file(fsPath: string): FakeUri {
     return { fsPath: path.normalize(fsPath) };
   },
 };
 
-const workspaceApi = {
+const workspaceApi: { fs: { stat(uri: FakeUri): Promise<{ type: number }> } } = {
   fs: {
     stat(uri: FakeUri) {
       return workspaceStatImpl(uri);
@@ -137,9 +149,10 @@ mock.module('./logging/pino.logger.js', {
   },
 });
 
-type ExtensionModule = typeof import('./extension.js');
-let activate: ExtensionModule['activate'];
-let deactivate: ExtensionModule['deactivate'];
+type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
+type DeactivateFn = () => void;
+let activate: ActivateFn;
+let deactivate: DeactivateFn;
 
 function resetState(): void {
   commandHandlers.clear();
@@ -180,8 +193,8 @@ function lastGeneratorCall(): { targetDirectory: FakeUri; options: unknown } {
   return instance.calls.at(-1)!;
 }
 
-void describe('extension activation', () => {
-  void it('registers commands and configures logging', async () => {
+describe('extension activation', () => {
+  it('should register commands and configure logging', async () => {
     const context = createContext();
 
     await activate(context);
@@ -199,7 +212,7 @@ void describe('extension activation', () => {
     deactivate();
   });
 
-  void it('generates a barrel when the command is invoked with a directory', async () => {
+  it('should generate a barrel when the command is invoked with a directory', async () => {
     await activate(createContext());
 
     const command = getCommand('barrel-roll.generateBarrel');
@@ -223,7 +236,7 @@ void describe('extension activation', () => {
     assert.deepStrictEqual(errorMessages, []);
   });
 
-  void it('uses the folder picker when no URI is provided', async () => {
+  it('should use the folder picker when no URI is provided', async () => {
     await activate(createContext());
 
     const command = getCommand('barrel-roll.generateBarrel');
@@ -237,7 +250,7 @@ void describe('extension activation', () => {
     assert.strictEqual(showOpenDialogCalls, 1);
   });
 
-  void it('does not run when folder selection is cancelled', async () => {
+  it('should not run when folder selection is cancelled', async () => {
     await activate(createContext());
 
     const command = getCommand('barrel-roll.generateBarrel');
@@ -251,7 +264,7 @@ void describe('extension activation', () => {
     assert.strictEqual(showOpenDialogCalls, 1);
   });
 
-  void it('resolves file URIs to their parent directory', async () => {
+  it('should resolve file URIs to their parent directory', async () => {
     await activate(createContext());
 
     workspaceStatImpl = async () => ({ type: FileType.File });
@@ -264,7 +277,7 @@ void describe('extension activation', () => {
     assert.strictEqual(call.targetDirectory.fsPath, path.normalize('C:/workspace/src'));
   });
 
-  void it('returns the original URI when the resource type is unknown', async () => {
+  it('should return the original URI when the resource type is unknown', async () => {
     await activate(createContext());
 
     workspaceStatImpl = async () => ({ type: FileType.SymbolicLink });
@@ -277,7 +290,7 @@ void describe('extension activation', () => {
     assert.strictEqual(call.targetDirectory, dirUri);
   });
 
-  void it('surfaces errors from the generator', async () => {
+  it('should surface errors from the generator', async () => {
     await activate(createContext());
 
     const command = getCommand('barrel-roll.generateBarrel');
@@ -290,7 +303,7 @@ void describe('extension activation', () => {
     assert.deepStrictEqual(informationMessages, []);
   });
 
-  void it('wraps stat errors in a friendly message', async () => {
+  it('should wrap stat errors in a friendly message', async () => {
     await activate(createContext());
 
     const command = getCommand('barrel-roll.generateBarrel');
