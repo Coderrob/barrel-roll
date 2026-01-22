@@ -4,11 +4,11 @@ import * as vscode from 'vscode';
 
 import { BarrelFileGenerator } from './core/barrel/barrel-file.generator.js';
 import { PinoLogger } from './logging/pino.logger.js';
-import { BarrelGenerationMode, type BarrelGenerationOptions } from './types/index.js';
+import { BarrelGenerationMode, type IBarrelGenerationOptions } from './types/index.js';
 
 type CommandDescriptor = {
   id: string;
-  options: BarrelGenerationOptions;
+  options: IBarrelGenerationOptions;
   progressTitle: string;
   successMessage: string;
 };

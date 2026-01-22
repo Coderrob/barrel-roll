@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
 import assert from 'node:assert/strict';
 import * as os from 'node:os';
 import * as path from 'node:path';

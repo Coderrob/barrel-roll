@@ -9,7 +9,11 @@ const { spawn } = require('node:child_process');
 const { globSync } = require('glob');
 
 // Define test file patterns
-const patterns = ['out/core/barrel/*.test.js', 'out/core/parser/*.test.js', 'out/utils/*.test.js'];
+const patterns = [
+  'dist/core/barrel/*.test.js',
+  'dist/core/parser/*.test.js',
+  'dist/utils/*.test.js',
+];
 
 // Expand all glob patterns to actual file paths
 const testFiles = patterns.flatMap((pattern) => globSync(pattern, { cwd: process.cwd() }));

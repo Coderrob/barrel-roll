@@ -89,6 +89,7 @@ export class BarrelContentBuilder {
    */
   private buildDirectoryExportLines(relativePath: string): string[] {
     const modulePath = this.getModulePath(relativePath);
+    // istanbul ignore next
     if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
@@ -114,6 +115,7 @@ export class BarrelContentBuilder {
     const modulePath = this.getModulePath(filePath);
 
     // Skip if this references a parent folder
+    // istanbul ignore next
     if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }

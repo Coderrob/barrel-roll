@@ -72,7 +72,7 @@ barrel-roll/
 │   └── dependency-graph.md               # Dependency analysis reports
 ├── .vscode/                              # VS Code workspace config
 ├── .github/workflows/                    # CI/CD pipelines
-└── out/                                  # TypeScript compiled output
+└── dist/                                  # TypeScript compiled output
 
 ```
 
@@ -216,7 +216,7 @@ All services throw descriptive errors that bubble up to the extension entry poin
 
 ### Development
 
-1. **TypeScript Compilation**: `tsc` → `out/` directory
+1. **TypeScript Compilation**: `tsc` → `dist/` directory
 
 ### Production
 

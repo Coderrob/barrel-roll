@@ -21,6 +21,7 @@ import type { OutputChannel } from 'vscode';
 import { isObject, isString } from '../utils/guards.js';
 
 type LogMetadata = Record<string, unknown>;
+type PinoLevel = 'info' | 'debug' | 'warn' | 'error' | 'fatal';
 
 /**
  * Minimal structured logger used by the extension. Falls back to a no-op implementation if pino
@@ -34,19 +35,7 @@ export class PinoLogger {
 
   constructor(options?: pino.LoggerOptions) {
     try {
-      this.logger = pino(
-        options || {
-          level: process.env.LOG_LEVEL || 'info',
-          transport: {
-            target: 'pino-pretty',
-            options: {
-              colorize: true,
-              translateTime: 'yyyy-mm-dd HH:MM:ss',
-              ignore: 'pid,hostname',
-            },
-          },
-        },
-      );
+      this.logger = pino(this.resolveOptions(options));
     } catch (error) {
       this.isAvailable = false;
       console.warn('Pino logger initialization failed:', error);
@@ -76,8 +65,7 @@ export class PinoLogger {
    * @param metadata - Optional metadata to include with the log.
    */
   info(message: string, metadata?: LogMetadata): void {
-    this.logger.info(metadata || {}, message);
-    this.appendToOutputChannel('INFO', message, metadata);
+    this.logWithLevel('info', message, metadata);
   }
 
   /**
@@ -85,8 +73,7 @@ export class PinoLogger {
    * @param message - The message to log.
    */
   debug(message: string): void {
-    this.logger.debug({}, message);
-    this.appendToOutputChannel('DEBUG', message);
+    this.logWithLevel('debug', message);
   }
 
   /**
@@ -95,8 +82,7 @@ export class PinoLogger {
    * @param metadata - Optional metadata to include with the log.
    */
   warn(message: string, metadata?: LogMetadata): void {
-    this.logger.warn(metadata || {}, message);
-    this.appendToOutputChannel('WARN', message, metadata);
+    this.logWithLevel('warn', message, metadata);
   }
 
   /**
@@ -105,8 +91,7 @@ export class PinoLogger {
    * @param metadata - Optional metadata to include with the log.
    */
   error(message: string, metadata?: LogMetadata): void {
-    this.logger.error(metadata || {}, message);
-    this.appendToOutputChannel('ERROR', message, metadata);
+    this.logWithLevel('error', message, metadata);
   }
 
   /**
@@ -115,8 +100,7 @@ export class PinoLogger {
    * @param metadata - Optional metadata to include with the failure.
    */
   fatal(message: string, metadata?: LogMetadata): void {
-    this.logger.fatal(metadata || {}, `Action failed: ${message}`);
-    this.appendToOutputChannel('FATAL', `Action failed: ${message}`, metadata);
+    this.logWithLevel('fatal', `Action failed: ${message}`, metadata);
   }
 
   /**
@@ -151,21 +135,12 @@ export class PinoLogger {
 
   private appendToOutputChannel(level: string, message: string, metadata?: LogMetadata): void {
     const channel = PinoLogger.sharedOutputChannel;
-    if (!channel) {
-      return;
-    }
-
-    const formattedMetadata = this.formatMetadata(metadata);
-    const line = formattedMetadata
-      ? `[${level}] ${message} ${formattedMetadata}`
-      : `[${level}] ${message}`;
-    channel.appendLine(line);
+    if (!channel) return;
+    channel.appendLine(this.formatOutputLine(level, message, metadata));
   }
 
   private formatMetadata(metadata?: LogMetadata): string | undefined {
-    if (!metadata || Object.keys(metadata).length === 0) {
-      return undefined;
-    }
+    if (!metadata || Object.keys(metadata).length === 0) return;
 
     const normalized = Object.entries(metadata).reduce<Record<string, unknown>>(
       (accumulator, [key, value]) => {
@@ -179,24 +154,43 @@ export class PinoLogger {
   }
 
   private normalizeError(error: unknown): string {
-    if (error instanceof Error) {
-      return error.stack || error.message;
-    }
-    if (isObject(error) && error !== null) {
-      return this.safeStringify(error);
-    }
+    if (error instanceof Error) return error.stack || error.message;
+    if (isObject(error)) return this.safeStringify(error);
     return String(error);
   }
 
   private safeStringify(value: unknown): string {
-    if (isString(value)) {
-      return value;
-    }
+    if (isString(value)) return value;
     try {
       return JSON.stringify(value);
     } catch {
       return String(value);
     }
+  }
+
+  private logWithLevel(level: PinoLevel, message: string, metadata?: LogMetadata): void {
+    const payload = metadata ?? {};
+    this.logger[level](payload, message);
+    this.appendToOutputChannel(level.toUpperCase(), message, metadata);
+  }
+
+  private formatOutputLine(level: string, message: string, metadata?: LogMetadata): string {
+    const formattedMetadata = this.formatMetadata(metadata);
+    return formattedMetadata
+      ? `[${level}] ${message} ${formattedMetadata}`
+      : `[${level}] ${message}`;
+  }
+
+  private resolveOptions(options?: pino.LoggerOptions): pino.LoggerOptions {
+    if (options) return options;
+    return {
+      level: process.env.LOG_LEVEL || 'info',
+      // Avoid transports (pino-pretty, thread-stream) that don't work when bundled
+      formatters: {
+        level: (label) => ({ level: label }),
+      },
+      timestamp: pino.stdTimeFunctions.isoTime,
+    };
   }
 }
 

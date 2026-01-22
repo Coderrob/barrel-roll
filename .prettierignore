@@ -3,5 +3,5 @@
 audit/
 coverage/
 node_modules/
-out/
+dist/
 script/*.sh
