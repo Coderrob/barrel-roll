@@ -6,6 +6,7 @@ src/**
 .yarn/**
 coverage/**
 webpack.config.js
+webpack.config.cjs
 **/tsconfig.json
 **/.eslintrc.json
 **/*.map
@@ -31,3 +32,7 @@ CHANGELOG.md
 CONTRIBUTING.md
 badges/**
 !badges/coverage.svg
+public/img/**
+!public/img/barrel-roll.png
+dist/**
+!dist/extension.js

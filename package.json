@@ -38,11 +38,11 @@
     "commands": [
       {
         "command": "barrel-roll.generateBarrel",
-        "title": "Barrel Directory"
+        "title": "Barrel Roll Directory"
       },
       {
         "command": "barrel-roll.generateBarrelRecursive",
-        "title": "Barrel Directory (Recursive)"
+        "title": "Barrel Roll Directory (Recursive)"
       }
     ],
     "menus": {
