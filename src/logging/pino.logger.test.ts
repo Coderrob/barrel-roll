@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import type { Logger, LoggerOptions } from 'pino';
 import type { OutputChannel } from 'vscode';
+import type { PinoLoggerConstructor } from '../test/testTypes.js';
 
 describe('PinoLogger', () => {
-  type PinoLoggerClass = (typeof import('./pino.logger.js'))['PinoLogger'];
-
   type CallStore = {
     info: Array<[unknown, string]>;
     debug: Array<[unknown, string]>;
@@ -64,7 +63,7 @@ describe('PinoLogger', () => {
   let lastOptions: LoggerOptions | undefined;
   let shouldThrowOnCreate = false;
   let consoleWarnings: unknown[][];
-  let PinoLogger: PinoLoggerClass;
+  let PinoLogger: PinoLoggerConstructor;
   let originalWarn: typeof console.warn;
   let previousLogLevel: string | undefined;
 
@@ -105,7 +104,9 @@ describe('PinoLogger', () => {
     mockChildLogger = makeLogger(childCalls, childMetadataArgs);
     mockPinoLogger = makeLogger(rootCalls, childMetadataArgs, mockChildLogger);
 
-    ({ PinoLogger } = await import('./pino.logger.js'));
+    ({ PinoLogger } = (await import('./pino.logger.js')) as unknown as {
+      PinoLogger: PinoLoggerConstructor;
+    });
 
     PinoLogger.configureOutputChannel({
       appendLine(line: string) {
@@ -231,7 +232,9 @@ describe('PinoLogger', () => {
   it('should use a child logger when grouping operations and restore afterward', async () => {
     const logger = new PinoLogger();
 
-    const result = await logger.group('build', async () => 42);
+    const result = await (
+      logger as unknown as { group(name: string, fn: () => Promise<number>): Promise<number> }
+    ).group('build', async () => 42);
 
     assert.strictEqual(result, 42);
     assert.deepStrictEqual(childMetadataArgs, [{ group: 'build' }]);
@@ -254,7 +257,9 @@ describe('PinoLogger', () => {
     const failure = { code: 'EFAIL' };
 
     await assert.rejects(
-      logger.group('failures', async () => {
+      (
+        logger as unknown as { group(name: string, fn: () => Promise<never>): Promise<never> }
+      ).group('failures', async () => {
         throw failure;
       }),
       (error) => error === failure,
