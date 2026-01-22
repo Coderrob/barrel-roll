@@ -126,23 +126,23 @@ npm run watch-tests
 ### Testing
 
 ```bash
-# Run all tests (unit + integration)
+# Run all tests (includes pretest: compile, lint, deps check)
 npm test
 
-# Run unit tests only
+# Run unit tests only (compiles tests and extension, then runs tests)
 npm run test:unit
 
-# Run VS Code integration tests
+# Run VS Code integration tests (compiles tests, then runs VS Code test harness)
 npm run test:vscode
 
-# Run coverage analysis
+# Run coverage analysis (includes pretest + c8 coverage + badge generation)
 npm run coverage
 
 # Check coverage thresholds
 npm run coverage:check
 ```
 
-> Note: On Windows, VS Code integration tests are temporarily skipped because the bundled `Code.exe` rejects the CLI flags required by `@vscode/test-electron`. Unit tests and linting still run as part of the command.
+> **Note:** `npm test` runs the full pretest pipeline (compile tests, compile extension, lint) before executing tests. `npm run test:unit` compiles and runs tests directly without linting.
 
 ### Linting
 
@@ -150,6 +150,8 @@ npm run coverage:check
 npm run lint
 npm run lint:fix
 ```
+
+> **Note:** `npm run lint` now runs a dependency check as part of the pipeline (`npm run deps:check`). This invokes the programmatic depcheck runner (`scripts/run-depcheck.cjs`) which writes `.depcheck.json` and will cause the command to fail if unused dependencies remain.
 
 ### Formatting
 
@@ -176,9 +178,12 @@ npm run duplication
 # Check for circular dependencies
 npm run madge
 
-# Check dependencies
+# Check dependencies (dependency check is also available as a standalone command)
 npm run lint:deps
+npm run deps:check
 ```
+
+**Dependency check details:** The project uses a programmatic depcheck runner (`scripts/run-depcheck.cjs`) that writes `.depcheck.json` and filters references found in scripts and repository files. This ensures unused packages are detected reliably without relying on `npx`.
 
 ### Coverage
 
@@ -225,6 +230,8 @@ This architecture ensures:
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+For developer notes on automation, dependency checks, test conventions, and other agent-related details see `AGENTS.md`.
 
 ## License
 
