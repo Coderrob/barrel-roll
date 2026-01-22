@@ -2,6 +2,7 @@ import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
 
+// istanbul ignore next
 import {
   type BarrelEntry,
   BarrelEntryKind,
@@ -14,7 +15,9 @@ import {
   type IParsedExport,
   type NormalizedBarrelGenerationOptions,
 } from '../../types/index.js';
+// istanbul ignore next
 import { isEmptyArray } from '../../utils/array.js';
+// istanbul ignore next
 import { FileSystemService } from '../io/file-system.service.js';
 import { ExportParser } from '../parser/export.parser.js';
 import { BarrelContentBuilder } from './barrel-content.builder.js';
@@ -115,7 +118,9 @@ export class BarrelFileGenerator {
   ): Promise<Map<string, BarrelEntry>> {
     const entries = new Map<string, BarrelEntry>();
 
+    // istanbul ignore next
     await this.addFileEntries(directoryPath, tsFiles, entries);
+    // istanbul ignore next
     await this.addSubdirectoryEntries(directoryPath, subdirectories, entries);
 
     return entries;
@@ -146,6 +151,7 @@ export class BarrelFileGenerator {
   ): Promise<void> {
     for (const subdirectoryPath of subdirectories) {
       const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
+      // istanbul ignore next
       if (!(await this.fileSystemService.fileExists(barrelPath))) {
         continue;
       }

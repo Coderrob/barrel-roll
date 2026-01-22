@@ -97,8 +97,8 @@ afterEach(() => {
   console.warn = originalWarn;
 });
 
-void describe('PinoLogger', () => {
-  void it('uses default configuration when no options are provided', () => {
+describe('PinoLogger', () => {
+  it('uses default configuration when no options are provided', () => {
     const logger = new PinoLogger();
 
     assert.ok(lastOptions);
@@ -107,7 +107,7 @@ void describe('PinoLogger', () => {
     assert.strictEqual(logger.isLoggerAvailable(), true);
   });
 
-  void it('passes provided options through to pino', () => {
+  it('passes provided options through to pino', () => {
     const options: LoggerOptions = { level: 'debug' };
     const logger = new PinoLogger(options);
 
@@ -116,7 +116,7 @@ void describe('PinoLogger', () => {
     assert.strictEqual(rootCalls.info.length, 1);
   });
 
-  void it('logs info messages with metadata', () => {
+  it('logs info messages with metadata', () => {
     const logger = new PinoLogger();
 
     logger.info('initialized', { service: 'barrel' });
@@ -125,7 +125,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[INFO] initialized {"service":"barrel"}']);
   });
 
-  void it('omits metadata from debug output when none is provided', () => {
+  it('omits metadata from debug output when none is provided', () => {
     const logger = new PinoLogger();
 
     logger.debug('diagnostic');
@@ -134,7 +134,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[DEBUG] diagnostic']);
   });
 
-  void it('logs warnings with metadata', () => {
+  it('logs warnings with metadata', () => {
     const logger = new PinoLogger();
 
     logger.warn('threshold exceeded', { attempt: 3 });
@@ -143,7 +143,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[WARN] threshold exceeded {"attempt":3}']);
   });
 
-  void it('normalizes errors before logging', () => {
+  it('normalizes errors before logging', () => {
     const logger = new PinoLogger();
     const error = new Error('boom');
 
@@ -153,7 +153,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[ERROR] operation failed {"error":"boom"}']);
   });
 
-  void it('leaves string errors unchanged during normalization', () => {
+  it('leaves string errors unchanged during normalization', () => {
     const logger = new PinoLogger();
     const normalizeError = (
       logger as unknown as { normalizeError(error: unknown): string }
@@ -162,7 +162,7 @@ void describe('PinoLogger', () => {
     assert.strictEqual(normalizeError('fail'), 'fail');
   });
 
-  void it('prefixes fatal messages for action failures', () => {
+  it('prefixes fatal messages for action failures', () => {
     const logger = new PinoLogger();
 
     logger.fatal('deploy');
@@ -171,7 +171,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[FATAL] Action failed: deploy']);
   });
 
-  void it('skips output channel writes when none is configured', () => {
+  it('skips output channel writes when none is configured', () => {
     const logger = new PinoLogger();
     PinoLogger.configureOutputChannel(undefined);
 
@@ -180,7 +180,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, []);
   });
 
-  void it('stringifies circular metadata safely', () => {
+  it('stringifies circular metadata safely', () => {
     const logger = new PinoLogger();
     const circular: Record<string, unknown> = {};
     circular.self = circular;
@@ -191,7 +191,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(outputLines, ['[INFO] circular [object Object]']);
   });
 
-  void it('uses a child logger when grouping operations and restores afterward', async () => {
+  it('uses a child logger when grouping operations and restores afterward', async () => {
     const logger = new PinoLogger();
 
     const result = await logger.group('build', async () => 42);
@@ -212,7 +212,7 @@ void describe('PinoLogger', () => {
     assert.deepStrictEqual(rootCalls.debug.at(-1), [{}, 'post-group']);
   });
 
-  void it('propagates errors from grouped operations with normalized metadata', async () => {
+  it('propagates errors from grouped operations with normalized metadata', async () => {
     const logger = new PinoLogger();
     const failure = { code: 'EFAIL' };
 
@@ -228,7 +228,7 @@ void describe('PinoLogger', () => {
     assert.strictEqual(outputLines.at(-1), `[ERROR] Failed in group: failures ${expectedMetadata}`);
   });
 
-  void it('falls back to a no-op logger when pino initialization fails', () => {
+  it('falls back to a no-op logger when pino initialization fails', () => {
     shouldThrowOnCreate = true;
 
     const logger = new PinoLogger();

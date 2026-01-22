@@ -1,10 +1,35 @@
 {
-  "activationEvents": [
-    "onStartupFinished"
-  ],
-  "author": "Rob Lindley",
+  "author": {
+    "name": "Robert Lindley",
+    "url": "https://coderrob.com"
+  },
   "bugs": {
     "url": "https://github.com/Coderrob/barrel-roll/issues"
+  },
+  "c8": {
+    "branches": 80,
+    "check-coverage": true,
+    "exclude": [
+      "dist/test/**",
+      "dist/**/*.test.js",
+      "dist/**/*.d.ts",
+      "node_modules/**",
+      "src/test/**",
+      "src/**/*.test.ts",
+      "src/**/*.d.ts"
+    ],
+    "functions": 80,
+    "include": [
+      "dist/**/*.js"
+    ],
+    "lines": 80,
+    "reporter": [
+      "text",
+      "lcov",
+      "html",
+      "json-summary"
+    ],
+    "statements": 80
   },
   "categories": [
     "Other"
@@ -121,11 +146,11 @@
     "coverage": "npm run pretest && c8 node scripts/run-tests.js && npm run coverage:badge",
     "coverage:badge": "make-coverage-badge --output-path ./badges/coverage.svg",
     "coverage:check": "c8 check-coverage",
+    "duplication": "jscpd src",
     "ext:build": "npm run compile",
     "ext:install": "node scripts/install-extension.cjs",
     "ext:package": "npx @vscode/vsce package",
     "ext:reinstall": "npm run ext:package && npm run ext:install",
-    "duplication": "jscpd src",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "lint": "prettier --check . && eslint .",
@@ -143,30 +168,5 @@
     "watch": "webpack --watch",
     "watch-tests": "tsc -p . -w --outDir dist"
   },
-  "c8": {
-    "reporter": [
-      "text",
-      "lcov",
-      "html",
-      "json-summary"
-    ],
-    "exclude": [
-      "dist/test/**",
-      "dist/**/*.test.js",
-      "dist/**/*.d.ts",
-      "node_modules/**",
-      "src/test/**",
-      "src/**/*.test.ts",
-      "src/**/*.d.ts"
-    ],
-    "include": [
-      "dist/**/*.js"
-    ],
-    "check-coverage": true,
-    "branches": 80,
-    "functions": 80,
-    "lines": 80,
-    "statements": 80
-  },
-  "version": "0.0.1"
+  "version": "1.0.0"
 }

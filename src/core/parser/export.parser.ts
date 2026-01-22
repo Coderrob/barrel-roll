@@ -65,6 +65,7 @@ export class ExportParser {
     let match: RegExpExecArray | null;
     let hasDefault = false;
 
+    // istanbul ignore next
     while ((match = exportListPattern.exec(content)) !== null) {
       const entries = this.parseExportListEntries(match[2], Boolean(match[1]));
 

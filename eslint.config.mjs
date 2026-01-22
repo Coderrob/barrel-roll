@@ -185,6 +185,14 @@ export default [
     },
   },
 
+  // Unit test files
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'off',
+    },
+  },
+
   // Test runner files
   {
     files: ['**/src/test/runTest.ts'],
