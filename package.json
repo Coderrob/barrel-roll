@@ -163,7 +163,7 @@
     "lint:deps": "depcruise src --config .dependency-cruiser.cjs",
     "lint:fix": "prettier --write . && eslint --fix .",
     "madge": "madge --circular --orphans src",
-    "deps:check": "npx depcheck --json > .depcheck.json && node scripts/check-unused-deps.cjs",
+    "deps:check": "node ./scripts/run-depcheck.cjs",
     "package": "webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "quality": "npm run lint && npm run duplication && npm run madge",
