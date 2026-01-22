@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 
 const { execSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
-const vsixPath = path.join(__dirname, '..', 'barrel-roll-0.0.1.vsix');
+const packageJsonPath = path.join(__dirname, '..', 'package.json');
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+const version = packageJson.version;
+const vsixPath = path.join(__dirname, '..', `barrel-roll-${version}.vsix`);
 
 try {
   execSync(`code --install-extension "${vsixPath}"`, { stdio: 'inherit' });
