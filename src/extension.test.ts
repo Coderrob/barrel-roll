@@ -1,12 +1,17 @@
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { beforeEach, describe, it, mock } from 'node:test';
+import type {
+  FakeUri,
+  CommandHandler,
+  TestWindowApi,
+  TestCommandsApi,
+  ActivateFn,
+  DeactivateFn,
+} from './test/testTypes.js';
+import { uriFile } from './test/testTypes.js';
 import { BarrelGenerationMode } from './types/index.js';
-import type { ExtensionContext, ProgressOptions, Uri as VsCodeUri } from 'vscode';
-
-type FakeUri = Pick<VsCodeUri, 'fsPath'>;
-
-type CommandHandler = (uri?: FakeUri) => unknown;
+import type { ExtensionContext, ProgressOptions } from 'vscode';
 
 type ProgressCall = {
   options: ProgressOptions;
@@ -37,14 +42,6 @@ const ProgressLocation = {
   Window: 10,
 };
 
-interface TestWindowApi {
-  createOutputChannel(name: string): { appendLine(value: string): void };
-  showInformationMessage(message: string): unknown;
-  showErrorMessage(message: string): unknown;
-  showOpenDialog(): Promise<FakeUri[] | undefined>;
-  withProgress<T>(options: ProgressOptions, task: () => Promise<T>): Promise<T>;
-}
-
 const windowApi: TestWindowApi = {
   createOutputChannel(name: string) {
     createOutputChannelCalls.push(name);
@@ -74,10 +71,6 @@ const windowApi: TestWindowApi = {
   },
 };
 
-interface TestCommandsApi {
-  registerCommand(command: string, handler: CommandHandler): { dispose(): void };
-}
-
 const commandsApi: TestCommandsApi = {
   registerCommand(command: string, handler: CommandHandler): { dispose(): void } {
     commandHandlers.set(command, handler);
@@ -91,7 +84,7 @@ const commandsApi: TestCommandsApi = {
 
 const uriApi: { file(fsPath: string): FakeUri } = {
   file(fsPath: string): FakeUri {
-    return { fsPath: path.normalize(fsPath) };
+    return uriFile(fsPath);
   },
 };
 
@@ -149,8 +142,6 @@ mock.module('./logging/pino.logger.js', {
   },
 });
 
-type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
-type DeactivateFn = () => void;
 let activate: ActivateFn;
 let deactivate: DeactivateFn;
 
