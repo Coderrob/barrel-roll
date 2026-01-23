@@ -27,8 +27,8 @@ export type TestWorkspaceApi = { fs: { stat(uri: FakeUri): Promise<{ type: numbe
 export type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
 export type DeactivateFn = () => void;
 
-// Minimal runtime shape for the PinoLogger class used in tests
-export interface PinoLoggerInstance {
+// Minimal runtime shape for the OutputChannelLogger class used in tests
+export interface LoggerInstance {
   isLoggerAvailable(): boolean;
   info(message: string, metadata?: Record<string, unknown>): void;
   debug(message: string, metadata?: Record<string, unknown>): void;
@@ -36,9 +36,15 @@ export interface PinoLoggerInstance {
   error(message: string, metadata?: Record<string, unknown>): void;
   fatal(message: string, metadata?: Record<string, unknown>): void;
   group?<T>(name: string, fn: () => Promise<T>): Promise<T>;
+  child?(bindings: Record<string, unknown>): LoggerInstance;
 }
 
-export interface PinoLoggerConstructor {
-  new (...args: unknown[]): PinoLoggerInstance;
+export interface LoggerConstructor {
+  new (...args: unknown[]): LoggerInstance;
   configureOutputChannel(channel?: { appendLine(value: string): void }): void;
 }
+
+/** @deprecated Use LoggerInstance instead */
+export type PinoLoggerInstance = LoggerInstance;
+/** @deprecated Use LoggerConstructor instead */
+export type PinoLoggerConstructor = LoggerConstructor;

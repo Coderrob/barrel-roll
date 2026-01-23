@@ -53,6 +53,7 @@ Whether you need a single barrel refreshed or an entire tree brought into alignm
 1. Select one of the Barrel Roll commands:
    - `Barrel Roll: Barrel Directory` (updates only the selected folder)
    - `Barrel Roll: Barrel Directory (Recursive)` (updates the selected folder and all subfolders)
+
 1. The extension will:
    - Scan all `.ts`/`.tsx` files in the folder (excluding `index.ts` and declaration files)
    - Recursively process each subfolder and generate its `index.ts`

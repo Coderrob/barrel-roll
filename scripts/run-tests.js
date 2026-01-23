@@ -12,6 +12,7 @@ const { globSync } = require('glob');
 const patterns = [
   'dist/core/barrel/*.test.js',
   'dist/core/parser/*.test.js',
+  'dist/logging/*.test.js',
   'dist/utils/*.test.js',
 ];
 
