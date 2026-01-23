@@ -87,5 +87,63 @@ describe('ExportParser', () => {
       assert.ok(hotel);
       assert.strictEqual(hotel.typeOnly, false);
     });
+
+    it('should ignore export statements inside single-quoted strings', () => {
+      const source = `
+        const example = 'export class FakeClass {}';
+        const another = 'export interface FakeInterface {}';
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should ignore export statements inside double-quoted strings', () => {
+      const source = `
+        const example = "export class FakeClass {}";
+        const another = "export const fakeConst = 1;";
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should ignore export statements inside template literals', () => {
+      const source = `
+        const example = \`export class FakeClass {}\`;
+        const multiline = \`
+          export interface FakeInterface {}
+          export function fakeFunction() {}
+        \`;
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should ignore export statements inside strings with escaped quotes', () => {
+      const source = String.raw`
+        const example = 'export class \'FakeClass\' {}';
+        const another = "export const \"fakeConst\" = 1;";
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should parse real exports while ignoring exports in strings', () => {
+      const source = `
+        export class RealClass {}
+        const testContent = 'export class FakeClass {}';
+        export function realFunction() {}
+      `;
+
+      const exports = parser.extractExports(source);
+
+      assert.strictEqual(exports.length, 2);
+      assert.ok(exports.some((e) => e.name === 'RealClass' && !e.typeOnly));
+      assert.ok(exports.some((e) => e.name === 'realFunction' && !e.typeOnly));
+      assert.ok(!exports.some((e) => e.name === 'FakeClass'));
+    });
   });
 });

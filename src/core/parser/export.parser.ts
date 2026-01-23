@@ -19,12 +19,12 @@ export class ExportParser {
    */
   extractExports(content: string): IParsedExport[] {
     const exportMap = new Map<string, IParsedExport>();
-    const contentWithoutComments = this.removeComments(content);
+    const cleanedContent = this.removeNonCodeContent(content);
 
-    this.collectNamedExports(contentWithoutComments, exportMap);
-    const hasListDefault = this.collectNamedExportLists(contentWithoutComments, exportMap);
+    this.collectNamedExports(cleanedContent, exportMap);
+    const hasListDefault = this.collectNamedExportLists(cleanedContent, exportMap);
 
-    const hasDefaultExport = hasListDefault || /export\s+default\s+/.test(contentWithoutComments);
+    const hasDefaultExport = hasListDefault || /export\s+default\s+/.test(cleanedContent);
 
     const result = Array.from(exportMap.values());
     if (hasDefaultExport) {
@@ -35,15 +35,24 @@ export class ExportParser {
   }
 
   /**
-   * Removes single-line and multi-line comments from code.
+   * Removes comments and string literals from code to prevent false positives.
+   * This ensures that export statements inside strings (e.g., in test files)
+   * are not incorrectly parsed as actual exports.
    * @param content The code content
-   * @returns Content without comments
+   * @returns Content with comments and string literals removed
    */
-  private removeComments(content: string): string {
+  private removeNonCodeContent(content: string): string {
+    let result = content;
     // Remove multi-line comments
-    let result = content.replaceAll(/\/\*[\s\S]*?\*\//g, '');
+    result = result.replaceAll(/\/\*[\s\S]*?\*\//g, '');
     // Remove single-line comments
     result = result.replaceAll(/\/\/.*$/gm, '');
+    // Remove template literals (backtick strings), handling escaped backticks
+    result = result.replaceAll(/`(?:[^`\\]|\\.)*`/g, '""');
+    // Remove double-quoted strings, handling escaped quotes
+    result = result.replaceAll(/"(?:[^"\\]|\\.)*"/g, '""');
+    // Remove single-quoted strings, handling escaped quotes
+    result = result.replaceAll(/'(?:[^'\\]|\\.)*'/g, "''");
     return result;
   }
 
