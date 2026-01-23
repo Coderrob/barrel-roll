@@ -1,11 +1,21 @@
+<p align="center">
+  <img
+    src="public/img/barrel-roll-small-logo.png"
+    alt="Barrel Roll logo"
+  />
+</p>
+
 # Barrel Roll
 
 [![CI](https://github.com/Coderrob/barrel-roll/actions/workflows/ci.yml/badge.svg)](https://github.com/Coderrob/barrel-roll/actions/workflows/ci.yml)
-[![VS Code Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/Coderrob.barrel-roll)](https://marketplace.visualstudio.com/items?itemName=Coderrob.barrel-roll)
-[![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/Coderrob.barrel-roll)](https://marketplace.visualstudio.com/items?itemName=Coderrob.barrel-roll)
+[![Code Style: Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://prettier.io/)
+[![Coverage](https://img.shields.io/badge/coverage-94.8%25-4c1)](badges/coverage.svg)
+[![ESLint](https://img.shields.io/badge/ESLint-9.x-4B32C3.svg)](https://eslint.org/)
 [![License: Apache-2.0](https://img.shields.io/github/license/Coderrob/barrel-roll)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-94.8%25-4c1)](https://github.com/Coderrob/barrel-roll/actions/workflows/ci.yml)
 [![Quality Checks](https://img.shields.io/badge/quality--checks-eslint%20%7C%20madge%20%7C%20jscpd-1f6feb)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6.svg)](https://www.typescriptlang.org/)
+[![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/Coderrob.barrel-roll)](https://marketplace.visualstudio.com/items?itemName=Coderrob.barrel-roll)
+[![VS Code Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/Coderrob.barrel-roll)](https://marketplace.visualstudio.com/items?itemName=Coderrob.barrel-roll)
 
 Barrel Roll is a Visual Studio Code extension that makes barrel file creation and upkeep effortless. Right-click any folder, pick a Barrel Roll command, and the extension assembles a curated `index.ts` that reflects the exports your module actually exposes—no tedious manual wiring, no temptation to `export *` the entire directory.
 
@@ -41,8 +51,9 @@ Whether you need a single barrel refreshed or an entire tree brought into alignm
 
 1. Right-click on any folder in the VS Code explorer
 1. Select one of the Barrel Roll commands:
-   - `Barrel Roll: Update Barrel Directory` (updates only the selected folder)
-   - `Barrel Roll: Update Barrel Directory (Recursive)` (updates the selected folder and all subfolders)
+   - `Barrel Roll: Barrel Directory` (updates only the selected folder)
+   - `Barrel Roll: Barrel Directory (Recursive)` (updates the selected folder and all subfolders)
+
 1. The extension will:
    - Scan all `.ts`/`.tsx` files in the folder (excluding `index.ts` and declaration files)
    - Recursively process each subfolder and generate its `index.ts`
@@ -82,7 +93,7 @@ export { User, UserData } from './user';
 
 ### Prerequisites
 
-- Node.js 18.x or 20.x
+- Node.js 18.x or later
 - npm 8.x or later
 
 ### Setup
@@ -91,25 +102,48 @@ export { User, UserData } from './user';
 npm install
 ```
 
-### Build
+### Compile
 
 ```bash
 npm run compile
 ```
 
+### Compile Tests
+
+```bash
+npm run compile-tests
+```
+
 ### Watch Mode
 
 ```bash
+# Watch for changes and recompile
 npm run watch
+
+# Watch for test changes and recompile
+npm run watch-tests
 ```
 
 ### Testing
 
 ```bash
+# Run all tests (includes pretest: compile, lint, deps check)
 npm test
+
+# Run unit tests only (compiles tests and extension, then runs tests)
+npm run test:unit
+
+# Run VS Code integration tests (compiles tests, then runs VS Code test harness)
+npm run test:vscode
+
+# Run coverage analysis (includes pretest + c8 coverage + badge generation)
+npm run coverage
+
+# Check coverage thresholds
+npm run coverage:check
 ```
 
-> Note: On Windows, VS Code integration tests are temporarily skipped because the bundled `Code.exe` rejects the CLI flags required by `@vscode/test-electron`. Unit tests and linting still run as part of the command.
+> **Note:** `npm test` runs the full pretest pipeline (compile tests, compile extension, lint) before executing tests. `npm run test:unit` compiles and runs tests directly without linting.
 
 ### Linting
 
@@ -118,6 +152,8 @@ npm run lint
 npm run lint:fix
 ```
 
+> **Note:** `npm run lint` now runs a dependency check as part of the pipeline (`npm run deps:check`). This invokes the programmatic depcheck runner (`scripts/run-depcheck.cjs`) which writes `.depcheck.json` and will cause the command to fail if unused dependencies remain.
+
 ### Formatting
 
 ```bash
@@ -125,10 +161,55 @@ npm run format
 npm run format:check
 ```
 
-### Package Extension
+### Type Checking
 
 ```bash
+npm run typecheck
+```
+
+### Quality Checks
+
+```bash
+# Run all quality checks (linting, duplication, circular dependencies)
+npm run quality
+
+# Check for code duplication
+npm run duplication
+
+# Check for circular dependencies
+npm run madge
+
+# Check dependencies (dependency check is also available as a standalone command)
+npm run lint:deps
+npm run deps:check
+```
+
+**Dependency check details:** The project uses a programmatic depcheck runner (`scripts/run-depcheck.cjs`) that writes `.depcheck.json` and filters references found in scripts and repository files. This ensures unused packages are detected reliably without relying on `npx`.
+
+### Coverage
+
+```bash
+# Generate coverage report and badge
+npm run coverage
+
+# Generate coverage badge only
+npm run coverage:badge
+
+# Check coverage thresholds
+npm run coverage:check
+```
+
+### Extension Packaging
+
+```bash
+# Package extension for distribution
 npm run package
+
+# Install packaged extension locally
+npm run ext:install
+
+# Package and install in one command
+npm run ext:reinstall
 ```
 
 ## Architecture
@@ -150,6 +231,8 @@ This architecture ensures:
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+For developer notes on automation, dependency checks, test conventions, and other agent-related details see `AGENTS.md`.
 
 ## License
 

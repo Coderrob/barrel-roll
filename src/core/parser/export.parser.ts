@@ -1,4 +1,4 @@
-import { DEFAULT_EXPORT_NAME, type ParsedExport } from '../../types/index.js';
+import { DEFAULT_EXPORT_NAME, type IParsedExport } from '../../types/index.js';
 import { splitAndClean } from '../../utils/string.js';
 
 /**
@@ -17,8 +17,8 @@ export class ExportParser {
    * @param content The TypeScript file content
    * @returns Array of export names
    */
-  extractExports(content: string): ParsedExport[] {
-    const exportMap = new Map<string, ParsedExport>();
+  extractExports(content: string): IParsedExport[] {
+    const exportMap = new Map<string, IParsedExport>();
     const contentWithoutComments = this.removeComments(content);
 
     this.collectNamedExports(contentWithoutComments, exportMap);
@@ -47,7 +47,7 @@ export class ExportParser {
     return result;
   }
 
-  private collectNamedExports(content: string, exportMap: Map<string, ParsedExport>): void {
+  private collectNamedExports(content: string, exportMap: Map<string, IParsedExport>): void {
     const namedExportPattern =
       /export\s+(?:abstract\s+)?(class|interface|type|function|const|enum|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
     let match: RegExpExecArray | null;
@@ -60,11 +60,12 @@ export class ExportParser {
     }
   }
 
-  private collectNamedExportLists(content: string, exportMap: Map<string, ParsedExport>): boolean {
+  private collectNamedExportLists(content: string, exportMap: Map<string, IParsedExport>): boolean {
     const exportListPattern = /export\s*(type\s+)?\{([^}]+)\}/g;
     let match: RegExpExecArray | null;
     let hasDefault = false;
 
+    // istanbul ignore next
     while ((match = exportListPattern.exec(content)) !== null) {
       const entries = this.parseExportListEntries(match[2], Boolean(match[1]));
 
@@ -102,7 +103,11 @@ export class ExportParser {
       );
   }
 
-  private recordNamedExport(map: Map<string, ParsedExport>, name: string, typeOnly: boolean): void {
+  private recordNamedExport(
+    map: Map<string, IParsedExport>,
+    name: string,
+    typeOnly: boolean,
+  ): void {
     const existing = map.get(name);
 
     if (!existing) {

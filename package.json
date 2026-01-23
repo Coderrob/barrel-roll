@@ -1,22 +1,48 @@
 {
   "author": {
-    "name": "Coderrob"
+    "name": "Robert Lindley",
+    "url": "https://coderrob.com"
   },
   "bugs": {
     "url": "https://github.com/Coderrob/barrel-roll/issues"
   },
+  "c8": {
+    "branches": 80,
+    "check-coverage": true,
+    "exclude": [
+      "dist/test/**",
+      "dist/**/*.test.js",
+      "dist/**/*.d.ts",
+      "node_modules/**",
+      "src/test/**",
+      "src/**/*.test.ts",
+      "src/**/*.d.ts"
+    ],
+    "functions": 80,
+    "include": [
+      "dist/**/*.js"
+    ],
+    "lines": 80,
+    "reporter": [
+      "text",
+      "lcov",
+      "html",
+      "json-summary"
+    ],
+    "statements": 80
+  },
   "categories": [
-    "Other"
+    "Programming Languages"
   ],
   "contributes": {
     "commands": [
       {
         "command": "barrel-roll.generateBarrel",
-        "title": "Barrel Roll: Update Barrel Directory"
+        "title": "Barrel Roll Directory"
       },
       {
         "command": "barrel-roll.generateBarrelRecursive",
-        "title": "Barrel Roll: Update Barrel Directory (Recursive)"
+        "title": "Barrel Roll Directory (Recursive)"
       }
     ],
     "menus": {
@@ -32,6 +58,13 @@
       ],
       "explorer/context": [
         {
+          "group": "z_commands",
+          "submenu": "generateBarrel",
+          "when": "explorerResourceIsFolder"
+        }
+      ],
+      "generateBarrel": [
+        {
           "command": "barrel-roll.generateBarrel",
           "group": "navigation@1",
           "when": "explorerResourceIsFolder"
@@ -42,19 +75,25 @@
           "when": "explorerResourceIsFolder"
         }
       ]
-    }
+    },
+    "submenus": [
+      {
+        "id": "generateBarrel",
+        "label": "Generate Barrel"
+      }
+    ]
   },
-  "dependencies": {
-    "pino": "^10.0.0"
-  },
-  "description": "Automatically export types, functions, constants, and classes through barrel files",
+  "dependencies": {},
+  "description": "A Visual Studio Code extension to automatically export types, functions, constants, and classes through barrel files",
   "devDependencies": {
+    "depcheck": "^1.4.7",
     "@types/glob": "^8.1.0",
     "@types/node": "^22.x",
     "@types/vscode": "^1.80.0",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
     "@typescript-eslint/parser": "^8.24.0",
     "@vscode/test-electron": "^2.3.4",
+    "c8": "^10.1.3",
     "cross-env": "^10.1.0",
     "dependency-cruiser": "^17.1.0",
     "eslint": "^9.21.0",
@@ -62,9 +101,9 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-simple-import-sort": "^12.1.0",
     "eslint-plugin-sonarjs": "^3.0.5",
     "eslint-plugin-unused-imports": "^4.2.0",
-    "eslint-plugin-simple-import-sort": "^12.1.0",
     "expect": "^29.7.0",
     "glob": "^10.3.3",
     "jscpd": "^4.0.5",
@@ -84,17 +123,21 @@
     "vscode": "^1.80.0"
   },
   "homepage": "https://github.com/Coderrob/barrel-roll#readme",
+  "icon": "public/img/barrel-roll-icon.png",
   "keywords": [
     "barrel",
-    "barrel-file",
     "export",
     "typescript",
-    "index",
+    "javascript",
     "module",
-    "organization"
+    "index",
+    "refactor",
+    "code generation",
+    "vscode",
+    "extension"
   ],
   "license": "Apache-2.0",
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "name": "barrel-roll",
   "publisher": "coderrob",
   "repository": {
@@ -104,22 +147,35 @@
   "scripts": {
     "compile": "webpack",
     "compile-tests": "tsc -p tsconfig.test-suite.json",
-    "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
+    "coverage": "npm run pretest && c8 node scripts/run-tests.js && npm run coverage:badge",
+    "coverage:badge": "make-coverage-badge --output-path ./badges/coverage.svg",
+    "coverage:check": "c8 check-coverage",
     "duplication": "jscpd src",
+    "ext:build": "npm run compile",
+    "ext:install": "node scripts/install-extension.cjs",
+    "ext:package": "npx @vscode/vsce package",
+    "ext:reinstall": "npm run ext:package && npm run ext:install",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "lint": "prettier --check . && eslint .",
+    "lint": "prettier --check . && eslint . && npm run deps:check",
+    "lint:deps": "depcruise src --config .dependency-cruiser.cjs",
     "lint:fix": "prettier --write . && eslint --fix .",
     "madge": "madge --circular --orphans src",
+    "deps:check": "node ./scripts/run-depcheck.cjs",
     "package": "webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "quality": "npm run lint && npm run duplication && npm run madge",
+    "release:minor": "npm run version:minor && npm run ext:reinstall",
+    "release:patch": "npm run version:patch && npm run ext:reinstall",
     "test": "node scripts/run-tests.js",
-    "test:vscode": "node ./out/test/runTest.js",
+    "test:unit": "npm run compile-tests && npm run compile && node scripts/run-tests.js",
+    "test:vscode": "npm run compile-tests && node ./dist/test/runTest.js",
     "typecheck": "tsc --noEmit",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:patch": "npm version patch --no-git-tag-version",
     "vscode:prepublish": "npm run package",
     "watch": "webpack --watch",
-    "watch-tests": "tsc -p . -w --outDir out"
+    "watch-tests": "tsc -p . -w --outDir dist"
   },
-  "version": "0.0.1"
+  "version": "1.0.0"
 }

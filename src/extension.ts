@@ -3,12 +3,12 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 import { BarrelFileGenerator } from './core/barrel/barrel-file.generator.js';
-import { PinoLogger } from './logging/pino.logger.js';
-import { BarrelGenerationMode, type BarrelGenerationOptions } from './types/index.js';
+import { OutputChannelLogger } from './logging/output-channel.logger.js';
+import { BarrelGenerationMode, type IBarrelGenerationOptions } from './types/index.js';
 
 type CommandDescriptor = {
   id: string;
-  options: BarrelGenerationOptions;
+  options: IBarrelGenerationOptions;
   progressTitle: string;
   successMessage: string;
 };
@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const outputChannel = vscode.window.createOutputChannel('Barrel Roll');
   context.subscriptions.push(outputChannel);
-  PinoLogger.configureOutputChannel(outputChannel);
+  OutputChannelLogger.configureOutputChannel(outputChannel);
   outputChannel.appendLine('Barrel Roll: logging initialized');
 
   const generator = new BarrelFileGenerator();

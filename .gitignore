@@ -13,13 +13,15 @@ package-lock.json*
 
 # Build outputs
 lib/
-out/
+dist/
 build/
+*.vsix
 
 # Test outputs
 coverage/
 .nyc_output/
 *.lcov
+.depcheck.json
 
 # Logs
 logs/

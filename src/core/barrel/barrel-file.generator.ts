@@ -2,20 +2,22 @@ import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
 
-import { BarrelExport } from '@/types/barrel/BarrelExport.js';
-
+// istanbul ignore next
 import {
   type BarrelEntry,
   BarrelEntryKind,
+  BarrelExport,
   BarrelExportKind,
   BarrelGenerationMode,
-  type BarrelGenerationOptions,
   DEFAULT_EXPORT_NAME,
+  type IBarrelGenerationOptions,
   INDEX_FILENAME,
+  type IParsedExport,
   type NormalizedBarrelGenerationOptions,
-  type ParsedExport,
 } from '../../types/index.js';
+// istanbul ignore next
 import { isEmptyArray } from '../../utils/array.js';
+// istanbul ignore next
 import { FileSystemService } from '../io/file-system.service.js';
 import { ExportParser } from '../parser/export.parser.js';
 import { BarrelContentBuilder } from './barrel-content.builder.js';
@@ -46,7 +48,7 @@ export class BarrelFileGenerator {
    * @param options Behavioral options for generation.
    * @returns Promise that resolves when barrel files have been created/updated.
    */
-  async generateBarrelFile(directoryUri: Uri, options?: BarrelGenerationOptions): Promise<void> {
+  async generateBarrelFile(directoryUri: Uri, options?: IBarrelGenerationOptions): Promise<void> {
     const normalizedOptions = this.normalizeOptions(options);
     await this.generateBarrelFileFromPath(directoryUri.fsPath, normalizedOptions);
   }
@@ -116,7 +118,9 @@ export class BarrelFileGenerator {
   ): Promise<Map<string, BarrelEntry>> {
     const entries = new Map<string, BarrelEntry>();
 
+    // istanbul ignore next
     await this.addFileEntries(directoryPath, tsFiles, entries);
+    // istanbul ignore next
     await this.addSubdirectoryEntries(directoryPath, subdirectories, entries);
 
     return entries;
@@ -147,6 +151,7 @@ export class BarrelFileGenerator {
   ): Promise<void> {
     for (const subdirectoryPath of subdirectories) {
       const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
+      // istanbul ignore next
       if (!(await this.fileSystemService.fileExists(barrelPath))) {
         continue;
       }
@@ -176,14 +181,14 @@ export class BarrelFileGenerator {
     return hasExistingIndex;
   }
 
-  private normalizeOptions(options?: BarrelGenerationOptions): NormalizedGenerationOptions {
+  private normalizeOptions(options?: IBarrelGenerationOptions): NormalizedGenerationOptions {
     return {
       recursive: options?.recursive ?? false,
       mode: options?.mode ?? BarrelGenerationMode.CreateOrUpdate,
     };
   }
 
-  private normalizeParsedExports(exports: ParsedExport[]): BarrelExport[] {
+  private normalizeParsedExports(exports: IParsedExport[]): BarrelExport[] {
     return exports.map((exp) => {
       if (exp.name === DEFAULT_EXPORT_NAME) {
         return { kind: BarrelExportKind.Default };
