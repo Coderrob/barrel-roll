@@ -2,7 +2,7 @@
 
 'use strict';
 
-const path = require('path');
+const path = require('node:path');
 
 /**@type {import('webpack').Configuration}*/
 const config = {
@@ -10,7 +10,7 @@ const config = {
   entry: './src/extension.ts',
   mode: 'production',
   output: {
-    path: path.resolve(__dirname, 'out'),
+    path: path.resolve(__dirname, 'dist'),
     filename: 'extension.js',
     libraryTarget: 'commonjs2',
     devtoolModuleFilenameTemplate: '../[resource-path]',

@@ -49,6 +49,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check for unused dependencies
+        run: npm run deps:check
+
       - name: Package extension
         run: npm run package
 

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-floating-promises */
-
 import assert from 'node:assert/strict';
 import { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
@@ -51,9 +49,7 @@ describe('FileSystemService', () => {
     service = new FileSystemService();
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+  afterEach(() => {});
 
   describe('getTypeScriptFiles', () => {
     const directoryPath = '/path/to/dir';
