@@ -88,6 +88,77 @@ describe('ExportParser', () => {
       assert.strictEqual(hotel.typeOnly, false);
     });
 
+    // Test cases for specific AST node types to ensure private methods are covered
+    it('should extract class exports', () => {
+      const source = 'export class MyClass {}';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'MyClass', typeOnly: false }]);
+    });
+
+    it('should extract interface exports', () => {
+      const source = 'export interface MyInterface {}';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'MyInterface', typeOnly: true }]);
+    });
+
+    it('should extract type alias exports', () => {
+      const source = 'export type MyType = string;';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'MyType', typeOnly: true }]);
+    });
+
+    it('should extract enum exports', () => {
+      const source = 'export enum MyEnum { A, B, C }';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'MyEnum', typeOnly: false }]);
+    });
+
+    it('should extract variable exports', () => {
+      const source = 'export const myVar = 42;';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'myVar', typeOnly: false }]);
+    });
+
+    it('should extract function exports', () => {
+      const source = 'export function myFunction() {}';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'myFunction', typeOnly: false }]);
+    });
+
+    it('should handle anonymous default class exports', () => {
+      const source = 'export default class {}';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'default', typeOnly: false }]);
+    });
+
+    it('should handle named default class exports', () => {
+      const source = 'export default class MyClass {}';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'default', typeOnly: false }]);
+    });
+
+    it('should handle multiple variable declarations', () => {
+      const source = 'export const a = 1, b = 2, c = 3;';
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [
+        { name: 'a', typeOnly: false },
+        { name: 'b', typeOnly: false },
+        { name: 'c', typeOnly: false },
+      ]);
+    });
+
+    it('should handle re-exports with aliases', () => {
+      const source = "export { default as MyClass } from './other-module';";
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, [{ name: 'MyClass', typeOnly: false }]);
+    });
+
+    it('should skip unaliased re-exports', () => {
+      const source = "export { SomeClass } from './other-module';";
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
     it('should ignore export statements inside single-quoted strings', () => {
       const source = `
         const example = 'export class FakeClass {}';
@@ -144,6 +215,95 @@ describe('ExportParser', () => {
       assert.ok(exports.some((e) => e.name === 'RealClass' && !e.typeOnly));
       assert.ok(exports.some((e) => e.name === 'realFunction' && !e.typeOnly));
       assert.ok(!exports.some((e) => e.name === 'FakeClass'));
+    });
+
+    it('should ignore exports in assertion strings (real-world test pattern)', () => {
+      const source = String.raw`
+        import assert from 'node:assert';
+        import { describe, it } from 'node:test';
+
+        describe('MyParser', () => {
+          it('should extract class exports', () => {
+            const content = 'export class MyClass {}';
+            const exports = parser.extractExports(content);
+            assert.deepStrictEqual(exports, [{ name: 'MyClass', typeOnly: false }]);
+          });
+
+          it('should handle multiple exports', () => {
+            assert.strictEqual(content, "export { MyClass, MyInterface } from './myFile';\n");
+          });
+        });
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should ignore exports inside comments', () => {
+      const source = `
+        // export class CommentedClass {}
+        /* export interface CommentedInterface {} */
+        /**
+         * Example: export const documentedConst = 1;
+         */
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should handle mixed comments, strings, and real exports', () => {
+      const source = `
+        // export class CommentedOut {}
+        export class RealClass {}
+        const str = "export interface FakeInterface {}";
+        /* export function commentedFunction() {} */
+        export const realConst = 42;
+        const template = \`export enum FakeEnum { A }\`;
+      `;
+
+      const exports = parser.extractExports(source);
+
+      assert.strictEqual(exports.length, 2);
+      assert.ok(exports.some((e) => e.name === 'RealClass' && !e.typeOnly));
+      assert.ok(exports.some((e) => e.name === 'realConst' && !e.typeOnly));
+      assert.ok(!exports.some((e) => e.name === 'CommentedOut'));
+      assert.ok(!exports.some((e) => e.name === 'FakeInterface'));
+      assert.ok(!exports.some((e) => e.name === 'commentedFunction'));
+      assert.ok(!exports.some((e) => e.name === 'FakeEnum'));
+    });
+
+    it('should handle nested template literals with expressions', () => {
+      const source = `
+        const nested = \`prefix \${'export class Nested {}'} suffix\`;
+        const complex = \`
+          multiline with \${someVar} and 'export function inner() {}'
+        \`;
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should handle export-like content in Map/object literals', () => {
+      const source = `
+        const exportsByFile = new Map([['myFile.ts', ['MyClass', 'MyInterface', 'myConst']]]);
+        const config = { pattern: "export { ClassA } from './fileA';" };
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
+    });
+
+    it('should ignore exports inside regex literals', () => {
+      const source = String.raw`
+        const pattern = /export class FakeClass {}/;
+        const globalPattern = /export const fakeConst = \d+/gi;
+        const test = /export\s+function\s+fake/.test(input);
+      `;
+
+      const exports = parser.extractExports(source);
+      assert.deepStrictEqual(exports, []);
     });
   });
 });
