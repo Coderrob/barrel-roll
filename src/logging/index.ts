@@ -15,4 +15,9 @@
  *
  */
 
-export { PinoLogger } from './pino.logger.js';
+export {
+  type LoggerOptions,
+  type LogLevel,
+  type LogMetadata,
+  OutputChannelLogger,
+} from './output-channel.logger.js';

@@ -83,9 +83,7 @@
       }
     ]
   },
-  "dependencies": {
-    "pino": "^10.0.0"
-  },
+  "dependencies": {},
   "description": "A Visual Studio Code extension to automatically export types, functions, constants, and classes through barrel files",
   "devDependencies": {
     "depcheck": "^1.4.7",
