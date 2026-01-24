@@ -121,6 +121,10 @@ describe('FileSystemService', () => {
         createFileEntry(INDEX_FILENAME),
         createFileEntry('types.d.ts'),
         createFileEntry('component.tsx'),
+        createFileEntry('file.spec.ts'),
+        createFileEntry('file.test.ts'),
+        createFileEntry('component.spec.tsx'),
+        createFileEntry('component.test.tsx'),
         createDirectoryEntry('nested'),
       ];
       mockFs.readdir.mockResolvedValue(mockEntries as never);
@@ -139,6 +143,10 @@ describe('FileSystemService', () => {
       { entry: createFileEntry('component.tsx'), shouldInclude: true },
       { entry: createFileEntry(INDEX_FILENAME), shouldInclude: false },
       { entry: createFileEntry('types.d.ts'), shouldInclude: false },
+      { entry: createFileEntry('file.spec.ts'), shouldInclude: false },
+      { entry: createFileEntry('file.test.ts'), shouldInclude: false },
+      { entry: createFileEntry('component.spec.tsx'), shouldInclude: false },
+      { entry: createFileEntry('component.test.tsx'), shouldInclude: false },
       { entry: createFileEntry('main.js'), shouldInclude: false },
       { entry: createDirectoryEntry('nested'), shouldInclude: false },
     ];

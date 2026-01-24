@@ -46,24 +46,46 @@ export class FileSystemService {
   }
 
   /**
-   * Checks if a directory entry is a TypeScript file (excluding index.ts).
+   * Checks if a directory entry is a TypeScript file (excluding index.ts, definition files, and test files).
    * @param entry The directory entry
    * @returns True if it's a TypeScript file; otherwise, false
    */
   private isTypeScriptFile(entry: Dirent): boolean {
-    if (!entry.isFile()) {
-      return false;
-    }
+    if (!entry.isFile()) return false;
+    if (this.shouldExcludeFile(entry.name)) return false;
+    return this.isTypeScriptExtension(entry.name);
+  }
 
-    if (entry.name === INDEX_FILENAME) {
-      return false;
-    }
+  /**
+   * Checks if a file should be excluded from barrel exports.
+   * @param filename The filename to check
+   * @returns True if the file should be excluded; otherwise, false
+   */
+  private shouldExcludeFile(filename: string): boolean {
+    return filename === INDEX_FILENAME || filename.endsWith('.d.ts') || this.isTestFile(filename);
+  }
 
-    if (entry.name.endsWith('.d.ts')) {
-      return false;
-    }
+  /**
+   * Checks if a filename has a TypeScript extension.
+   * @param filename The filename to check
+   * @returns True if it's a TypeScript file extension; otherwise, false
+   */
+  private isTypeScriptExtension(filename: string): boolean {
+    return filename.endsWith('.ts') || filename.endsWith('.tsx');
+  }
 
-    return entry.name.endsWith('.ts') || entry.name.endsWith('.tsx');
+  /**
+   * Checks if a filename represents a test file.
+   * @param filename The filename to check
+   * @returns True if it's a test file; otherwise, false
+   */
+  private isTestFile(filename: string): boolean {
+    return (
+      filename.endsWith('.spec.ts') ||
+      filename.endsWith('.test.ts') ||
+      filename.endsWith('.spec.tsx') ||
+      filename.endsWith('.test.tsx')
+    );
   }
 
   /**
