@@ -8,7 +8,7 @@ import { ExportParser } from './export.parser.js';
 // Tests run from project root via scripts/run-tests.js
 const projectRoot = process.cwd();
 
-describe('ExportParser Integration', () => {
+describe('ExportParser Integration Tests', () => {
   const parser = new ExportParser();
 
   describe('real-world test files', () => {

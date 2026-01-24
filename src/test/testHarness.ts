@@ -17,6 +17,9 @@ type Spy<TArgs extends unknown[], TReturn> = {
   mockRejectedValue: (error: unknown) => Spy<TArgs, TReturn>;
 };
 
+/**
+ *
+ */
 function createSpy<TTarget extends object, TKey extends keyof TTarget>(
   target: TTarget,
   key: TKey,
@@ -41,7 +44,17 @@ function createSpy<TTarget extends object, TKey extends keyof TTarget>(
     return implementation.apply(target, args);
   }) as TTarget[TKey];
 
-  (target as Record<string | symbol, unknown>)[key as string | symbol] = spyWrapper;
+  // Try to set the property directly first
+  try {
+    (target as Record<string | symbol, unknown>)[key as string | symbol] = spyWrapper;
+  } catch {
+    // If direct assignment fails (e.g., getter-only properties), use defineProperty
+    Object.defineProperty(target, key, {
+      value: spyWrapper,
+      writable: true,
+      configurable: true,
+    });
+  }
 
   const spyApi: Spy<Args, Return> & SpyInstance = {
     mock: {
@@ -56,12 +69,20 @@ function createSpy<TTarget extends object, TKey extends keyof TTarget>(
       return spyApi;
     },
     mockRejectedValue(error: unknown) {
-      const rejection = error instanceof Error ? error : new Error(String(error));
-      implementation = () => Promise.reject(rejection) as Return;
+      implementation = () => Promise.reject(error) as Return;
       return spyApi;
     },
     restore() {
-      (target as Record<string | symbol, unknown>)[key as string | symbol] = original;
+      try {
+        (target as Record<string | symbol, unknown>)[key as string | symbol] = original;
+      } catch {
+        // If direct assignment fails, try defineProperty
+        Object.defineProperty(target, key, {
+          value: original,
+          writable: true,
+          configurable: true,
+        });
+      }
       activeSpies.delete(spyApi);
     },
   };

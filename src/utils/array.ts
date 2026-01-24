@@ -5,5 +5,5 @@
  * @returns True when the input is `null`, `undefined`, or has a length of zero; otherwise false.
  */
 export function isEmptyArray<T>(value: readonly T[] | null | undefined): boolean {
-  return !value || value.length === 0;
+  return !value || !Array.isArray(value) || value.length === 0;
 }

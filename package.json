@@ -7,7 +7,7 @@
     "url": "https://github.com/Coderrob/barrel-roll/issues"
   },
   "c8": {
-    "branches": 80,
+    "branches": 95,
     "check-coverage": true,
     "exclude": [
       "dist/test/**",
@@ -18,18 +18,18 @@
       "src/**/*.test.ts",
       "src/**/*.d.ts"
     ],
-    "functions": 80,
+    "functions": 95,
     "include": [
       "dist/**/*.js"
     ],
-    "lines": 80,
+    "lines": 95,
     "reporter": [
       "text",
       "lcov",
       "html",
       "json-summary"
     ],
-    "statements": 80
+    "statements": 95
   },
   "categories": [
     "Programming Languages"
@@ -99,12 +99,14 @@
     "eslint-import-resolver-typescript": "^3.8.0",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jest": "^28.11.0",
+    "eslint-plugin-jsdoc": "^62.4.0",
     "eslint-plugin-prettier": "^5.2.3",
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "eslint-plugin-sonarjs": "^3.0.5",
     "eslint-plugin-unused-imports": "^4.2.0",
     "expect": "^29.7.0",
     "glob": "^10.5.0",
+    "jscodeshift": "^17.3.0",
     "jscpd": "^4.0.5",
     "madge": "^8.0.0",
     "make-coverage-badge": "^1.2.0",
@@ -146,7 +148,7 @@
   "scripts": {
     "compile": "webpack",
     "compile-tests": "tsc -p tsconfig.test-suite.json",
-    "coverage": "npm run pretest && c8 node scripts/run-tests.js && npm run coverage:badge",
+    "coverage": "npm run pretest && c8 node scripts/run-tests.cjs && npm run coverage:badge",
     "coverage:badge": "make-coverage-badge --output-path ./badges/coverage.svg",
     "coverage:check": "c8 check-coverage",
     "deps:check": "node ./scripts/run-depcheck.cjs",
@@ -155,6 +157,7 @@
     "ext:install": "node scripts/install-extension.cjs",
     "ext:package": "npx @vscode/vsce package",
     "ext:reinstall": "npm run ext:package && npm run ext:install",
+    "fix:instanceof-error": "npx jscodeshift -t scripts/codemods/fix-instanceof-error.cjs src --extensions=ts,tsx --parser=ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "lint": "prettier --check . && eslint . && npm run deps:check",
@@ -166,8 +169,8 @@
     "quality": "npm run lint && npm run duplication && npm run madge",
     "release:minor": "npm run version:minor && npm run ext:reinstall",
     "release:patch": "npm run version:patch && npm run ext:reinstall",
-    "test": "node scripts/run-tests.js",
-    "test:unit": "npm run compile-tests && npm run compile && node scripts/run-tests.js",
+    "test": "node scripts/run-tests.cjs",
+    "test:unit": "npm run compile-tests && npm run compile && node scripts/run-tests.cjs",
     "test:vscode": "npm run compile-tests && node ./dist/test/runTest.js",
     "typecheck": "tsc --noEmit",
     "version:minor": "npm version minor --no-git-tag-version",

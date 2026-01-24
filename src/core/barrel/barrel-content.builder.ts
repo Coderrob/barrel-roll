@@ -1,10 +1,10 @@
+import { NEWLINE } from '../../types/constants.js';
 import {
-  BarrelEntry,
+  type BarrelEntry,
   BarrelEntryKind,
   BarrelExport,
   BarrelExportKind,
   DEFAULT_EXPORT_NAME,
-  NEWLINE,
   PARENT_DIRECTORY_SEGMENT,
 } from '../../types/index.js';
 import { sortAlphabetically } from '../../utils/string.js';
@@ -13,8 +13,26 @@ import { sortAlphabetically } from '../../utils/string.js';
  * Service to build the content of a barrel file from exports.
  */
 export class BarrelContentBuilder {
+  /**
+   * Builds the content of a barrel file from export entries.
+   * @param entries Map of file paths to export arrays.
+   * @param directoryPath The directory path for relative imports.
+   * @returns The barrel file content as a string.
+   */
   buildContent(entries: Map<string, string[]>, directoryPath: string): string;
+  /**
+   * Builds the content of a barrel file from export entries.
+   * @param entries Map of file paths to barrel entries.
+   * @param directoryPath The directory path for relative imports.
+   * @returns The barrel file content as a string.
+   */
   buildContent(entries: Map<string, BarrelEntry>, directoryPath: string): string;
+  /**
+   * Builds the content of a barrel file from export entries.
+   * @param entries Map of file paths to barrel entries or export arrays.
+   * @param _directoryPath The directory path for relative imports.
+   * @returns The barrel file content as a string.
+   */
   buildContent(entries: Map<string, BarrelEntry | string[]>, _directoryPath: string): string {
     const lines: string[] = [];
     const normalizedEntries = this.normalizeEntries(entries);
@@ -60,6 +78,11 @@ export class BarrelContentBuilder {
     return normalized;
   }
 
+  /**
+   * Converts a legacy export name to a BarrelExport object.
+   * @param name The export name.
+   * @returns The corresponding BarrelExport object.
+   */
   private toLegacyExport(name: string): BarrelExport {
     if (name === DEFAULT_EXPORT_NAME) {
       return { kind: BarrelExportKind.Default };
@@ -89,7 +112,6 @@ export class BarrelContentBuilder {
    */
   private buildDirectoryExportLines(relativePath: string): string[] {
     const modulePath = this.getModulePath(relativePath);
-    // istanbul ignore next
     if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
@@ -107,17 +129,17 @@ export class BarrelContentBuilder {
       exp.kind === BarrelExportKind.Default ? true : !exp.name.includes(PARENT_DIRECTORY_SEGMENT),
     );
 
-    if (cleanedExports.length === 0) {
-      return [];
-    }
-
     // Convert file path to module path (remove .ts extension and normalize)
     const modulePath = this.getModulePath(filePath);
 
     // Skip if this references a parent folder
-    // istanbul ignore next
     if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
+    }
+
+    if (cleanedExports.length === 0) {
+      // If no specific exports, use wildcard export
+      return [`export * from './${modulePath}';`];
     }
 
     return this.generateExportStatements(modulePath, cleanedExports);
@@ -132,28 +154,33 @@ export class BarrelContentBuilder {
   private generateExportStatements(modulePath: string, exports: BarrelExport[]): string[] {
     const lines: string[] = [];
 
-    const valueExports = exports
-      .filter(
-        (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Value }> =>
-          exp.kind === BarrelExportKind.Value,
-      )
-      .map((exp) => exp.name);
-    const typeExports = exports
-      .filter(
-        (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Type }> =>
-          exp.kind === BarrelExportKind.Type,
-      )
-      .map((exp) => exp.name);
-    const hasDefaultExport = exports.some((exp) => exp.kind === BarrelExportKind.Default);
+    const valueExports = sortAlphabetically(
+      exports
+        .filter(
+          (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Value }> =>
+            exp.kind === BarrelExportKind.Value,
+        )
+        .map((exp) => exp.name),
+    );
 
     if (valueExports.length > 0) {
       lines.push(`export { ${valueExports.join(', ')} } from './${modulePath}';`);
     }
 
+    const typeExports = sortAlphabetically(
+      exports
+        .filter(
+          (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Type }> =>
+            exp.kind === BarrelExportKind.Type,
+        )
+        .map((exp) => exp.name),
+    );
+
     if (typeExports.length > 0) {
       lines.push(`export type { ${typeExports.join(', ')} } from './${modulePath}';`);
     }
 
+    const hasDefaultExport = exports.some((exp) => exp.kind === BarrelExportKind.Default);
     if (hasDefaultExport) {
       lines.push(`export { default } from './${modulePath}';`);
     }

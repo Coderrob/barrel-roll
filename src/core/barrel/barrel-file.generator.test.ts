@@ -149,5 +149,28 @@ describe('BarrelFileGenerator', () => {
         /No TypeScript files found in the selected directory/,
       );
     });
+
+    it('should not create barrel when no TypeScript files and recursion is enabled', async () => {
+      const generator = new BarrelFileGenerator();
+      const emptyDirUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(emptyDirUri, { recursive: true });
+
+      const exists = await fileSystem.fileExists(path.join(tmpDir, INDEX_FILENAME));
+      assert.strictEqual(exists, false);
+    });
+
+    it('should sanitize existing barrel when recursive and no TypeScript files', async () => {
+      const generator = new BarrelFileGenerator();
+      const emptyDirUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await fileSystem.writeFile(path.join(tmpDir, INDEX_FILENAME), "export * from '../outside';");
+
+      await generator.generateBarrelFile(emptyDirUri, { recursive: true });
+
+      const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+
+      assert.strictEqual(rootIndex, '\n');
+    });
   });
 });

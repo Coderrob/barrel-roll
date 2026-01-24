@@ -8,9 +8,11 @@ import js from '@eslint/js';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 import _import from 'eslint-plugin-import';
+import jsdoc from 'eslint-plugin-jsdoc';
 import prettier from 'eslint-plugin-prettier';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import sonarjs from 'eslint-plugin-sonarjs';
+import localPlugin from './scripts/eslint-plugin-local.mjs';
 import globals from 'globals';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -64,8 +66,10 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       import: _import,
+      jsdoc,
       'simple-import-sort': simpleImportSort,
       sonarjs,
+      local: localPlugin,
     },
     settings: {
       'import/resolver': {
@@ -98,8 +102,31 @@ export default [
           message:
             'Avoid using \'typeof import(...)["T"]\' indexed import types; import the type and refer to it directly.',
         },
+        {
+          selector: "BinaryExpression[operator='instanceof'][right.name='Error']",
+          message:
+            "Avoid ad-hoc 'instanceof Error' checks — prefer `getErrorMessage` or `formatErrorForLog` from 'src/utils/errors' for consistent error handling and logging.",
+        },
+        {
+          selector:
+            "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSIndexedAccessType",
+          message:
+            'Avoid ReturnType applied to indexed access types; define a named type/interface instead.',
+        },
+        {
+          selector:
+            "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSTypeReference[typeName.name='ReturnType']",
+          message: 'Avoid nested ReturnType chains; define a named type/interface instead.',
+        },
+        {
+          selector:
+            ':function[returnType.typeAnnotation.type!="TSTypeReference"][returnType.typeAnnotation.type!="TSVoidKeyword"][returnType.typeAnnotation.type!="TSStringKeyword"][returnType.typeAnnotation.type!="TSNumberKeyword"][returnType.typeAnnotation.type!="TSBooleanKeyword"]',
+          message:
+            'Function return type must be a named interface/type, void, or a primitive type (string, number, boolean).',
+        },
       ],
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
+      'local/no-instanceof-error-autofix': 'error',
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/prefer-immediate-return': 'error',
       'sonarjs/pseudo-random': 'warn',
@@ -111,6 +138,27 @@ export default [
       'sonarjs/prefer-single-boolean-return': 'error',
 
       // TypeScript ESLint rules
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: false,
+          allowTypedFunctionExpressions: false,
+          allowHigherOrderFunctions: false,
+          allowDirectConstAssertionInArrowFunctions: false,
+        },
+      ],
+      'jsdoc/require-jsdoc': [
+        'error',
+        {
+          require: {
+            FunctionDeclaration: true,
+            MethodDefinition: true,
+            ClassDeclaration: false,
+            ArrowFunctionExpression: false,
+            FunctionExpression: false,
+          },
+        },
+      ],
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -165,6 +213,23 @@ export default [
       'sonarjs/publicly-writable-directories': 'off',
       'simple-import-sort/imports': 'off',
       'simple-import-sort/exports': 'off',
+    },
+  },
+
+  // Allow 'instanceof Error' only within guards helper to implement the guard itself
+  {
+    files: ['src/utils/guards.ts'],
+    rules: {
+      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // Source files - relax strict return type rules since methods already have explicit return types
+  {
+    files: ['src/**/*.ts'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      'no-restricted-syntax': 'off',
     },
   },
 
@@ -223,6 +288,15 @@ export default [
     rules: {
       '@typescript-eslint/no-floating-promises': 'off',
       'unicorn/prefer-top-level-await': 'off',
+    },
+  },
+
+  // Test files - relax strict rules
+  {
+    files: ['**/*.test.ts', '**/*.test.js', '**/test/**'],
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      'no-restricted-syntax': 'off',
     },
   },
 ];

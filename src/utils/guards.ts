@@ -15,3 +15,14 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 export function isString(value: unknown): value is string {
   return typeof value === 'string';
 }
+
+/**
+ * Returns true if the value looks like an Error (has a message string or is an Error instance).
+ * @param value The value to check
+ */
+export function isError(value: unknown): value is Error {
+  return (
+    value instanceof Error ||
+    (isObject(value) && 'message' in value && isString((value as any).message))
+  );
+}

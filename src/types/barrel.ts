@@ -71,3 +71,18 @@ export type BarrelExport =
  * Normalized options for generating barrel files, with all properties required.
  */
 export type NormalizedBarrelGenerationOptions = Required<IBarrelGenerationOptions>;
+
+/**
+ * The content of a barrel file as a string.
+ */
+export type BarrelContent = string;
+
+/**
+ * A file path as a string.
+ */
+export type FilePath = string;
+
+/**
+ * A directory path as a string.
+ */
+export type DirectoryPath = string;

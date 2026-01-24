@@ -3,6 +3,9 @@ import * as path from 'node:path';
 
 import { runTests } from '@vscode/test-electron';
 
+/**
+ *
+ */
 async function main(): Promise<void> {
   try {
     const shouldSkipTests = shouldSkipVscodeTests();
@@ -42,6 +45,9 @@ async function main(): Promise<void> {
   }
 }
 
+/**
+ *
+ */
 function shouldSkipVscodeTests(): boolean {
   return Boolean(process.env.CI) || !process.stdout.isTTY || process.platform === 'linux';
 }

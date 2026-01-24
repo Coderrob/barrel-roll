@@ -11,9 +11,16 @@ const { globSync } = require('glob');
 // Define test file patterns
 const patterns = [
   'dist/core/barrel/*.test.js',
+  'dist/core/io/*.test.js',
   'dist/core/parser/*.test.js',
   'dist/logging/*.test.js',
   'dist/utils/*.test.js',
+  // Also include tests emitted under dist/src (tsc may emit to this path depending on config)
+  'dist/src/core/barrel/*.test.js',
+  'dist/src/core/io/*.test.js',
+  'dist/src/core/parser/*.test.js',
+  'dist/src/logging/*.test.js',
+  'dist/src/utils/*.test.js',
 ];
 
 // Expand all glob patterns to actual file paths

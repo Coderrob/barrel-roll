@@ -17,7 +17,7 @@
 
 import type { OutputChannel } from 'vscode';
 
-import { isObject, isString } from '../utils/guards.js';
+import { formatErrorForLog, isError, safeStringify } from '../utils/index.js';
 
 export type LogMetadata = Record<string, unknown>;
 
@@ -56,6 +56,10 @@ export class OutputChannelLogger {
     [LogLevel.Fatal]: 4,
   };
 
+  /**
+   * Creates a new OutputChannelLogger instance.
+   * @param options - Optional configuration for the logger.
+   */
   constructor(options?: LoggerOptions) {
     this.options = {
       level: options?.level ?? LogLevel.Info,
@@ -157,6 +161,12 @@ export class OutputChannelLogger {
     }
   }
 
+  /**
+   * Logs a message at the specified level.
+   * @param level - The log level.
+   * @param message - The message to log.
+   * @param metadata - Optional metadata to include.
+   */
   private log(level: LogLevel, message: string, metadata?: LogMetadata): void {
     if (!this.shouldLog(level)) return;
 
@@ -167,16 +177,30 @@ export class OutputChannelLogger {
     this.writeToConsole(level, formattedLine);
   }
 
+  /**
+   * Determines whether a message at the given level should be logged.
+   * @param level - The log level to check.
+   * @returns True if the message should be logged; otherwise false.
+   */
   private shouldLog(level: LogLevel): boolean {
     return (
       OutputChannelLogger.LOG_LEVELS[level] >= OutputChannelLogger.LOG_LEVELS[this.options.level]
     );
   }
 
+  /**
+   * Writes a formatted line to the VS Code output channel.
+   * @param line - The formatted log line to write.
+   */
   private writeToOutputChannel(line: string): void {
     OutputChannelLogger.sharedOutputChannel?.appendLine(line);
   }
 
+  /**
+   * Writes a formatted line to the console.
+   * @param level - The log level.
+   * @param line - The formatted log line to write.
+   */
   private writeToConsole(level: LogLevel, line: string): void {
     if (!this.options.console) return;
 
@@ -191,6 +215,13 @@ export class OutputChannelLogger {
     consoleMethods[level](line);
   }
 
+  /**
+   * Formats a log line with timestamp, level, message, and metadata.
+   * @param level - The log level.
+   * @param message - The log message.
+   * @param metadata - Optional metadata to include.
+   * @returns The formatted log line.
+   */
   private formatLine(level: LogLevel, message: string, metadata?: LogMetadata): string {
     const timestamp = new Date().toISOString();
     const formattedMetadata = this.formatMetadata(metadata);
@@ -201,32 +232,33 @@ export class OutputChannelLogger {
       : `${timestamp} ${levelTag} ${message}`;
   }
 
+  /**
+   * Formats metadata for inclusion in log output.
+   * @param metadata - The metadata to format.
+   * @returns The formatted metadata string, or undefined if no metadata.
+   */
   private formatMetadata(metadata?: LogMetadata): string | undefined {
-    if (!metadata || Object.keys(metadata).length === 0) return;
+    if (!metadata || Object.keys(metadata).length === 0) {
+      return undefined;
+    }
 
     const normalized = Object.entries(metadata).reduce<Record<string, unknown>>(
       (accumulator, [key, value]) => {
-        accumulator[key] = value instanceof Error ? value.message : value;
+        accumulator[key] = isError(value) ? value.message : value;
         return accumulator;
       },
       {},
     );
 
-    return this.safeStringify(normalized);
+    return safeStringify(normalized);
   }
 
+  /**
+   * Normalizes an error to a string representation.
+   * @param error - The error to normalize.
+   * @returns The string representation of the error.
+   */
   private normalizeError(error: unknown): string {
-    if (error instanceof Error) return error.stack || error.message;
-    if (isObject(error)) return this.safeStringify(error);
-    return String(error);
-  }
-
-  private safeStringify(value: unknown): string {
-    if (isString(value)) return value;
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
+    return formatErrorForLog(error);
   }
 }

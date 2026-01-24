@@ -24,6 +24,9 @@ describe('BarrelFileGenerator Test Suite', () => {
     }
   });
 
+  /**
+   *
+   */
   async function generateAndReadBarrel(): Promise<string> {
     const generator = new BarrelFileGenerator();
     const uri = vscode.Uri.file(testDir);

@@ -4,6 +4,9 @@ import type { ExtensionContext, ProgressOptions, Uri as VsCodeUri } from 'vscode
 
 export type FakeUri = Pick<VsCodeUri, 'fsPath'>;
 
+/**
+ *
+ */
 export function uriFile(fsPath: string): FakeUri {
   return { fsPath: path.normalize(fsPath) };
 }
@@ -43,8 +46,3 @@ export interface LoggerConstructor {
   new (...args: unknown[]): LoggerInstance;
   configureOutputChannel(channel?: { appendLine(value: string): void }): void;
 }
-
-/** @deprecated Use LoggerInstance instead */
-export type PinoLoggerInstance = LoggerInstance;
-/** @deprecated Use LoggerConstructor instead */
-export type PinoLoggerConstructor = LoggerConstructor;

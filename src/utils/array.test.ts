@@ -2,6 +2,9 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { isEmptyArray } from './array.js';
 
+/**
+ *
+ */
 function formatValue(value: unknown): string {
   return Array.isArray(value) ? `[${value.map(String).join(', ')}]` : String(value);
 }

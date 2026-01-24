@@ -1,4 +1,12 @@
-import { Node, Project, ScriptKind, type SourceFile, type Statement } from 'ts-morph';
+import {
+  type ExportDeclaration,
+  type ExportSpecifier,
+  Node,
+  Project,
+  ScriptKind,
+  type SourceFile,
+  type Statement,
+} from 'ts-morph';
 
 import { DEFAULT_EXPORT_NAME, type IParsedExport } from '../../types/index.js';
 
@@ -43,11 +51,17 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Determines the script kind for a file based on its extension.
+   */
   private getScriptKind(fileName: string): ScriptKind {
     const ext = Object.keys(SCRIPT_KIND_MAP).find((e) => fileName.endsWith(e));
     return ext ? SCRIPT_KIND_MAP[ext] : ScriptKind.TS;
   }
 
+  /**
+   * Builds the final export list and ensures default exports are included.
+   */
   private buildResult(
     sourceFile: SourceFile,
     exportMap: Map<string, IParsedExport>,
@@ -59,6 +73,9 @@ export class ExportParser {
     return result;
   }
 
+  /**
+   * Collects export declarations (export { ... } from ...) from the source file.
+   */
   private collectExportDeclarations(
     sourceFile: SourceFile,
     exportMap: Map<string, IParsedExport>,
@@ -68,8 +85,11 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Processes a single export declaration and records its named exports.
+   */
   private processExportDeclaration(
-    exportDecl: ReturnType<SourceFile['getExportDeclarations']>[0],
+    exportDecl: ExportDeclaration,
     exportMap: Map<string, IParsedExport>,
   ): void {
     const hasModuleSpecifier = Boolean(exportDecl.getModuleSpecifier());
@@ -80,10 +100,11 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Records an individual named export, accounting for aliasing and type-only flags.
+   */
   private processNamedExport(
-    namedExport: ReturnType<
-      ReturnType<SourceFile['getExportDeclarations']>[0]['getNamedExports']
-    >[0],
+    namedExport: ExportSpecifier,
     hasModuleSpecifier: boolean,
     isTypeOnly: boolean,
     exportMap: Map<string, IParsedExport>,
@@ -100,10 +121,16 @@ export class ExportParser {
     this.recordExport(exportMap, name, typeOnly);
   }
 
+  /**
+   * Determines whether a named export is an unaliased re-export (export { foo } from ...).
+   */
   private isUnaliasedReExport(hasModuleSpecifier: boolean, alias: string | undefined): boolean {
     return hasModuleSpecifier && !alias;
   }
 
+  /**
+   * Collects exported statements such as types, classes, functions, enums, and variables.
+   */
   private collectExportedStatements(
     sourceFile: SourceFile,
     exportMap: Map<string, IParsedExport>,
@@ -117,6 +144,9 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Records exported interfaces and type aliases.
+   */
   private processTypeDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
     if (Node.isInterfaceDeclaration(stmt) && stmt.isExported()) {
       this.recordExport(map, stmt.getName(), true);
@@ -126,11 +156,11 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Records exported class declarations (excluding default exports).
+   */
   private processClassDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
-    if (!Node.isClassDeclaration(stmt)) {
-      return;
-    }
-    if (!stmt.isExported() || stmt.isDefaultExport()) {
+    if (!Node.isClassDeclaration(stmt) || !stmt.isExported() || stmt.isDefaultExport()) {
       return;
     }
     const name = stmt.getName();
@@ -139,11 +169,11 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Records exported function declarations (excluding default exports).
+   */
   private processFunctionDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
-    if (!Node.isFunctionDeclaration(stmt)) {
-      return;
-    }
-    if (!stmt.isExported() || stmt.isDefaultExport()) {
+    if (!Node.isFunctionDeclaration(stmt) || !stmt.isExported() || stmt.isDefaultExport()) {
       return;
     }
     const name = stmt.getName();
@@ -152,12 +182,18 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Records exported enum declarations.
+   */
   private processEnumDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
     if (Node.isEnumDeclaration(stmt) && stmt.isExported()) {
       this.recordExport(map, stmt.getName(), false);
     }
   }
 
+  /**
+   * Records exported variable declarations.
+   */
   private processVariableStatement(stmt: Statement, map: Map<string, IParsedExport>): void {
     if (!Node.isVariableStatement(stmt) || !stmt.isExported()) {
       return;
@@ -167,6 +203,9 @@ export class ExportParser {
     }
   }
 
+  /**
+   * Checks whether the source file has any form of default export.
+   */
   private hasDefaultExport(sourceFile: SourceFile): boolean {
     if (sourceFile.getDefaultExportSymbol()) {
       return true;
@@ -174,6 +213,9 @@ export class ExportParser {
     return this.hasAliasedDefault(sourceFile) || this.hasDefaultStatement(sourceFile);
   }
 
+  /**
+   * Detects aliased default exports (export { foo as default }).
+   */
   private hasAliasedDefault(sourceFile: SourceFile): boolean {
     for (const exportDecl of sourceFile.getExportDeclarations()) {
       if (exportDecl.getModuleSpecifier()) {
@@ -189,10 +231,16 @@ export class ExportParser {
     return false;
   }
 
+  /**
+   * Detects default export statements (class/function/export assignment).
+   */
   private hasDefaultStatement(sourceFile: SourceFile): boolean {
     return sourceFile.getStatements().some((stmt) => this.isDefaultExportStatement(stmt));
   }
 
+  /**
+   * Determines whether a statement represents a default export.
+   */
   private isDefaultExportStatement(stmt: Statement): boolean {
     if (Node.isExportAssignment(stmt)) {
       return !stmt.isExportEquals();
@@ -206,6 +254,9 @@ export class ExportParser {
     return false;
   }
 
+  /**
+   * Inserts or merges an export entry, preserving type-only status.
+   */
   private recordExport(map: Map<string, IParsedExport>, name: string, typeOnly: boolean): void {
     const existing = map.get(name);
     const merged = existing ? existing.typeOnly && typeOnly : typeOnly;
