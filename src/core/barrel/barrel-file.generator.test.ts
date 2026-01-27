@@ -1,3 +1,20 @@
+/*
+ * Copyright 2025 Robert Lindley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 import assert from 'node:assert/strict';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -59,21 +76,23 @@ describe('BarrelFileGenerator', () => {
 
       assert.strictEqual(
         rootIndex,
-        ["export { alpha } from './alpha';", "export * from './nested';", ''].join('\n'),
+        ["export { alpha } from './alpha.js';", "export * from './nested/index.js';", ''].join(
+          '\n',
+        ),
       );
 
       assert.strictEqual(
         nestedIndex,
         [
-          "export type { Bravo } from './bravo';",
-          "export { default } from './bravo';",
-          "export * from './deeper';",
+          "export type { Bravo } from './bravo.js';",
+          "export { default } from './bravo.js';",
+          "export * from './deeper/index.js';",
           '',
         ].join('\n'),
       );
       const expectedDeeperIndex = [
-        "export { charlie } from './charlie';",
-        "export { default } from './impl';",
+        "export { charlie } from './charlie.js';",
+        "export { default } from './impl.js';",
         '',
       ].join('\n');
 
@@ -131,13 +150,13 @@ describe('BarrelFileGenerator', () => {
       });
 
       const keepIndex = await fileSystem.readFile(path.join(keepDir, INDEX_FILENAME));
-      assert.strictEqual(keepIndex, ["export { keep } from './keep';", ''].join('\n'));
+      assert.strictEqual(keepIndex, ["export { keep } from './keep.js';", ''].join('\n'));
 
       const skipIndexExists = await fileSystem.fileExists(path.join(skipDir, INDEX_FILENAME));
       assert.strictEqual(skipIndexExists, false);
 
       const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
-      assert.strictEqual(rootIndex, ["export * from './keep';", ''].join('\n'));
+      assert.strictEqual(rootIndex, ["export * from './keep/index.js';", ''].join('\n'));
     });
 
     it('should throw when no TypeScript files are present and recursion is disabled', async () => {

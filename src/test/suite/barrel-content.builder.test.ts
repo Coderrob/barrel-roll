@@ -1,3 +1,20 @@
+/*
+ * Copyright 2025 Robert Lindley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 
@@ -25,12 +42,12 @@ describe('BarrelContentBuilder Test Suite', () => {
     assert.strictEqual(content, "export { MyClass, MyInterface, myConst } from './myFile';\n");
   });
 
-  it('should build content for multiple files', () => {
+  it('should build content for multiple files', async () => {
     const exportsByFile = new Map([
       ['fileA.ts', ['ClassA']],
       ['fileB.ts', ['ClassB']],
     ]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+    const content = await builder.buildContent(exportsByFile, '/some/path');
     const lines = content.split('\n').filter(Boolean);
 
     assert.strictEqual(lines.length, 2);
@@ -38,14 +55,14 @@ describe('BarrelContentBuilder Test Suite', () => {
     assert.ok(content.includes("export { ClassB } from './fileB';"));
   });
 
-  it('should handle default exports', () => {
+  it('should handle default exports', async () => {
     const exportsByFile = new Map([['myFile.ts', ['default']]]);
     const content = builder.buildContent(exportsByFile, '/some/path');
 
     assert.strictEqual(content, "export { default } from './myFile';\n");
   });
 
-  it('should handle default, type, and named exports together', () => {
+  it('should handle default, type, and named exports together', async () => {
     const entries = new Map<string, BarrelEntry>();
     entries.set('myFile.ts', {
       kind: BarrelEntryKind.File,
@@ -56,20 +73,20 @@ describe('BarrelContentBuilder Test Suite', () => {
       ],
     });
 
-    const content = builder.buildContent(entries, '/some/path');
+    const content = await builder.buildContent(entries, '/some/path');
 
     assert.ok(content.includes("export { MyClass } from './myFile';"));
     assert.ok(content.includes("export type { MyInterface } from './myFile';"));
     assert.ok(content.includes("export { default } from './myFile';"));
   });
 
-  it('should sort files alphabetically', () => {
+  it('should sort files alphabetically', async () => {
     const exportsByFile = new Map([
       ['zebra.ts', ['ClassZ']],
       ['alpha.ts', ['ClassA']],
       ['beta.ts', ['ClassB']],
     ]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+    const content = await builder.buildContent(exportsByFile, '/some/path');
     const lines = content.split('\n').filter(Boolean);
 
     assert.ok(lines[0]?.includes('alpha'));
@@ -77,12 +94,12 @@ describe('BarrelContentBuilder Test Suite', () => {
     assert.ok(lines[2]?.includes('zebra'));
   });
 
-  it('should filter out parent folder references', () => {
+  it('should filter out parent folder references', async () => {
     const exportsByFile = new Map([
       ['../parent.ts', ['ParentClass']],
       ['local.ts', ['LocalClass']],
     ]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+    const content = await builder.buildContent(exportsByFile, '/some/path');
 
     assert.ok(!content.includes('ParentClass'));
     assert.ok(content.includes('LocalClass'));

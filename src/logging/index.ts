@@ -15,9 +15,5 @@
  *
  */
 
-export {
-  type LoggerOptions,
-  type LogLevel,
-  type LogMetadata,
-  OutputChannelLogger,
-} from './output-channel.logger.js';
+export type { LoggerOptions, LogMetadata } from './output-channel.logger.js';
+export { LogLevel, OutputChannelLogger } from './output-channel.logger.js';

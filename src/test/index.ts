@@ -15,5 +15,17 @@
  *
  */
 
-export { BarrelContentBuilder } from './barrel-content.builder.js';
-export { BarrelFileGenerator } from './barrel-file.generator.js';
+export * from './runTest.js';
+export { jest } from './testHarness.js';
+export type {
+  ActivateFn,
+  CommandHandler,
+  DeactivateFn,
+  FakeUri,
+  LoggerConstructor,
+  LoggerInstance,
+  TestCommandsApi,
+  TestWindowApi,
+  TestWorkspaceApi,
+} from './testTypes.js';
+export { uriFile } from './testTypes.js';

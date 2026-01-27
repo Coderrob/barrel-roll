@@ -15,5 +15,6 @@
  *
  */
 
-// Export core barrel roll functionality
 export * from './barrel/index.js';
+export * from './io/index.js';
+export * from './parser/index.js';

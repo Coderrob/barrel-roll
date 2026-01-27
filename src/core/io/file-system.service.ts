@@ -1,3 +1,20 @@
+/*
+ * Copyright 2025 Robert Lindley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 import { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -175,15 +192,28 @@ export class FileSystemService {
   }
 
   /**
-   * Checks whether a file exists.
-   * @param filePath The file path to check
-   * @returns True if the file exists; otherwise, false
-   * @throws Error if an unexpected error occurs
+   * Checks if a file or directory exists.
+   * @param filePath The path to check
+   * @returns True if the path exists; otherwise, false
    */
   async fileExists(filePath: string): Promise<boolean> {
     try {
       await this.fs.access(filePath);
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Checks if a path is a directory.
+   * @param filePath The path to check
+   * @returns True if the path exists and is a directory; otherwise, false
+   */
+  async isDirectory(filePath: string): Promise<boolean> {
+    try {
+      const stat = await this.fs.stat(filePath);
+      return stat.isDirectory();
     } catch {
       return false;
     }
