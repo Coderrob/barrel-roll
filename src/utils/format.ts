@@ -20,9 +20,11 @@ import { isString } from './guards.js';
 /**
  * Safely stringify a value for logging/serialization.
  * Returns the original string if provided, otherwise attempts JSON.stringify and falls back to String(value) on failure.
+ * Returns an empty string for undefined values.
  */
 export function safeStringify(value: unknown): string {
   if (isString(value)) return value;
+  if (value === undefined) return '';
 
   try {
     return JSON.stringify(value);

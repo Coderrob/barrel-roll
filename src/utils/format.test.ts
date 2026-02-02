@@ -51,8 +51,8 @@ describe('format utils', () => {
       assert.strictEqual(safeStringify([1, 2, 3]), '[1,2,3]');
     });
 
-    it('should return "undefined" for undefined value', () => {
-      assert.strictEqual(safeStringify(undefined), undefined);
+    it('should return an empty string for undefined value', () => {
+      assert.strictEqual(safeStringify(undefined), '');
     });
 
     it('should fallback to String() for circular references', () => {
