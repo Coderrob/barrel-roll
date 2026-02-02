@@ -27,12 +27,6 @@ import {
 
 import { DEFAULT_EXPORT_NAME, type IParsedExport } from '../../types/index.js';
 
-// Shared project instance for parsing - avoids creating new projects for each file
-const parserProject = new Project({
-  useInMemoryFileSystem: true,
-  compilerOptions: { allowJs: true, noEmit: true, skipLibCheck: true },
-});
-
 // Script kind mapping for file extensions
 const SCRIPT_KIND_MAP: Record<string, ScriptKind> = {
   '.tsx': ScriptKind.TSX,
@@ -53,8 +47,14 @@ export class ExportParser {
    * Extracts all export statements from TypeScript code using AST parsing.
    */
   extractExports(content: string, fileName = 'temp.ts'): IParsedExport[] {
+    // Create a new project instance for each parsing operation to avoid memory accumulation
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: { allowJs: true, noEmit: true, skipLibCheck: true },
+    });
+
     const exportMap = new Map<string, IParsedExport>();
-    const sourceFile = parserProject.createSourceFile(fileName, content, {
+    const sourceFile = project.createSourceFile(fileName, content, {
       overwrite: true,
       scriptKind: this.getScriptKind(fileName),
     });
@@ -64,7 +64,7 @@ export class ExportParser {
       this.collectExportedStatements(sourceFile, exportMap);
       return this.buildResult(sourceFile, exportMap);
     } finally {
-      parserProject.removeSourceFile(sourceFile);
+      project.removeSourceFile(sourceFile);
     }
   }
 
