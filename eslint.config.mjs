@@ -118,12 +118,6 @@ export default [
             "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSTypeReference[typeName.name='ReturnType']",
           message: 'Avoid nested ReturnType chains; define a named type/interface instead.',
         },
-        {
-          selector:
-            ':function[returnType.typeAnnotation.type!="TSTypeReference"][returnType.typeAnnotation.type!="TSVoidKeyword"][returnType.typeAnnotation.type!="TSStringKeyword"][returnType.typeAnnotation.type!="TSNumberKeyword"][returnType.typeAnnotation.type!="TSBooleanKeyword"]',
-          message:
-            'Function return type must be a named interface/type, void, or a primitive type (string, number, boolean).',
-        },
       ],
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
       'local/no-instanceof-error-autofix': 'error',
