@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { isEmptyArray } from './array.js';
 
 /**
- *
+ * Formats a value for display in test descriptions.
  */
 function formatValue(value: unknown): string {
   return Array.isArray(value) ? `[${value.map(String).join(', ')}]` : String(value);

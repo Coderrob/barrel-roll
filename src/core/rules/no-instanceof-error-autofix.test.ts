@@ -32,7 +32,7 @@ describe('no-instanceof-error-autofix rule', () => {
   const importPath = mod.computeImportPath(filename);
 
   /**
-   *
+   * Helper function to run a test case for the no-instanceof-error-autofix rule.
    */
   function runTest(code: string, output: string, message: string) {
     ruleTester.run('no-instanceof-error-autofix', rule, {

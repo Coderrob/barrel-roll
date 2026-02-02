@@ -126,14 +126,14 @@ describe('Extension', () => {
     public readonly calls: Array<{ targetDirectory: FakeUri; options: unknown }> = [];
 
     /**
-     *
+     * Constructor for the fake barrel file generator used in tests.
      */
     constructor() {
       generatorInstances.push(this);
     }
 
     /**
-     *
+     * Fake implementation of generateBarrelFile for testing purposes.
      */
     async generateBarrelFile(targetDirectory: FakeUri, options: unknown): Promise<void> {
       this.calls.push({ targetDirectory, options });

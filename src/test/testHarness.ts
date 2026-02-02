@@ -35,7 +35,7 @@ type Spy<TArgs extends unknown[], TReturn> = {
 };
 
 /**
- *
+ * Creates a spy for testing purposes that can mock function behavior.
  */
 function createSpy<TTarget extends object, TKey extends keyof TTarget>(
   target: TTarget,

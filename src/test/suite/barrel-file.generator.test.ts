@@ -42,7 +42,7 @@ describe('BarrelFileGenerator Test Suite', () => {
   });
 
   /**
-   *
+   * Helper function to generate a barrel file and read its content for testing.
    */
   async function generateAndReadBarrel(): Promise<string> {
     const generator = new BarrelFileGenerator();

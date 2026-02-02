@@ -21,7 +21,7 @@ import * as path from 'node:path';
 import { runTests } from '@vscode/test-electron';
 
 /**
- *
+ * Main entry point for running VS Code extension tests.
  */
 async function main(): Promise<void> {
   try {
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
 }
 
 /**
- *
+ * Determines whether to skip VS Code integration tests based on environment conditions.
  */
 function shouldSkipVscodeTests(): boolean {
   return Boolean(process.env.CI) || !process.stdout.isTTY || process.platform === 'linux';
