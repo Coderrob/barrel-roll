@@ -1,3 +1,20 @@
+/*
+ * Copyright 2025 Robert Lindley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
@@ -5,6 +22,7 @@ import * as vscode from 'vscode';
 import { BarrelFileGenerator } from './core/barrel/barrel-file.generator.js';
 import { OutputChannelLogger } from './logging/output-channel.logger.js';
 import { BarrelGenerationMode, type IBarrelGenerationOptions } from './types/index.js';
+import { getErrorMessage } from './utils/index.js';
 
 type CommandDescriptor = {
   id: string;
@@ -13,6 +31,10 @@ type CommandDescriptor = {
   successMessage: string;
 };
 
+/**
+ * Activates the Barrel Roll extension.
+ * @param context The extension context provided by VS Code.
+ */
 export function activate(context: vscode.ExtensionContext) {
   console.log('Barrel Roll extension is now active');
 
@@ -50,10 +72,19 @@ export function activate(context: vscode.ExtensionContext) {
   }
 }
 
+/**
+ * Deactivates the Barrel Roll extension.
+ */
 export function deactivate(): void {
   /* no-op */
 }
 
+/**
+ * Registers a barrel generation command with VS Code.
+ * @param generator The barrel file generator instance.
+ * @param descriptor The command descriptor containing options and messages.
+ * @returns A disposable for the registered command.
+ */
 function registerBarrelCommand(
   generator: BarrelFileGenerator,
   descriptor: CommandDescriptor,
@@ -71,12 +102,17 @@ function registerBarrelCommand(
 
       vscode.window.showInformationMessage(descriptor.successMessage);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       vscode.window.showErrorMessage(`Barrel Roll: ${message}`);
     }
   });
 }
 
+/**
+ * Resolves the target directory for barrel generation from the provided URI or user prompt.
+ * @param uri Optional URI from the command invocation.
+ * @returns Promise that resolves to the target directory URI, or undefined if cancelled.
+ */
 async function resolveTargetDirectory(uri?: vscode.Uri): Promise<vscode.Uri | undefined> {
   const initial = uri ?? (await promptForDirectory());
   if (!initial) {
@@ -86,6 +122,10 @@ async function resolveTargetDirectory(uri?: vscode.Uri): Promise<vscode.Uri | un
   return ensureDirectoryUri(initial);
 }
 
+/**
+ * Prompts the user to select a directory for barrel generation.
+ * @returns Promise that resolves to the selected directory URI, or undefined if cancelled.
+ */
 async function promptForDirectory(): Promise<vscode.Uri | undefined> {
   const selected = await vscode.window.showOpenDialog({
     canSelectFiles: false,
@@ -101,24 +141,34 @@ async function promptForDirectory(): Promise<vscode.Uri | undefined> {
   return selected[0];
 }
 
+/**
+ * Ensures the provided URI points to a directory, converting file URIs to their parent directory.
+ * @param uri The URI to validate and potentially convert.
+ * @returns Promise that resolves to a directory URI, or undefined if validation fails.
+ */
 async function ensureDirectoryUri(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
   try {
     const stat = await vscode.workspace.fs.stat(uri);
     if (stat.type === vscode.FileType.Directory) {
       return uri;
     }
-
     if (stat.type === vscode.FileType.File) {
       return vscode.Uri.file(path.dirname(uri.fsPath));
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     throw new Error(`Unable to access selected resource: ${message}`);
   }
 
   return uri;
 }
 
+/**
+ * Executes a task with VS Code progress indication.
+ * @param title The progress title to display.
+ * @param task The async task to execute.
+ * @returns Promise that resolves when the task completes.
+ */
 async function withProgress<T>(title: string, task: () => Promise<T>): Promise<T> {
   return vscode.window.withProgress(
     {

@@ -15,5 +15,20 @@
  *
  */
 
-export { BarrelContentBuilder } from './barrel-content.builder.js';
-export { BarrelFileGenerator } from './barrel-file.generator.js';
+export { isEmptyArray } from './array.js';
+export {
+  assert,
+  assertBoolean,
+  assertDefined,
+  assertDoesNotThrow,
+  assertEqual,
+  assertInstanceOf,
+  assertNotEqual,
+  assertNumber,
+  assertString,
+  assertThrows,
+} from './assert.js';
+export { formatErrorForLog, getErrorMessage } from './errors.js';
+export { safeStringify } from './format.js';
+export { isError, isObject, isString } from './guards.js';
+export { sortAlphabetically, splitAndClean } from './string.js';

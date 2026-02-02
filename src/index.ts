@@ -15,12 +15,4 @@
  *
  */
 
-// istanbul ignore file
-
-/**
- * Main entry point for the repository.
- */
-export * from './extension.js';
-
-// Export core barrel roll functionality
 export * from './core/index.js';

@@ -18,7 +18,14 @@ const config = {
   devtool: 'source-map',
   externals: {
     vscode: 'commonjs vscode',
+    typescript: 'commonjs typescript', // Required for ts-morph to work properly
   },
+  ignoreWarnings: [
+    {
+      module: /@ts-morph\/common\/dist\/typescript\.js/,
+      message: /Critical dependency: the request of a dependency is an expression/,
+    },
+  ],
   resolve: {
     extensions: ['.ts', '.js'],
     extensionAlias: {

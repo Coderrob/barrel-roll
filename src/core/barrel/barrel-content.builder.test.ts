@@ -1,3 +1,20 @@
+/*
+ * Copyright 2025 Robert Lindley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 
@@ -12,7 +29,7 @@ describe('BarrelContentBuilder', () => {
   });
 
   describe('buildContent', () => {
-    it('should build export statements for files and nested directories', () => {
+    it('should build export statements for files and nested directories', async () => {
       const entries = new Map<string, BarrelEntry>();
 
       entries
@@ -29,7 +46,7 @@ describe('BarrelContentBuilder', () => {
         })
         .set('nested', { kind: BarrelEntryKind.Directory });
 
-      const source = builder.buildContent(entries, '');
+      const source = await builder.buildContent(entries, '');
 
       assert.strictEqual(
         source,
@@ -72,17 +89,17 @@ describe('BarrelContentBuilder', () => {
     ];
 
     for (const [index, { entries, expected }] of buildContentCases.entries()) {
-      it(`should build expected output ${index}`, () => {
-        const result = builder.buildContent(entries, '');
+      it(`should build expected output ${index}`, async () => {
+        const result = await builder.buildContent(entries, '');
 
         assert.strictEqual(result.trim(), expected);
       });
     }
 
-    it('should build output for legacy entry arrays', () => {
+    it('should build output for legacy entry arrays', async () => {
       const entries = new Map<string, string[]>([['delta.ts', ['Delta', 'default']]]);
 
-      const result = builder.buildContent(entries, '');
+      const result = await builder.buildContent(entries, '');
 
       assert.strictEqual(
         result.trim(),
@@ -90,7 +107,7 @@ describe('BarrelContentBuilder', () => {
       );
     });
 
-    it('should ignore undefined entries produced by legacy callers', () => {
+    it('should ignore undefined entries produced by legacy callers', async () => {
       const entries = new Map<string, BarrelEntry>();
       entries.set('ghost.ts', undefined as unknown as BarrelEntry);
       entries.set('echo.ts', {
@@ -98,7 +115,7 @@ describe('BarrelContentBuilder', () => {
         exports: [{ kind: BarrelExportKind.Value, name: 'Echo' }],
       });
 
-      const result = builder.buildContent(entries, '');
+      const result = await builder.buildContent(entries, '');
 
       assert.strictEqual(result.trim(), "export { Echo } from './echo';");
     });
@@ -117,8 +134,8 @@ describe('BarrelContentBuilder', () => {
     ];
 
     for (const [index, entries] of parentDirectoryCases.entries()) {
-      it(`should ignore parent-directory entries ${index}`, () => {
-        const result = builder.buildContent(entries, '');
+      it(`should ignore parent-directory entries ${index}`, async () => {
+        const result = await builder.buildContent(entries, '');
 
         assert.strictEqual(result, '\n');
       });

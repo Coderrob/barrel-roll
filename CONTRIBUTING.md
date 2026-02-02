@@ -11,13 +11,14 @@ Thank you for your interest in contributing to Barrel Roll! This document provid
    cd barrel-roll
    ```
 
-2. **Install Dependencies**
+1. **Install Dependencies**
 
    ```bash
    npm install
    ```
 
-3. **Build the Extension**
+1. **Build the Extension**
+
    ```bash
    npm run compile
    ```
@@ -27,9 +28,9 @@ Thank you for your interest in contributing to Barrel Roll! This document provid
 ### Running the Extension Locally
 
 1. Open the project in VS Code
-2. Press F5 to start debugging
-3. A new VS Code window will open with the extension loaded
-4. Right-click on any folder in the file explorer to test the "Barrel Roll: Generate/Update index.ts" command
+1. Press F5 to start debugging
+1. A new VS Code window will open with the extension loaded
+1. Right-click on any folder in the file explorer to test the "Barrel Roll: Generate/Update index.ts" command
 
 ### Making Changes
 
@@ -39,24 +40,25 @@ Thank you for your interest in contributing to Barrel Roll! This document provid
    git checkout -b feature/your-feature-name
    ```
 
-2. Make your changes following the code style guidelines
+1. Make your changes following the code style guidelines
 
-3. Run linting:
+1. Run linting:
 
    ```bash
    npm run lint
    npm run lint:fix  # Auto-fix issues
    ```
 
-4. Run formatting:
+1. Run formatting:
 
    ```bash
    npm run format
    ```
 
-5. Write tests for your changes (if applicable)
+1. Write tests for your changes (if applicable)
 
-6. Run tests:
+1. Run tests:
+
    ```bash
    npm test
    ```
@@ -108,10 +110,22 @@ feat: add support for default exports
 ## Pull Request Process
 
 1. Ensure all tests pass
-2. Update documentation if needed
-3. Update CHANGELOG.md with your changes
-4. Submit a pull request with a clear description of the changes
+1. Update documentation if needed
+1. Update CHANGELOG.md with your changes
+1. Submit a pull request with a clear description of the changes
 
 ## Questions?
 
 Feel free to open an issue for any questions or concerns.
+
+## Coding conventions: error handling
+
+- Prefer the shared helpers in `src/utils/errors.ts`:
+  - `getErrorMessage(error)` — safe extraction of an error message
+  - `formatErrorForLog(error)` — prefer when logging since it preserves stack when available
+
+- To catch and automatically correct ad-hoc checks like `error instanceof Error ? error.message : String(error)` run:
+  - `npm run lint:fix` (uses ESLint auto-fix where applicable)
+  - `npm run fix:instanceof-error` (codemod using `jscodeshift` for larger-scale replacements)
+
+If you want to add more auto-fix patterns, please open an issue or PR so we can review and add targeted rules/codemods.

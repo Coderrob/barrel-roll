@@ -228,6 +228,16 @@ This architecture ensures:
 - **Dependency Inversion**: High-level modules don't depend on low-level details
 - **Testability**: Each component can be tested in isolation
 
+## Known Limitations
+
+- **Bundle size**: The extension uses [ts-morph](https://github.com/dsherret/ts-morph) for robust TypeScript AST parsing. This adds approximately 6 MB to the extension bundle. The trade-off is accurate parsing that correctly ignores export-like text inside strings, comments, and regex literals.
+
+- **Re-exports without aliases**: Passthrough re-exports like `export { foo } from './module'` are intentionally skipped because they don't introduce new named exports—they simply forward exports from other modules. Re-exports **with** aliases (e.g., `export { default as MyClass } from './impl'`) are included because they create a new named export.
+
+- **Dynamic exports**: Exports computed at runtime (e.g., `export default someFactory()`) are captured as default exports, but any dynamically generated named exports cannot be statically detected.
+
+- **Non-TypeScript files**: Only `.ts` and `.tsx` files are scanned. JavaScript files, JSON, and other formats are ignored.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -236,4 +246,8 @@ For developer notes on automation, dependency checks, test conventions, and othe
 
 ## License
 
-Apache-2.0
+This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+
+## Ownership
+
+This repository is maintained by **Rob "Coderrob" Lindley**. For inquiries, please contact via GitHub.
