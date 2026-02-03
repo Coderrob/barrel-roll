@@ -38,12 +38,29 @@ import { BarrelContentBuilder } from './barrel-content.builder.js';
 type NormalizedGenerationOptions = NormalizedBarrelGenerationOptions;
 
 /**
+ * Represents cached export information for a file.
+ */
+interface CachedExport {
+  exports: IParsedExport[];
+  mtime: number;
+}
+
+/**
+ * Information about TypeScript files and subdirectories in a directory.
+ */
+interface DirectoryInfo {
+  tsFiles: string[];
+  subdirectories: string[];
+}
+
+/**
  * Service to generate or update a barrel (index.ts) file in a directory.
  */
 export class BarrelFileGenerator {
   private readonly barrelContentBuilder: BarrelContentBuilder;
   private readonly exportParser: ExportParser;
   private readonly fileSystemService: FileSystemService;
+  private readonly exportCache = new Map<string, CachedExport>();
 
   /**
    * Creates a new BarrelFileGenerator instance.
@@ -76,17 +93,19 @@ export class BarrelFileGenerator {
    * Generates or updates a barrel file from a given directory path.
    * @param directoryPath The directory path
    * @param options Generation options
+   * @param depth Current recursion depth (default: 0)
    * @returns Promise that resolves when the barrel file has been created/updated.
    */
   private async generateBarrelFileFromPath(
     directoryPath: string,
     options: NormalizedGenerationOptions,
+    depth = 0,
   ): Promise<void> {
     const barrelFilePath = path.join(directoryPath, INDEX_FILENAME);
     const { tsFiles, subdirectories } = await this.readDirectoryInfo(directoryPath);
 
     if (options.recursive) {
-      await this.processChildDirectories(subdirectories, options);
+      await this.processChildDirectories(subdirectories, options, depth);
     }
 
     const entries = await this.collectEntries(directoryPath, tsFiles, subdirectories);
@@ -263,10 +282,7 @@ export class BarrelFileGenerator {
   /**
    *
    */
-  private async readDirectoryInfo(directoryPath: string): Promise<{
-    tsFiles: string[];
-    subdirectories: string[];
-  }> {
+  private async readDirectoryInfo(directoryPath: string): Promise<DirectoryInfo> {
     const [tsFiles, subdirectories] = await Promise.all([
       this.fileSystemService.getTypeScriptFiles(directoryPath),
       this.fileSystemService.getSubdirectories(directoryPath),
@@ -278,12 +294,24 @@ export class BarrelFileGenerator {
    * Processes child directories recursively if recursive option is enabled.
    * @param subdirectories Array of subdirectory paths.
    * @param options Normalized generation options.
+   * @param depth Current recursion depth.
    * @returns Promise that resolves when all child directories have been processed.
    */
   private async processChildDirectories(
     subdirectories: string[],
     options: NormalizedGenerationOptions,
+    depth: number,
   ): Promise<void> {
+    const maxDepth = 20; // Prevent infinite recursion in deeply nested directory structures
+
+    if (depth >= maxDepth) {
+      // Log warning but don't throw - allow processing to continue for current level
+      console.warn(
+        `Maximum recursion depth (${maxDepth}) reached at depth ${depth}. Skipping deeper directories.`,
+      );
+      return;
+    }
+
     for (const subdirectoryPath of subdirectories) {
       if (options.mode === BarrelGenerationMode.UpdateExisting) {
         const hasIndex = await this.fileSystemService.fileExists(
@@ -294,7 +322,7 @@ export class BarrelFileGenerator {
         }
       }
 
-      await this.generateBarrelFileFromPath(subdirectoryPath, options);
+      await this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1);
     }
   }
 
@@ -330,18 +358,37 @@ export class BarrelFileGenerator {
     tsFiles: string[],
     entries: Map<string, BarrelEntry>,
   ): Promise<void> {
-    for (const filePath of tsFiles) {
-      const content = await this.fileSystemService.readFile(filePath);
-      const parsedExports = this.exportParser.extractExports(content);
-      const exports = this.normalizeParsedExports(parsedExports);
+    const concurrencyLimit = 10; // Process up to 10 files concurrently
+    const batchSize = 50; // Process files in batches to control memory usage
 
-      // Skip files with no exports
-      if (exports.length === 0) {
-        continue;
+    // Process files in batches to prevent loading too many large files into memory
+    for (let i = 0; i < tsFiles.length; i += batchSize) {
+      const batch = tsFiles.slice(i, i + batchSize);
+      const results = await this.processConcurrently(batch, concurrencyLimit, async (filePath) => {
+        try {
+          const parsedExports = await this.getCachedExports(filePath);
+          const exports = this.normalizeParsedExports(parsedExports);
+
+          // Skip files with no exports
+          if (exports.length === 0) {
+            return null;
+          }
+
+          const relativePath = path.relative(directoryPath, filePath);
+          return { relativePath, entry: { kind: BarrelEntryKind.File, exports } };
+        } catch (error) {
+          // Log error but continue processing other files
+          console.warn(`Failed to process file ${filePath}:`, error);
+          return null;
+        }
+      });
+
+      // Add successful results to entries map
+      for (const result of results) {
+        if (result) {
+          entries.set(result.relativePath, result.entry);
+        }
       }
-
-      const relativePath = path.relative(directoryPath, filePath);
-      entries.set(relativePath, { kind: BarrelEntryKind.File, exports });
     }
   }
 
@@ -512,5 +559,108 @@ export class BarrelFileGenerator {
 
       return entry;
     });
+  }
+
+  /**
+   * Gets cached exports for a file, or parses and caches them if not available.
+   * @param filePath The file path to get exports for.
+   * @returns Promise that resolves to the parsed exports.
+   */
+  private async getCachedExports(filePath: string): Promise<IParsedExport[]> {
+    // Get file modification time
+    const stats = await this.fileSystemService.getFileStats(filePath);
+    const currentMtime = stats.mtime.getTime();
+
+    // Check cache first
+    const cached = this.exportCache.get(filePath);
+    if (cached?.mtime === currentMtime) {
+      return cached.exports;
+    }
+
+    // Parse and cache the exports
+    const content = await this.fileSystemService.readFile(filePath);
+    const exports = this.exportParser.extractExports(content);
+
+    // Cache with modification time
+    this.exportCache.set(filePath, { exports, mtime: currentMtime });
+
+    // Limit cache size to prevent memory issues
+    if (this.exportCache.size > 1000) {
+      const firstKey = this.exportCache.keys().next().value;
+      if (firstKey) {
+        this.exportCache.delete(firstKey);
+      }
+    }
+
+    return exports;
+  }
+
+  /**
+   * Processes items concurrently with a specified limit.
+   * @param items Array of items to process.
+   * @param concurrencyLimit Maximum number of concurrent operations.
+   * @param processor Function to process each item.
+   * @returns Promise that resolves to array of results.
+   */
+  private async processConcurrently<T, R>(
+    items: T[],
+    concurrencyLimit: number,
+    processor: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = [];
+    const semaphore = new Semaphore(concurrencyLimit);
+
+    const promises = items.map(async (item) => {
+      await semaphore.acquire();
+      try {
+        return await processor(item);
+      } finally {
+        semaphore.release();
+      }
+    });
+
+    const resolvedResults = await Promise.all(promises);
+    results.push(...resolvedResults);
+    return results;
+  }
+}
+
+/**
+ * Simple semaphore implementation for concurrency control.
+ */
+class Semaphore {
+  private readonly waiting: Array<() => void> = [];
+
+  /**
+   * Creates a new semaphore with the specified number of permits.
+   * @param permits The number of permits to initialize the semaphore with.
+   */
+  constructor(private permits: number) {}
+
+  /**
+   * Acquires a permit from the semaphore.
+   * @returns Promise that resolves when a permit is acquired.
+   */
+  async acquire(): Promise<void> {
+    if (this.permits > 0) {
+      this.permits--;
+      return;
+    }
+
+    return new Promise((resolve) => {
+      this.waiting.push(resolve);
+    });
+  }
+
+  /**
+   * Releases a permit back to the semaphore.
+   */
+  release(): void {
+    this.permits++;
+    if (this.waiting.length > 0) {
+      const resolve = this.waiting.shift()!;
+      this.permits--;
+      resolve();
+    }
   }
 }

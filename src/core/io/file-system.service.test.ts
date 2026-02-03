@@ -248,6 +248,7 @@ describe('FileSystemService', () => {
 
   describe('readFile', () => {
     it('should read file content successfully', async () => {
+      mockFs.stat.mockResolvedValue({ size: 1024, mtime: new Date() });
       mockFs.readFile.mockResolvedValue('file content');
 
       const result = await service.readFile('/path/to/file.ts');
@@ -257,6 +258,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file read fails', async () => {
+      mockFs.stat.mockResolvedValue({ size: 1024, mtime: new Date() });
       mockFs.readFile.mockRejectedValue(new Error('Read error'));
 
       await assert.rejects(
@@ -266,11 +268,21 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file read fails with non-Error object', async () => {
+      mockFs.stat.mockResolvedValue({ size: 1024, mtime: new Date() });
       mockFs.readFile.mockRejectedValue({ custom: 'error' });
 
       await assert.rejects(
         service.readFile('/invalid/path'),
         /Failed to read file \/invalid\/path: \[object Object\]/,
+      );
+    });
+
+    it('should throw error if file is too large', async () => {
+      mockFs.stat.mockResolvedValue({ size: 15 * 1024 * 1024, mtime: new Date() }); // 15MB
+
+      await assert.rejects(
+        service.readFile('/path/to/large-file.ts'),
+        /File \/path\/to\/large-file\.ts is too large \(15\.00MB\)\. Maximum allowed size is 10MB\./,
       );
     });
   });

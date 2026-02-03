@@ -118,6 +118,11 @@ export default [
             "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSTypeReference[typeName.name='ReturnType']",
           message: 'Avoid nested ReturnType chains; define a named type/interface instead.',
         },
+        {
+          selector: 'TSTypeAnnotation > TSTypeLiteral',
+          message:
+            'Avoid inline object types in type annotations. Define a named interface or type alias instead.',
+        },
       ],
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
       'local/no-instanceof-error-autofix': 'error',

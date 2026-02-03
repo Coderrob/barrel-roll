@@ -120,10 +120,21 @@ export class FileSystemService {
    * Reads the content of a file.
    * @param filePath The file path to read
    * @returns The file content as a string
-   * @throws Error if the read operation fails
+   * @throws Error if the read operation fails or file is too large
    */
   async readFile(filePath: string): Promise<string> {
     try {
+      // Check file size before reading to prevent memory issues with large files
+      const maxFileSizeBytes = 10 * 1024 * 1024; // 10MB limit
+      const stats = await this.fs.stat(filePath);
+
+      if (stats.size > maxFileSizeBytes) {
+        throw new Error(
+          `File ${filePath} is too large (${(stats.size / 1024 / 1024).toFixed(2)}MB). ` +
+            `Maximum allowed size is ${(maxFileSizeBytes / 1024 / 1024).toFixed(0)}MB.`,
+        );
+      }
+
       return await this.fs.readFile(filePath, 'utf-8');
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -216,6 +227,21 @@ export class FileSystemService {
       return stat.isDirectory();
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Gets file statistics.
+   * @param filePath The path to get stats for
+   * @returns Promise that resolves to file stats
+   * @throws Error if the stat operation fails
+   */
+  async getFileStats(filePath: string): Promise<import('fs').Stats> {
+    try {
+      return await this.fs.stat(filePath);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      throw new Error(`Failed to get stats for ${filePath}: ${errorMessage}`);
     }
   }
 
