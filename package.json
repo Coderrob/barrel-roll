@@ -179,5 +179,5 @@
     "watch": "webpack --watch",
     "watch-tests": "tsc -p . -w --outDir dist"
   },
-  "version": "1.0.0"
+  "version": "1.0.1"
 }

@@ -3,6 +3,9 @@
 # Disable line length checking (prettier handles this)
 MD013: false
 
+# Allow duplicate headings (common in CHANGELOGs)
+MD024: false
+
 # Unordered list style
 MD004:
   style: dash
