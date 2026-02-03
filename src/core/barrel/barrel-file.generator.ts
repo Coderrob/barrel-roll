@@ -171,6 +171,7 @@ export class BarrelFileGenerator {
 
   /**
    * Merges new content with sanitized existing barrel content.
+   * Preserves direct definitions (functions, types, constants, etc.) while sanitizing re-exports.
    * @param newContent The newly generated content.
    * @param barrelFilePath The path to the existing barrel file.
    * @param directoryPath The directory path.
@@ -186,21 +187,21 @@ export class BarrelFileGenerator {
     subdirectories: string[],
   ): Promise<string> {
     const existingContent = await this.fileSystemService.readFile(barrelFilePath);
-    const sanitizedExistingExports = this.sanitizeExistingBarrelContent(
+    const { preservedLines, sanitizedExports } = this.preserveDefinitionsAndSanitizeExports(
       existingContent,
       directoryPath,
       tsFiles,
       subdirectories,
     );
 
-    if (sanitizedExistingExports.length === 0) {
-      return newContent;
-    }
-
-    const existingContentLines = sanitizedExistingExports.map((exp) => `export * from '${exp}';`);
+    const sanitizedExportLines = sanitizedExports.map((exp) => `export * from '${exp}';`);
     const newContentLines = newContent.trim() ? newContent.trim().split('\n') : [];
-    const allLines = [...existingContentLines, ...newContentLines];
-    return allLines.length > 0 ? allLines.join('\n') + '\n' : '\n';
+    const allLines = [...preservedLines, ...sanitizedExportLines, ...newContentLines];
+
+    // Remove empty lines and trim
+    const filteredLines = allLines.filter((line) => line.trim().length > 0);
+
+    return filteredLines.length > 0 ? filteredLines.join('\n') + '\n' : '\n';
   }
 
   /**
@@ -463,33 +464,41 @@ export class BarrelFileGenerator {
   }
 
   /**
-   * Sanitizes existing barrel content by removing exports to files that should be excluded.
+   * Preserves direct definitions and sanitizes re-exports from existing barrel content.
    * @param existingContent The existing barrel file content.
-   * @param directoryPath The directory path containing the barrel file.
-   * @param validTsFiles Array of valid TypeScript file paths in the directory.
+   * @param directoryPath The directory path.
+   * @param validTsFiles Array of valid TypeScript file paths.
    * @param validSubdirectories Array of valid subdirectory paths.
-   * @returns Array of relative paths that should still be exported.
+   * @returns Object containing preserved lines and sanitized export paths.
    */
-  private sanitizeExistingBarrelContent(
+  private preserveDefinitionsAndSanitizeExports(
     existingContent: string,
     directoryPath: string,
     validTsFiles: string[],
     validSubdirectories: string[],
-  ): string[] {
+  ): { preservedLines: string[]; sanitizedExports: string[] } {
     const lines = existingContent.trim().split('\n');
-    const validExports: string[] = [];
+    const preservedLines: string[] = [];
+    const sanitizedExports: string[] = [];
 
     for (const line of lines) {
-      const exportPath = this.extractExportPath(line);
-      if (
-        exportPath &&
-        this.isValidExportPath(exportPath, directoryPath, validTsFiles, validSubdirectories)
-      ) {
-        validExports.push(exportPath);
+      const trimmedLine = line.trim();
+
+      // Check if this is a re-export line
+      const exportPath = this.extractExportPath(trimmedLine);
+      if (exportPath) {
+        // This is a re-export, check if it's still valid
+        if (this.isValidExportPath(exportPath, directoryPath, validTsFiles, validSubdirectories)) {
+          sanitizedExports.push(exportPath);
+        }
+        // Skip adding to preservedLines since we'll regenerate valid re-exports
+      } else if (trimmedLine.length > 0) {
+        // This is not a re-export (direct definition, comment, etc.), preserve it
+        preservedLines.push(line);
       }
     }
 
-    return validExports;
+    return { preservedLines, sanitizedExports };
   }
 
   /**
@@ -525,10 +534,10 @@ export class BarrelFileGenerator {
     const absolutePath = path.resolve(directoryPath, exportPath);
 
     // Check if it's a valid TypeScript file
-    const relativeTsPath = path.relative(directoryPath, absolutePath + '.ts');
-    const relativeTsxPath = path.relative(directoryPath, absolutePath + '.tsx');
+    const tsPath = absolutePath + '.ts';
+    const tsxPath = absolutePath + '.tsx';
 
-    if (validTsFiles.includes(relativeTsPath) || validTsFiles.includes(relativeTsxPath)) {
+    if (validTsFiles.includes(tsPath) || validTsFiles.includes(tsxPath)) {
       return true;
     }
 

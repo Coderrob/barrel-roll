@@ -191,5 +191,67 @@ describe('BarrelFileGenerator', () => {
 
       assert.strictEqual(rootIndex, '\n');
     });
+
+    it('should preserve direct definitions in index.ts when updating', async () => {
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      // Create an index.ts with both direct definitions and re-exports
+      const existingContent = `// Direct function definition
+export function helperFunction(value: string): string {
+  return value.toUpperCase();
+}
+
+// Direct constant
+export const VERSION = '1.0.0';
+
+// Direct type definition
+export interface Config {
+  name: string;
+  value: number;
+}
+
+// Re-export from another file
+export * from './utils';
+
+// Another direct function
+export const createConfig = (name: string, value: number): Config => ({
+  name,
+  value,
+});
+`;
+
+      await fileSystem.writeFile(path.join(tmpDir, INDEX_FILENAME), existingContent);
+
+      // Create a utils.ts file to make the re-export valid
+      await fileSystem.writeFile(path.join(tmpDir, 'utils.ts'), 'export const util = 42;');
+
+      await generator.generateBarrelFile(rootUri, {
+        mode: BarrelGenerationMode.UpdateExisting,
+      });
+
+      const updatedIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+
+      // Verify that direct definitions are preserved
+      assert.ok(
+        updatedIndex.includes('export function helperFunction'),
+        'Function definition should be preserved',
+      );
+      assert.ok(updatedIndex.includes('export const VERSION'), 'Constant should be preserved');
+      assert.ok(
+        updatedIndex.includes('export interface Config'),
+        'Type definition should be preserved',
+      );
+      assert.ok(
+        updatedIndex.includes('export const createConfig'),
+        'Arrow function should be preserved',
+      );
+
+      // Verify that valid re-exports are still present
+      assert.ok(
+        updatedIndex.includes("export * from './utils'"),
+        'Valid re-export should be preserved',
+      );
+    });
   });
 });
