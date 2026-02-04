@@ -241,6 +241,25 @@ export default [
     },
   },
 
+  // Restrict direct fs imports - use FileSystemService instead
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['**/file-system.service.ts', '**/*.test.ts', '**/test/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['fs', 'node:fs', 'fs/*', 'node:fs/*', 'fs/promises', 'node:fs/promises'],
+              message: 'Use FileSystemService from core/io instead of direct fs imports.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Mocha test suite files (VS Code extension integration tests)
   {
     files: ['**/src/test/suite/**/*.{ts,tsx}'],

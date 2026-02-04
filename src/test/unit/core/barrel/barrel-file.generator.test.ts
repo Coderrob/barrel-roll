@@ -167,12 +167,13 @@ describe('BarrelFileGenerator', () => {
       });
 
       const keepIndex = await fileSystem.readFile(path.join(keepDir, INDEX_FILENAME));
-      assert.strictEqual(keepIndex, ["export { keep } from './keep.js';", ''].join('\n'));
+      assert.strictEqual(keepIndex, ["export { keep } from './keep';", ''].join('\n'));
 
       const skipIndexExists = await fileSystem.fileExists(path.join(skipDir, INDEX_FILENAME));
       assert.strictEqual(skipIndexExists, false);
 
       const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+      // Root doesn't have existing barrel so defaults to .js extension
       assert.strictEqual(rootIndex, ["export * from './keep/index.js';", ''].join('\n'));
     });
 
@@ -266,7 +267,7 @@ export const createConfig = (name: string, value: number): Config => ({
 
       // Verify that valid re-exports are still present
       assert.ok(
-        updatedIndex.includes("export { util } from './utils.js'"),
+        updatedIndex.includes("export { util } from './utils'"),
         'Valid re-export should be generated for utils.ts',
       );
     });
@@ -428,7 +429,7 @@ export { bar } from './local';
 
       // Local export should be regenerated
       assert.ok(
-        updatedIndex.includes("export { bar } from './local.js'"),
+        updatedIndex.includes("export { bar } from './local'"),
         'Local export should be present',
       );
     });
@@ -455,7 +456,7 @@ export { bar } from './local';
 
       // Comments should be preserved
       assert.ok(updatedIndex.includes('// This is a barrel file'), 'Comments should be preserved');
-      // New export should be added
+      // New export should be added (no existing exports with extensions, defaults to .js)
       assert.ok(
         updatedIndex.includes("export { util } from './util.js'"),
         'New export should be added',
@@ -517,7 +518,7 @@ export * from '../outside';
       assert.ok(!updatedIndex.includes('../outside'), 'Parent reference should be stripped');
       // Local export regenerated with proper extension
       assert.ok(
-        updatedIndex.includes("export { something } from './local.js'"),
+        updatedIndex.includes("export { something } from './local'"),
         'Local export should be regenerated',
       );
     });

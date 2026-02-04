@@ -25,17 +25,17 @@ import type {
   TestCommandsApi,
   ActivateFn,
   DeactivateFn,
+  ExtensionContext,
+  ProgressOptions,
 } from '../testTypes.js';
 import { uriFile } from '../testTypes.js';
 import { BarrelGenerationMode } from '../../types/index.js';
-import type { ExtensionContext, ProgressOptions } from 'vscode';
 
 /**
  * Creates a mock ExtensionContext for testing.
  */
 function createContext(): ExtensionContext {
-  const base = { subscriptions: [] as unknown[] };
-  return base as unknown as ExtensionContext;
+  return { subscriptions: [] };
 }
 
 describe('Extension', () => {
@@ -201,7 +201,11 @@ describe('Extension', () => {
 
   beforeEach(async () => {
     resetState();
-    ({ activate, deactivate } = await import('../../extension.js'));
+    // Use type assertion because the dynamically imported extension expects
+    // vscode.ExtensionContext, but at runtime our mock module provides it
+    const ext = await import('../../extension.js');
+    activate = ext.activate as unknown as ActivateFn;
+    deactivate = ext.deactivate as DeactivateFn;
   });
 
   /**

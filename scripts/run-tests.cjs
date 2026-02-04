@@ -26,7 +26,8 @@ if (testFiles.length === 0) {
 }
 
 // Run node --test with the expanded file list
-const nodeTest = spawn('node', ['--test', ...testFiles], {
+// Note: --experimental-test-module-mocks enables mock.module() for mocking modules
+const nodeTest = spawn('node', ['--experimental-test-module-mocks', '--test', ...testFiles], {
   stdio: 'inherit',
   shell: false,
 });

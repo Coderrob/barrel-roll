@@ -28,18 +28,19 @@ describe('BarrelContentBuilder Test Suite', () => {
     builder = new BarrelContentBuilder();
   });
 
-  it('should build content for single file with single export', () => {
+  it('should build content for single file with single export', async () => {
     const exportsByFile = new Map([['myFile.ts', ['MyClass']]]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+    const content = await builder.buildContent(exportsByFile, '/some/path');
 
     assert.strictEqual(content, "export { MyClass } from './myFile';\n");
   });
 
-  it('should build content for single file with multiple exports', () => {
+  it('should build content for single file with multiple exports', async () => {
     const exportsByFile = new Map([['myFile.ts', ['MyClass', 'MyInterface', 'myConst']]]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+    const content = await builder.buildContent(exportsByFile, '/some/path');
 
-    assert.strictEqual(content, "export { MyClass, MyInterface, myConst } from './myFile';\n");
+    // Exports are sorted alphabetically
+    assert.strictEqual(content, "export { MyClass, myConst, MyInterface } from './myFile';\n");
   });
 
   it('should build content for multiple files', async () => {
@@ -57,7 +58,7 @@ describe('BarrelContentBuilder Test Suite', () => {
 
   it('should handle default exports', async () => {
     const exportsByFile = new Map([['myFile.ts', ['default']]]);
-    const content = builder.buildContent(exportsByFile, '/some/path');
+    const content = await builder.buildContent(exportsByFile, '/some/path');
 
     assert.strictEqual(content, "export { default } from './myFile';\n");
   });
