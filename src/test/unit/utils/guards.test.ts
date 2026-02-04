@@ -17,7 +17,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isObject, isString, isError } from './guards.js';
+import { isObject, isString, isError } from '../../../utils/guards.js';
 
 describe('guards utils', () => {
   describe('isObject', () => {

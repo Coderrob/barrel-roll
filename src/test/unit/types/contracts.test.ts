@@ -19,6 +19,15 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  assert as customAssert,
+  assertDefined,
+  assertEqual,
+  assertString,
+  assertNumber,
+  assertBoolean,
+} from '../../../utils/assert.js';
+
+import {
   BarrelEntryKind,
   BarrelExportKind,
   BarrelGenerationMode,
@@ -31,7 +40,7 @@ import {
   type IBarrelGenerationOptions,
   type IParsedExport,
   type NormalizedBarrelGenerationOptions,
-} from '../types/index.js';
+} from '../../../types/index.js';
 
 /**
  * Contract validation tests to ensure type safety and behavioral expectations
@@ -377,6 +386,45 @@ describe('Contract Validation', () => {
 
         assert.ok(!isDirectoryEntry(fileEntry));
         assert.ok(isDirectoryEntry(dirEntry));
+      });
+    });
+
+    describe('Error Handling', () => {
+      it('should throw TypeError for assertion failures', () => {
+        assert.throws(() => customAssert(false), TypeError);
+        assert.throws(() => customAssert(null), TypeError);
+        assert.throws(() => customAssert(undefined), TypeError);
+        assert.throws(() => customAssert(''), TypeError);
+        assert.throws(() => customAssert(0), TypeError);
+      });
+
+      it('should throw TypeError for assertEqual failures', () => {
+        assert.throws(() => assertEqual(1, 2), TypeError);
+        assert.throws(() => assertEqual('a', 'b'), TypeError);
+        assert.throws(() => assertEqual(true, false), TypeError);
+      });
+
+      it('should throw TypeError for assertDefined failures', () => {
+        assert.throws(() => assertDefined(null), TypeError);
+        assert.throws(() => assertDefined(undefined), TypeError);
+      });
+
+      it('should throw TypeError for assertString failures', () => {
+        assert.throws(() => assertString(123), TypeError);
+        assert.throws(() => assertString(null), TypeError);
+        assert.throws(() => assertString({}), TypeError);
+      });
+
+      it('should throw TypeError for assertNumber failures', () => {
+        assert.throws(() => assertNumber('123'), TypeError);
+        assert.throws(() => assertNumber(null), TypeError);
+        assert.throws(() => assertNumber({}), TypeError);
+      });
+
+      it('should throw TypeError for assertBoolean failures', () => {
+        assert.throws(() => assertBoolean('true'), TypeError);
+        assert.throws(() => assertBoolean(1), TypeError);
+        assert.throws(() => assertBoolean(null), TypeError);
       });
     });
   });

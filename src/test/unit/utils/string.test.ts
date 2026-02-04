@@ -18,7 +18,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { splitAndClean, sortAlphabetically } from './string.js';
+import { splitAndClean, sortAlphabetically } from '../../../utils/string.js';
 
 describe('string utils', () => {
   describe('splitAndClean', () => {

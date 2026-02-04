@@ -20,7 +20,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
-import { ExportParser } from './export.parser.js';
+import { ExportParser } from '../../../../core/parser/export.parser.js';
 
 // Tests run from project root via scripts/run-tests.js
 const projectRoot = process.cwd();
@@ -28,24 +28,36 @@ const projectRoot = process.cwd();
 describe('ExportParser Integration Tests', () => {
   const parser = new ExportParser();
 
+  /** Recursively lists all test files under the given root directory. */
+  async function listTestFiles(root: string): Promise<string[]> {
+    const entries = await readdir(root, { withFileTypes: true });
+    const files = await Promise.all(
+      entries.map(async (entry) => {
+        const fullPath = join(root, entry.name);
+        if (entry.isDirectory()) {
+          return listTestFiles(fullPath);
+        }
+        return entry.name.endsWith('.test.ts') ? [fullPath] : [];
+      }),
+    );
+    return files.flat();
+  }
+
   describe('real-world test files', () => {
     it('should not extract false exports from test suite files', async () => {
       // This test verifies that test files containing export statements
       // inside strings (as test fixtures) don't produce false positives
-      const testSuitePath = join(projectRoot, 'src/test/suite');
+      const testSuitePath = join(projectRoot, 'src/test/unit');
 
       let files: string[];
       try {
-        files = await readdir(testSuitePath);
+        files = await listTestFiles(testSuitePath);
       } catch {
         // Skip if directory doesn't exist (e.g., in CI before test setup)
         return;
       }
 
-      const testFiles = files.filter((f) => f.endsWith('.test.ts'));
-
-      for (const file of testFiles) {
-        const filePath = join(testSuitePath, file);
+      for (const filePath of files) {
         const content = await readFile(filePath, 'utf8');
         const exports = parser.extractExports(content);
 
@@ -54,7 +66,7 @@ describe('ExportParser Integration Tests', () => {
         assert.deepStrictEqual(
           exports,
           [],
-          `${file} should have no exports, but found: ${JSON.stringify(exports)}`,
+          `${filePath} should have no exports, but found: ${JSON.stringify(exports)}`,
         );
       }
     });

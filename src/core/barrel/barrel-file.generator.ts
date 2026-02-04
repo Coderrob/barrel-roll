@@ -19,6 +19,7 @@ import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
 
+import type { LoggerInstance } from '../../types/index.js';
 import {
   type BarrelEntry,
   BarrelEntryKind,
@@ -31,19 +32,15 @@ import {
   type IParsedExport,
   type NormalizedBarrelGenerationOptions,
 } from '../../types/index.js';
+import { processConcurrently } from '../../utils/semaphore.js';
 import { FileSystemService } from '../io/file-system.service.js';
 import { ExportParser } from '../parser/export.parser.js';
 import { BarrelContentBuilder } from './barrel-content.builder.js';
+import { BarrelContentSanitizer } from './content-sanitizer.js';
+import { ExportCache } from './export-cache.js';
+import { detectExtensionFromBarrelContent, extractAllExportPaths } from './export-patterns.js';
 
 type NormalizedGenerationOptions = NormalizedBarrelGenerationOptions;
-
-/**
- * Represents cached export information for a file.
- */
-interface CachedExport {
-  exports: IParsedExport[];
-  mtime: number;
-}
 
 /**
  * Information about TypeScript files and subdirectories in a directory.
@@ -58,24 +55,27 @@ interface DirectoryInfo {
  */
 export class BarrelFileGenerator {
   private readonly barrelContentBuilder: BarrelContentBuilder;
-  private readonly exportParser: ExportParser;
   private readonly fileSystemService: FileSystemService;
-  private readonly exportCache = new Map<string, CachedExport>();
+  private readonly contentSanitizer: BarrelContentSanitizer;
+  private readonly exportCache: ExportCache;
 
   /**
    * Creates a new BarrelFileGenerator instance.
    * @param fileSystemService Optional file system service instance.
    * @param exportParser Optional export parser instance.
    * @param barrelContentBuilder Optional barrel content builder instance.
+   * @param logger Optional logger instance for debug output.
    */
   constructor(
     fileSystemService?: FileSystemService,
     exportParser?: ExportParser,
     barrelContentBuilder?: BarrelContentBuilder,
+    logger?: LoggerInstance,
   ) {
     this.barrelContentBuilder = barrelContentBuilder || new BarrelContentBuilder();
-    this.exportParser = exportParser || new ExportParser();
     this.fileSystemService = fileSystemService || new FileSystemService();
+    this.contentSanitizer = new BarrelContentSanitizer(logger);
+    this.exportCache = new ExportCache(this.fileSystemService, exportParser || new ExportParser());
   }
 
   /**
@@ -120,9 +120,6 @@ export class BarrelFileGenerator {
       entries,
       barrelFilePath,
       hasExistingIndex,
-      options,
-      tsFiles,
-      subdirectories,
     );
     await this.fileSystemService.writeFile(barrelFilePath, barrelContent);
   }
@@ -133,9 +130,6 @@ export class BarrelFileGenerator {
    * @param entries The collected entries.
    * @param barrelFilePath The path to the barrel file.
    * @param hasExistingIndex Whether an existing index file exists.
-   * @param options The generation options.
-   * @param tsFiles The valid TypeScript files.
-   * @param subdirectories The valid subdirectories.
    * @returns The final barrel content.
    */
   private async buildBarrelContent(
@@ -143,11 +137,7 @@ export class BarrelFileGenerator {
     entries: Map<string, BarrelEntry>,
     barrelFilePath: string,
     hasExistingIndex: boolean,
-    options: NormalizedGenerationOptions,
-    tsFiles: string[],
-    subdirectories: string[],
   ): Promise<string> {
-    // Determine what extension to use for exports
     const exportExtension = await this.determineExportExtension(barrelFilePath, hasExistingIndex);
 
     const newContent = await this.barrelContentBuilder.buildContent(
@@ -156,17 +146,11 @@ export class BarrelFileGenerator {
       exportExtension,
     );
 
-    if (!hasExistingIndex || options.mode !== BarrelGenerationMode.UpdateExisting) {
+    if (!hasExistingIndex) {
       return newContent;
     }
 
-    return this.mergeWithSanitizedExistingContent(
-      newContent,
-      barrelFilePath,
-      directoryPath,
-      tsFiles,
-      subdirectories,
-    );
+    return this.mergeWithSanitizedExistingContent(newContent, barrelFilePath);
   }
 
   /**
@@ -174,31 +158,22 @@ export class BarrelFileGenerator {
    * Preserves direct definitions (functions, types, constants, etc.) while sanitizing re-exports.
    * @param newContent The newly generated content.
    * @param barrelFilePath The path to the existing barrel file.
-   * @param directoryPath The directory path.
-   * @param tsFiles The valid TypeScript files.
-   * @param subdirectories The valid subdirectories.
    * @returns The merged content.
    */
   private async mergeWithSanitizedExistingContent(
     newContent: string,
     barrelFilePath: string,
-    directoryPath: string,
-    tsFiles: string[],
-    subdirectories: string[],
   ): Promise<string> {
     const existingContent = await this.fileSystemService.readFile(barrelFilePath);
-    const { preservedLines, sanitizedExports } = this.preserveDefinitionsAndSanitizeExports(
+    const newContentPaths = extractAllExportPaths(newContent);
+
+    const { preservedLines } = this.contentSanitizer.preserveDefinitionsAndSanitizeExports(
       existingContent,
-      directoryPath,
-      tsFiles,
-      subdirectories,
+      newContentPaths,
     );
 
-    const sanitizedExportLines = sanitizedExports.map((exp) => `export * from '${exp}';`);
     const newContentLines = newContent.trim() ? newContent.trim().split('\n') : [];
-    const allLines = [...preservedLines, ...sanitizedExportLines, ...newContentLines];
-
-    // Remove empty lines and trim
+    const allLines = [...preservedLines, ...newContentLines];
     const filteredLines = allLines.filter((line) => line.trim().length > 0);
 
     return filteredLines.length > 0 ? filteredLines.join('\n') + '\n' : '\n';
@@ -214,74 +189,17 @@ export class BarrelFileGenerator {
     barrelFilePath: string,
     hasExistingIndex: boolean,
   ): Promise<string> {
-    if (hasExistingIndex) {
-      // Check existing barrel file to see what extension pattern it uses
-      const existingContent = await this.fileSystemService.readFile(barrelFilePath);
-      const extension = this.detectExtensionFromBarrelContent(existingContent);
-      if (extension) {
-        return extension;
-      }
-    }
-
-    // Default to .js for ES modules (common in TypeScript projects)
-    return '.js';
-  }
-
-  /**
-   * Detects the file extension pattern used in existing barrel content.
-   * @param content The barrel file content.
-   * @returns The extension pattern used, or null if none detected.
-   */
-  private detectExtensionFromBarrelContent(content: string): string | null {
-    const lines = content.trim().split('\n');
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!this.isExportLine(trimmedLine)) {
-        continue;
-      }
-
-      const extension = this.extractExtensionFromLine(trimmedLine);
-      if (extension !== null) {
-        return extension;
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Checks if a line is an export statement.
-   * @param line The line to check.
-   * @returns True if the line is an export statement.
-   */
-  private isExportLine(line: string): boolean {
-    return line.startsWith("export * from '") || line.startsWith('export {');
-  }
-
-  /**
-   * Extracts the extension pattern from an export line.
-   * @param line The export line.
-   * @returns The extension pattern, or null if none found.
-   */
-  private extractExtensionFromLine(line: string): string | null {
-    if (line.includes('.js')) {
+    if (!hasExistingIndex) {
       return '.js';
     }
 
-    if (line.includes('.mjs')) {
-      return '.mjs';
-    }
-
-    // If we find exports without extensions, return empty string
-    if (/from '[^']*'(\s*;|$)/.exec(line)) {
-      return '';
-    }
-
-    return null;
+    const existingContent = await this.fileSystemService.readFile(barrelFilePath);
+    const extension = detectExtensionFromBarrelContent(existingContent);
+    return extension ?? '.js';
   }
+
   /**
-   *
+   * Reads directory info for TypeScript files and subdirectories.
    */
   private async readDirectoryInfo(directoryPath: string): Promise<DirectoryInfo> {
     const [tsFiles, subdirectories] = await Promise.all([
@@ -303,10 +221,9 @@ export class BarrelFileGenerator {
     options: NormalizedGenerationOptions,
     depth: number,
   ): Promise<void> {
-    const maxDepth = 20; // Prevent infinite recursion in deeply nested directory structures
+    const maxDepth = 20;
 
     if (depth >= maxDepth) {
-      // Log warning but don't throw - allow processing to continue for current level
       console.warn(
         `Maximum recursion depth (${maxDepth}) reached at depth ${depth}. Skipping deeper directories.`,
       );
@@ -314,13 +231,16 @@ export class BarrelFileGenerator {
     }
 
     for (const subdirectoryPath of subdirectories) {
-      if (options.mode === BarrelGenerationMode.UpdateExisting) {
-        const hasIndex = await this.fileSystemService.fileExists(
-          path.join(subdirectoryPath, INDEX_FILENAME),
-        );
-        if (!hasIndex) {
-          continue;
-        }
+      if (options.mode !== BarrelGenerationMode.UpdateExisting) {
+        await this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1);
+        continue;
+      }
+
+      const hasIndex = await this.fileSystemService.fileExists(
+        path.join(subdirectoryPath, INDEX_FILENAME),
+      );
+      if (!hasIndex) {
+        continue;
       }
 
       await this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1);
@@ -359,18 +279,16 @@ export class BarrelFileGenerator {
     tsFiles: string[],
     entries: Map<string, BarrelEntry>,
   ): Promise<void> {
-    const concurrencyLimit = 10; // Process up to 10 files concurrently
-    const batchSize = 50; // Process files in batches to control memory usage
+    const concurrencyLimit = 10;
+    const batchSize = 50;
 
-    // Process files in batches to prevent loading too many large files into memory
     for (let i = 0; i < tsFiles.length; i += batchSize) {
       const batch = tsFiles.slice(i, i + batchSize);
-      const results = await this.processConcurrently(batch, concurrencyLimit, async (filePath) => {
+      const results = await processConcurrently(batch, concurrencyLimit, async (filePath) => {
         try {
-          const parsedExports = await this.getCachedExports(filePath);
+          const parsedExports = await this.exportCache.getExports(filePath);
           const exports = this.normalizeParsedExports(parsedExports);
 
-          // Skip files with no exports
           if (exports.length === 0) {
             return null;
           }
@@ -378,17 +296,17 @@ export class BarrelFileGenerator {
           const relativePath = path.relative(directoryPath, filePath);
           return { relativePath, entry: { kind: BarrelEntryKind.File, exports } };
         } catch (error) {
-          // Log error but continue processing other files
           console.warn(`Failed to process file ${filePath}:`, error);
           return null;
         }
       });
 
-      // Add successful results to entries map
       for (const result of results) {
-        if (result) {
-          entries.set(result.relativePath, result.entry);
+        if (!result) {
+          continue;
         }
+
+        entries.set(result.relativePath, result.entry);
       }
     }
   }
@@ -432,11 +350,11 @@ export class BarrelFileGenerator {
       return true;
     }
 
-    if (options.mode === BarrelGenerationMode.UpdateExisting) {
+    if (options.mode !== BarrelGenerationMode.UpdateExisting) {
+      this.throwIfNoFilesAndNotRecursive(options);
       return hasExistingIndex;
     }
 
-    this.throwIfNoFilesAndNotRecursive(options);
     return hasExistingIndex;
   }
 
@@ -464,94 +382,6 @@ export class BarrelFileGenerator {
   }
 
   /**
-   * Preserves direct definitions and sanitizes re-exports from existing barrel content.
-   * @param existingContent The existing barrel file content.
-   * @param directoryPath The directory path.
-   * @param validTsFiles Array of valid TypeScript file paths.
-   * @param validSubdirectories Array of valid subdirectory paths.
-   * @returns Object containing preserved lines and sanitized export paths.
-   */
-  private preserveDefinitionsAndSanitizeExports(
-    existingContent: string,
-    directoryPath: string,
-    validTsFiles: string[],
-    validSubdirectories: string[],
-  ): { preservedLines: string[]; sanitizedExports: string[] } {
-    const lines = existingContent.trim().split('\n');
-    const preservedLines: string[] = [];
-    const sanitizedExports: string[] = [];
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-
-      // Check if this is a re-export line
-      const exportPath = this.extractExportPath(trimmedLine);
-      if (exportPath) {
-        // This is a re-export, check if it's still valid
-        if (this.isValidExportPath(exportPath, directoryPath, validTsFiles, validSubdirectories)) {
-          sanitizedExports.push(exportPath);
-        }
-        // Skip adding to preservedLines since we'll regenerate valid re-exports
-      } else if (trimmedLine.length > 0) {
-        // This is not a re-export (direct definition, comment, etc.), preserve it
-        preservedLines.push(line);
-      }
-    }
-
-    return { preservedLines, sanitizedExports };
-  }
-
-  /**
-   * Extracts the export path from a barrel export line.
-   * @param line The line to parse.
-   * @returns The export path if found, otherwise null.
-   */
-  private extractExportPath(line: string): string | null {
-    const trimmedLine = line.trim();
-    if (!trimmedLine?.startsWith("export * from '")) {
-      return null;
-    }
-
-    const match = /^export \* from '([^']+)';?$/.exec(trimmedLine);
-    return match ? match[1] : null;
-  }
-
-  /**
-   * Checks if an export path is still valid (not pointing to excluded files).
-   * @param exportPath The relative export path from the barrel file.
-   * @param directoryPath The directory containing the barrel file.
-   * @param validTsFiles Array of valid TypeScript file paths.
-   * @param validSubdirectories Array of valid subdirectory paths.
-   * @returns True if the export should be kept; otherwise, false.
-   */
-  private isValidExportPath(
-    exportPath: string,
-    directoryPath: string,
-    validTsFiles: string[],
-    validSubdirectories: string[],
-  ): boolean {
-    // Convert relative export path to absolute path
-    const absolutePath = path.resolve(directoryPath, exportPath);
-
-    // Check if it's a valid TypeScript file
-    const tsPath = absolutePath + '.ts';
-    const tsxPath = absolutePath + '.tsx';
-
-    if (validTsFiles.includes(tsPath) || validTsFiles.includes(tsxPath)) {
-      return true;
-    }
-
-    // Check if it's a valid subdirectory with index.ts
-    if (validSubdirectories.includes(absolutePath)) {
-      // Additional check: ensure the subdirectory actually has an index file
-      // This is a simplified check - in practice we'd need to verify the file exists
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
    * Normalizes parsed exports into BarrelExport objects.
    * @param exports Array of parsed exports.
    * @returns Array of normalized BarrelExport objects.
@@ -568,108 +398,5 @@ export class BarrelFileGenerator {
 
       return entry;
     });
-  }
-
-  /**
-   * Gets cached exports for a file, or parses and caches them if not available.
-   * @param filePath The file path to get exports for.
-   * @returns Promise that resolves to the parsed exports.
-   */
-  private async getCachedExports(filePath: string): Promise<IParsedExport[]> {
-    // Get file modification time
-    const stats = await this.fileSystemService.getFileStats(filePath);
-    const currentMtime = stats.mtime.getTime();
-
-    // Check cache first
-    const cached = this.exportCache.get(filePath);
-    if (cached?.mtime === currentMtime) {
-      return cached.exports;
-    }
-
-    // Parse and cache the exports
-    const content = await this.fileSystemService.readFile(filePath);
-    const exports = this.exportParser.extractExports(content);
-
-    // Cache with modification time
-    this.exportCache.set(filePath, { exports, mtime: currentMtime });
-
-    // Limit cache size to prevent memory issues
-    if (this.exportCache.size > 1000) {
-      const firstKey = this.exportCache.keys().next().value;
-      if (firstKey) {
-        this.exportCache.delete(firstKey);
-      }
-    }
-
-    return exports;
-  }
-
-  /**
-   * Processes items concurrently with a specified limit.
-   * @param items Array of items to process.
-   * @param concurrencyLimit Maximum number of concurrent operations.
-   * @param processor Function to process each item.
-   * @returns Promise that resolves to array of results.
-   */
-  private async processConcurrently<T, R>(
-    items: T[],
-    concurrencyLimit: number,
-    processor: (item: T) => Promise<R>,
-  ): Promise<R[]> {
-    const results: R[] = [];
-    const semaphore = new Semaphore(concurrencyLimit);
-
-    const promises = items.map(async (item) => {
-      await semaphore.acquire();
-      try {
-        return await processor(item);
-      } finally {
-        semaphore.release();
-      }
-    });
-
-    const resolvedResults = await Promise.all(promises);
-    results.push(...resolvedResults);
-    return results;
-  }
-}
-
-/**
- * Simple semaphore implementation for concurrency control.
- */
-class Semaphore {
-  private readonly waiting: Array<() => void> = [];
-
-  /**
-   * Creates a new semaphore with the specified number of permits.
-   * @param permits The number of permits to initialize the semaphore with.
-   */
-  constructor(private permits: number) {}
-
-  /**
-   * Acquires a permit from the semaphore.
-   * @returns Promise that resolves when a permit is acquired.
-   */
-  async acquire(): Promise<void> {
-    if (this.permits > 0) {
-      this.permits--;
-      return;
-    }
-
-    return new Promise((resolve) => {
-      this.waiting.push(resolve);
-    });
-  }
-
-  /**
-   * Releases a permit back to the semaphore.
-   */
-  release(): void {
-    this.permits++;
-    if (this.waiting.length > 0) {
-      const resolve = this.waiting.shift()!;
-      this.permits--;
-      resolve();
-    }
   }
 }

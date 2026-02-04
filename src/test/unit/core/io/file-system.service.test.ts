@@ -19,9 +19,9 @@ import assert from 'node:assert/strict';
 import { Dirent } from 'node:fs';
 import * as path from 'node:path';
 
-import { afterEach, beforeEach, describe, it, jest } from '../../test/testHarness.js';
-import { INDEX_FILENAME } from '../../types/index.js';
-import { FileSystemService } from './file-system.service.js';
+import { afterEach, beforeEach, describe, it, jest } from '../../../testHarness.js';
+import { INDEX_FILENAME } from '../../../../types/index.js';
+import { FileSystemService } from '../../../../core/io/file-system.service.js';
 
 describe('FileSystemService', () => {
   let service: FileSystemService;

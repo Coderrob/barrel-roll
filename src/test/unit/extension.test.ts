@@ -25,9 +25,9 @@ import type {
   TestCommandsApi,
   ActivateFn,
   DeactivateFn,
-} from './test/testTypes.js';
-import { uriFile } from './test/testTypes.js';
-import { BarrelGenerationMode } from './types/index.js';
+} from '../testTypes.js';
+import { uriFile } from '../testTypes.js';
+import { BarrelGenerationMode } from '../../types/index.js';
 import type { ExtensionContext, ProgressOptions } from 'vscode';
 
 /**
@@ -165,13 +165,13 @@ describe('Extension', () => {
     },
   });
 
-  mock.module('./core/barrel/barrel-file.generator.js', {
+  mock.module('../../core/barrel/barrel-file.generator.js', {
     namedExports: {
       BarrelFileGenerator: FakeBarrelFileGenerator,
     },
   });
 
-  mock.module('./logging/pino.logger.js', {
+  mock.module('../../logging/pino.logger.js', {
     namedExports: {
       PinoLogger: PinoLoggerStub,
     },
@@ -201,7 +201,7 @@ describe('Extension', () => {
 
   beforeEach(async () => {
     resetState();
-    ({ activate, deactivate } = await import('./extension.js'));
+    ({ activate, deactivate } = await import('../../extension.js'));
   });
 
   /**

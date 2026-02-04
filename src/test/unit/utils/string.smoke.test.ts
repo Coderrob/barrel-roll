@@ -15,19 +15,19 @@
  *
  */
 
-export type {
-  BarrelEntry,
-  BarrelExport,
-  IBarrelGenerationOptions,
-  IParsedExport,
-  NormalizedBarrelGenerationOptions,
-} from './barrel.js';
-export { BarrelEntryKind, BarrelExportKind, BarrelGenerationMode } from './barrel.js';
-export {
-  DEFAULT_EXPORT_NAME,
-  INDEX_FILENAME,
-  NEWLINE,
-  PARENT_DIRECTORY_SEGMENT,
-} from './constants.js';
-export type { IEnvironmentVariables } from './env.js';
-export type { LoggerConstructor, LoggerInstance } from './logger.js';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import { sortAlphabetically } from '../../../utils/string.js';
+
+describe('String Utils', () => {
+  it('should sort alphabetically using default comparison', () => {
+    const result = sortAlphabetically(['b', 'a', 'c']);
+    assert.deepStrictEqual(result, ['a', 'b', 'c']);
+  });
+
+  it('should sort alphabetically using locale options when provided', () => {
+    const result = sortAlphabetically(['b', 'a', 'c'], 'en');
+    assert.deepStrictEqual(result, ['a', 'b', 'c']);
+  });
+});

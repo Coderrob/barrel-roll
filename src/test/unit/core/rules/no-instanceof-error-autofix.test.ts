@@ -18,7 +18,7 @@
 import path from 'node:path';
 import { RuleTester } from 'eslint';
 import { describe, it } from 'node:test';
-import * as mod from '../../../scripts/eslint-plugin-local.mjs';
+import * as mod from '../../../../../scripts/eslint-plugin-local.mjs';
 
 describe('no-instanceof-error-autofix rule', () => {
   // RuleTester typing mismatches with our rule shape; cast to any for tests

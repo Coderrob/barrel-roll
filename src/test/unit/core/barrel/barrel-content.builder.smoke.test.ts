@@ -18,8 +18,8 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 
-import { BarrelContentBuilder } from '../../core/barrel/barrel-content.builder.js';
-import { BarrelEntryKind, BarrelExportKind, type BarrelEntry } from '../../types/index.js';
+import { BarrelContentBuilder } from '../../../../core/barrel/barrel-content.builder.js';
+import { BarrelEntryKind, BarrelExportKind, type BarrelEntry } from '../../../../types/index.js';
 
 describe('BarrelContentBuilder Test Suite', () => {
   let builder: BarrelContentBuilder;

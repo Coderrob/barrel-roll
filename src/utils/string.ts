@@ -49,9 +49,9 @@ export function sortAlphabetically(
     return entries;
   }
 
-  if (locale !== undefined || options !== undefined) {
-    return entries.sort((a, b) => a.localeCompare(b, locale, options));
+  if (locale === undefined && options === undefined) {
+    return entries.sort((a, b) => a.localeCompare(b));
   }
 
-  return entries.sort((a, b) => a.localeCompare(b));
+  return entries.sort((a, b) => a.localeCompare(b, locale, options));
 }

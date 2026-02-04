@@ -24,7 +24,7 @@ import * as vscode from 'vscode';
 
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import { BarrelFileGenerator } from '../../core/barrel/barrel-file.generator.js';
+import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
 
 describe('BarrelFileGenerator Test Suite', () => {
   let testDir: string;

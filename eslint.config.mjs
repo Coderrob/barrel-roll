@@ -89,9 +89,18 @@ export default [
       // SonarJS rules for static analysis (selective adoption)
       'sonarjs/cognitive-complexity': ['error', 8],
 
-      // Disallow TypeScript `typeof import(...)` patterns and indexed import types.
       'no-restricted-syntax': [
         'error',
+        {
+          selector: String.raw`ExportAllDeclaration[source.value=/^\.\.\//]`,
+          message:
+            'Re-exporting from parent directories (\'export * from "../..."\') is not allowed. Import from the source directly.',
+        },
+        {
+          selector: String.raw`ExportNamedDeclaration[source.value=/^\.\.\//]`,
+          message:
+            'Re-exporting from parent directories (\'export { } from "../..."\') is not allowed. Import from the source directly.',
+        },
         {
           selector: 'TSTypeQuery > TSImportType',
           message:
@@ -226,9 +235,9 @@ export default [
   // Source files - relax strict return type rules since methods already have explicit return types
   {
     files: ['src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/test/**'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
-      'no-restricted-syntax': 'off',
     },
   },
 

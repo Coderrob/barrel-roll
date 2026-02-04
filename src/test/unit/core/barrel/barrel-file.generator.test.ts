@@ -23,10 +23,10 @@ import type { Uri } from 'vscode';
 
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import type { LoggerInstance } from '../../test/testTypes.js';
-import { BarrelGenerationMode, INDEX_FILENAME } from '../../types/index.js';
-import { FileSystemService } from '../io/file-system.service.js';
-import { BarrelFileGenerator } from './barrel-file.generator.js';
+import type { LoggerInstance } from '../../../../types/index.js';
+import { BarrelGenerationMode, INDEX_FILENAME } from '../../../../types/index.js';
+import { FileSystemService } from '../../../../core/io/file-system.service.js';
+import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
 
 /**
  * Creates a mock logger that captures log calls for testing.

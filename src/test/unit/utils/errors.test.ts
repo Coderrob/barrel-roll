@@ -17,7 +17,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getErrorMessage, formatErrorForLog } from './errors.js';
+import { getErrorMessage, formatErrorForLog } from '../../../utils/errors.js';
 
 describe('error utils', () => {
   describe('getErrorMessage', () => {
