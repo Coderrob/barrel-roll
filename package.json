@@ -130,13 +130,8 @@
   "icon": "public/img/barrel-roll-icon.png",
   "keywords": [
     "barrel",
-    "code generation",
-    "export",
+    "barrel file",
     "extension",
-    "index",
-    "javascript",
-    "module",
-    "refactor",
     "typescript",
     "vscode"
   ],
