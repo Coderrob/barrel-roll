@@ -143,7 +143,7 @@ describe('Extension', () => {
     }
   }
 
-  class PinoLoggerStub {
+  class OutputChannelLoggerStub {
     /**
      *
      */
@@ -154,7 +154,7 @@ describe('Extension', () => {
     }
   }
 
-  mock.module('vscode', {
+  mock.module('../../vscode.js', {
     namedExports: {
       Uri: uriApi,
       FileType,
@@ -171,9 +171,9 @@ describe('Extension', () => {
     },
   });
 
-  mock.module('../../logging/pino.logger.js', {
+  mock.module('../../logging/output-channel.logger.js', {
     namedExports: {
-      PinoLogger: PinoLoggerStub,
+      OutputChannelLogger: OutputChannelLoggerStub,
     },
   });
 
@@ -292,7 +292,8 @@ describe('Extension', () => {
 
       await command();
 
-      assert.strictEqual(generatorInstances.length, 0);
+      assert.strictEqual(generatorInstances.length, 1);
+      assert.strictEqual(generatorInstances[0].calls.length, 0);
       assert.deepStrictEqual(informationMessages, []);
       assert.deepStrictEqual(errorMessages, []);
       assert.strictEqual(showOpenDialogCalls, 1);
@@ -351,7 +352,8 @@ describe('Extension', () => {
       assert.deepStrictEqual(errorMessages, [
         'Barrel Roll: Unable to access selected resource: permission denied',
       ]);
-      assert.strictEqual(generatorInstances.length, 0);
+      assert.strictEqual(generatorInstances.length, 1);
+      assert.strictEqual(generatorInstances[0].calls.length, 0);
     });
   });
 });

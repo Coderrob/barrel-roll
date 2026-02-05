@@ -17,12 +17,11 @@
 
 import * as path from 'node:path';
 
-import * as vscode from 'vscode';
-
 import { BarrelFileGenerator } from './core/barrel/barrel-file.generator.js';
 import { OutputChannelLogger } from './logging/output-channel.logger.js';
 import { BarrelGenerationMode, type IBarrelGenerationOptions } from './types/index.js';
 import { getErrorMessage } from './utils/index.js';
+import * as vscode from './vscode.js';
 
 type CommandDescriptor = {
   id: string;
