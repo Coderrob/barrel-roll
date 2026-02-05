@@ -116,3 +116,6 @@ __tests__/runner/*
 .vscode/*
 !.vscode/*.code-snippets
 .vscode-test/*
+
+# Webpack Stats
+webpack-stats.*
