@@ -166,4 +166,4 @@ Apache 2.0. See [LICENSE](LICENSE).
 
 ## Ownership
 
-Maintained by Rob "Coderrob" Lindley.
+Maintained by Robert Lindley.
