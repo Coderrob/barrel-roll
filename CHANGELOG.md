@@ -4,12 +4,39 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Added
 
+- `Semaphore` class for concurrency control to limit parallel operations
+- `LoggerInstance` interface and logger type definitions for improved test doubles
+- `normalizeCase()` function for cross-platform case-insensitive file comparisons
+- Expanded `IGNORED_DIRECTORIES` from 2 to 28+ common directories (node_modules, dist, coverage, .vscode, **tests**, etc.)
+- `IDEAS.md` to document deferred feature ideas (e.g., dynamic `.gitignore` integration)
+- ESLint rule `no-restricted-imports` to enforce `FileSystemService` usage over direct `fs` imports
+- ESLint rule `local/no-parent-reexport-from-index` to prevent parent directory re-exports from index files
+- ESLint rule `local/no-index-access-types` to enforce named type aliases over inline indexed access types
 - Enhanced barrel file generation with intelligent caching and concurrency control for large codebases
-- File size validation in FileSystemService to prevent processing of oversized files
-- Comprehensive contract validation tests for Barrel types and enums to ensure type safety
-- ESLint rule to prevent inline object type annotations in favor of named interfaces
+- File size validation in `FileSystemService` to prevent processing of oversized files
+- Comprehensive unit tests for utility functions (array, assertion, error, string, semaphore)
+- Smoke tests for barrel content builder and barrel file generator
+- `src/vscode.ts` module for mocking VS Code APIs in tests
+
+### Changed
+
+- Reorganized test structure: moved tests from `src/` to `src/test/unit/` for clearer separation
+- Simplified `.vscodeignore` to allowlist-only approach (5 files: LICENSE, package.json, README.md, dist/extension.js, icon)
+- Refactored `barrel-file.generator.ts` by extracting `content-sanitizer.ts`, `export-cache.ts`, and `export-patterns.ts` modules
+- Updated test runner script with `--experimental-test-module-mocks` flag for ESM mock support
+- Refreshed repository documentation (`README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`) to reflect current scripts, test layout, and VSIX packaging allowlist
+
+### Fixed
+
+- Case sensitivity bugs in `FileSystemService` on Windows (file extension matching, test file detection, directory traversal)
+- Test consistency issues with async/await patterns in barrel content builder tests
+- Critical bug where direct definitions in index.ts files were being removed during barrel roll updates
+
+## [1.0.1]
 
 ### Changed
 
