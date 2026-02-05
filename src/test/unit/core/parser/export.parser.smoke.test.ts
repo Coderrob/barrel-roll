@@ -18,7 +18,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 
-import { ExportParser } from '../../core/parser/export.parser.js';
+import { ExportParser } from '../../../../core/parser/export.parser.js';
 
 describe('ExportParser Test Suite', () => {
   let parser: ExportParser;

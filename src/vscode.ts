@@ -15,19 +15,4 @@
  *
  */
 
-export type {
-  BarrelEntry,
-  BarrelExport,
-  IBarrelGenerationOptions,
-  IParsedExport,
-  NormalizedBarrelGenerationOptions,
-} from './barrel.js';
-export { BarrelEntryKind, BarrelExportKind, BarrelGenerationMode } from './barrel.js';
-export {
-  DEFAULT_EXPORT_NAME,
-  INDEX_FILENAME,
-  NEWLINE,
-  PARENT_DIRECTORY_SEGMENT,
-} from './constants.js';
-export type { IEnvironmentVariables } from './env.js';
-export type { LoggerConstructor, LoggerInstance } from './logger.js';
+export * from 'vscode';

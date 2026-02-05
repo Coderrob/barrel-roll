@@ -96,9 +96,11 @@ export class BarrelContentBuilder {
         exportExtension,
         directoryPath,
       );
-      if (exportLines.length > 0) {
-        lines.push(...exportLines);
+      if (exportLines.length === 0) {
+        continue;
       }
+
+      lines.push(...exportLines);
     }
 
     // Add newline at end of file
@@ -223,38 +225,36 @@ export class BarrelContentBuilder {
   private generateExportStatements(modulePath: string, exports: BarrelExport[]): string[] {
     const lines: string[] = [];
 
-    const valueExports = sortAlphabetically(
-      exports
-        .filter(
-          (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Value }> =>
-            exp.kind === BarrelExportKind.Value,
-        )
-        .map((exp) => exp.name),
-    );
+    const valueNames = this.getExportNames(exports, BarrelExportKind.Value);
+    const typeNames = this.getExportNames(exports, BarrelExportKind.Type);
 
-    if (valueExports.length > 0) {
-      lines.push(`export { ${valueExports.join(', ')} } from './${modulePath}';`);
+    if (valueNames.length > 0) {
+      lines.push(`export { ${valueNames.join(', ')} } from './${modulePath}';`);
     }
 
-    const typeExports = sortAlphabetically(
-      exports
-        .filter(
-          (exp): exp is Extract<BarrelExport, { kind: BarrelExportKind.Type }> =>
-            exp.kind === BarrelExportKind.Type,
-        )
-        .map((exp) => exp.name),
-    );
-
-    if (typeExports.length > 0) {
-      lines.push(`export type { ${typeExports.join(', ')} } from './${modulePath}';`);
+    if (typeNames.length > 0) {
+      lines.push(`export type { ${typeNames.join(', ')} } from './${modulePath}';`);
     }
 
-    const hasDefaultExport = exports.some((exp) => exp.kind === BarrelExportKind.Default);
-    if (hasDefaultExport) {
+    if (exports.some((exp) => exp.kind === BarrelExportKind.Default)) {
       lines.push(`export { default } from './${modulePath}';`);
     }
 
     return lines;
+  }
+
+  /**
+   * Extracts and sorts export names of a specific kind.
+   */
+  private getExportNames(
+    exports: BarrelExport[],
+    kind: BarrelExportKind.Value | BarrelExportKind.Type,
+  ): string[] {
+    return sortAlphabetically(
+      exports
+        .filter((exp): exp is BarrelExport & { name: string } => exp.kind === kind && 'name' in exp)
+        .map((exp) => exp.name),
+    );
   }
 
   /**
@@ -271,16 +271,16 @@ export class BarrelContentBuilder {
   ): Promise<string> {
     const isDirectory = await this.isDirectory(filePath, directoryPath);
 
-    if (isDirectory) {
-      // For directories, append /index + extension if extension is specified
-      return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
+    if (!isDirectory) {
+      // For files, remove .ts/.tsx extension and replace with the desired export extension
+      let modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
+      // Normalize path separators for cross-platform compatibility
+      modulePath = modulePath.replaceAll('\\', '/');
+      return modulePath;
     }
 
-    // For files, remove .ts/.tsx extension and replace with the desired export extension
-    let modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
-    // Normalize path separators for cross-platform compatibility
-    modulePath = modulePath.replaceAll('\\', '/');
-    return modulePath;
+    // For directories, append /index + extension if extension is specified
+    return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
   }
 
   /**
@@ -298,6 +298,6 @@ export class BarrelContentBuilder {
     // Resolve the full path to check if it's a directory
     const fullPath = path.resolve(directoryPath, filePath);
 
-    return await this.fileSystemService.isDirectory(fullPath);
+    return this.fileSystemService.isDirectory(fullPath);
   }
 }

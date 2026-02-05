@@ -29,7 +29,7 @@ import {
   assertBoolean,
   assertThrows,
   assertDoesNotThrow,
-} from './assert.js';
+} from '../../../utils/assert.js';
 
 describe('assert utils', () => {
   describe('assert', () => {

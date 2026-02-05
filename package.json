@@ -11,9 +11,12 @@
     "check-coverage": true,
     "exclude": [
       "dist/test/**",
+      "dist/src/test/**",
+      "dist/**/index.js",
       "dist/**/*.test.js",
       "dist/**/*.d.ts",
       "node_modules/**",
+      "src/**/index.ts",
       "src/test/**",
       "src/**/*.test.ts",
       "src/**/*.d.ts"
@@ -127,13 +130,8 @@
   "icon": "public/img/barrel-roll-icon.png",
   "keywords": [
     "barrel",
-    "code generation",
-    "export",
+    "barrel file",
     "extension",
-    "index",
-    "javascript",
-    "module",
-    "refactor",
     "typescript",
     "vscode"
   ],
@@ -179,5 +177,5 @@
     "watch": "webpack --watch",
     "watch-tests": "tsc -p . -w --outDir dist"
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

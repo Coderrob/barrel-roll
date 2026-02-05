@@ -2,11 +2,14 @@ const NodeType = Object.freeze({
   BinaryExpression: 'BinaryExpression',
   CallExpression: 'CallExpression',
   ConditionalExpression: 'ConditionalExpression',
+  ExportAllDeclaration: 'ExportAllDeclaration',
+  ExportNamedDeclaration: 'ExportNamedDeclaration',
   Identifier: 'Identifier',
   ImportDeclaration: 'ImportDeclaration',
   ImportSpecifier: 'ImportSpecifier',
   LogicalExpression: 'LogicalExpression',
   MemberExpression: 'MemberExpression',
+  TSIndexedAccessType: 'TSIndexedAccessType',
 });
 
 const Operator = Object.freeze({

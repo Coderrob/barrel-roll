@@ -89,7 +89,6 @@ export default [
       // SonarJS rules for static analysis (selective adoption)
       'sonarjs/cognitive-complexity': ['error', 8],
 
-      // Disallow TypeScript `typeof import(...)` patterns and indexed import types.
       'no-restricted-syntax': [
         'error',
         {
@@ -98,29 +97,25 @@ export default [
             "Avoid using 'typeof import(...)' types. Import the type directly instead (easier and clearer).",
         },
         {
-          selector: 'TSIndexedAccessType > TSTypeQuery > TSImportType',
-          message:
-            'Avoid using \'typeof import(...)["T"]\' indexed import types; import the type and refer to it directly.',
-        },
-        {
           selector: "BinaryExpression[operator='instanceof'][right.name='Error']",
           message:
             "Avoid ad-hoc 'instanceof Error' checks — prefer `getErrorMessage` or `formatErrorForLog` from 'src/utils/errors' for consistent error handling and logging.",
         },
         {
           selector:
-            "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSIndexedAccessType",
-          message:
-            'Avoid ReturnType applied to indexed access types; define a named type/interface instead.',
-        },
-        {
-          selector:
             "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSTypeReference[typeName.name='ReturnType']",
           message: 'Avoid nested ReturnType chains; define a named type/interface instead.',
+        },
+        {
+          selector: 'TSTypeAnnotation > TSTypeLiteral',
+          message:
+            'Avoid inline object types in type annotations. Define a named interface or type alias instead.',
         },
       ],
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
       'local/no-instanceof-error-autofix': 'error',
+      'local/no-parent-reexport-from-index': 'error',
+      'local/no-index-access-types': 'error',
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/prefer-immediate-return': 'error',
       'sonarjs/pseudo-random': 'warn',
@@ -221,9 +216,28 @@ export default [
   // Source files - relax strict return type rules since methods already have explicit return types
   {
     files: ['src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/test/**'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
-      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // Restrict direct fs imports - use FileSystemService instead
+  {
+    files: ['src/**/*.ts'],
+    ignores: ['**/file-system.service.ts', '**/*.test.ts', '**/test/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['fs', 'node:fs', 'fs/*', 'node:fs/*', 'fs/promises', 'node:fs/promises'],
+              message: 'Use FileSystemService from core/io instead of direct fs imports.',
+            },
+          ],
+        },
+      ],
     },
   },
 
@@ -281,6 +295,7 @@ export default [
     files: ['**/src/test/runTest.ts'],
     rules: {
       '@typescript-eslint/no-floating-promises': 'off',
+      'local/no-index-access-types': 'off',
       'unicorn/prefer-top-level-await': 'off',
     },
   },
@@ -290,6 +305,7 @@ export default [
     files: ['**/*.test.ts', '**/*.test.js', '**/test/**'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
+      'local/no-index-access-types': 'off',
       'no-restricted-syntax': 'off',
     },
   },

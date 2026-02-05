@@ -17,12 +17,11 @@
 
 import * as path from 'node:path';
 
-import * as vscode from 'vscode';
-
 import { BarrelFileGenerator } from './core/barrel/barrel-file.generator.js';
 import { OutputChannelLogger } from './logging/output-channel.logger.js';
 import { BarrelGenerationMode, type IBarrelGenerationOptions } from './types/index.js';
 import { getErrorMessage } from './utils/index.js';
+import * as vscode from './vscode.js';
 
 type CommandDescriptor = {
   id: string;
@@ -30,6 +29,59 @@ type CommandDescriptor = {
   progressTitle: string;
   successMessage: string;
 };
+
+/**
+ * Simple queue to prevent concurrent barrel generation operations.
+ */
+class BarrelCommandQueue {
+  private readonly queue: Array<() => Promise<void>> = [];
+  private isProcessing = false;
+
+  /**
+   * Enqueues an operation to be executed sequentially.
+   * @param operation The operation to enqueue.
+   * @returns Promise that resolves when the operation completes.
+   */
+  async enqueue(operation: () => Promise<void>): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          await operation();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+      void this.processQueue();
+    });
+  }
+
+  /**
+   * Processes the queue of operations sequentially.
+   * @returns Promise that resolves when the queue is empty.
+   */
+  private async processQueue(): Promise<void> {
+    if (this.isProcessing || this.queue.length === 0) {
+      return;
+    }
+
+    this.isProcessing = true;
+
+    while (this.queue.length > 0) {
+      const operation = this.queue.shift()!;
+      try {
+        await operation();
+      } catch (error) {
+        // Log error but continue processing queue
+        console.error('Barrel command failed:', error);
+      }
+    }
+
+    this.isProcessing = false;
+  }
+}
+
+const commandQueue = new BarrelCommandQueue();
 
 /**
  * Activates the Barrel Roll extension.
@@ -96,8 +148,10 @@ function registerBarrelCommand(
         return;
       }
 
-      await withProgress(descriptor.progressTitle, async () => {
-        await generator.generateBarrelFile(targetDirectory, descriptor.options);
+      await commandQueue.enqueue(async () => {
+        await withProgress(descriptor.progressTitle, async () => {
+          await generator.generateBarrelFile(targetDirectory, descriptor.options);
+        });
       });
 
       vscode.window.showInformationMessage(descriptor.successMessage);

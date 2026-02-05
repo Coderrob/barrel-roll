@@ -18,7 +18,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { safeStringify } from './format.js';
+import { safeStringify } from '../../../utils/format.js';
 
 describe('format utils', () => {
   describe('safeStringify', () => {

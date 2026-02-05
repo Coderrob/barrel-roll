@@ -38,7 +38,7 @@ async function main(): Promise<void> {
 
     // The path to test runner
     // Passed to --extensionTestsPath
-    const extensionTestsPath = path.resolve(__dirname, './suite/index.js');
+    const extensionTestsPath = path.resolve(__dirname, './integration/index.js');
 
     // Download VS Code, unzip it and run the integration test
     const options: Parameters<typeof runTests>[0] = {

@@ -93,6 +93,17 @@ function mergeNamedImportText(sourceCode, importNode, name) {
   return original.slice(0, open + 1) + newInside + original.slice(close);
 }
 
+function isIndexSourceFile(filename) {
+  if (!filename || filename === '<input>') return false;
+  const normalized = filename.split(path.sep).join('/');
+  return /(^|\/)index\.ts$/i.test(normalized);
+}
+
+function isParentRelativeExport(source) {
+  if (!source || typeof source.value !== 'string') return false;
+  return source.value.startsWith('..');
+}
+
 // Strategy Pattern: Pattern Matching Strategies
 class PatternMatcher {
   constructor(testNode, leftIdentifier) {
@@ -194,6 +205,60 @@ class ImportFixer {
 }
 
 export const rules = {
+  'no-parent-reexport-from-index': {
+    meta: {
+      type: 'problem',
+      docs: {
+        description: 'Disallow re-exporting from parent directories in index.ts barrel files.',
+      },
+      schema: [],
+    },
+    create(context) {
+      if (!isIndexSourceFile(context.getFilename())) {
+        return {};
+      }
+
+      function report(node) {
+        context.report({
+          node,
+          message: 'Re-exporting from parent directories (../) is not allowed in index.ts files.',
+        });
+      }
+
+      return {
+        ExportAllDeclaration(node) {
+          if (isParentRelativeExport(node.source)) {
+            report(node.source || node);
+          }
+        },
+        ExportNamedDeclaration(node) {
+          if (isParentRelativeExport(node.source)) {
+            report(node.source || node);
+          }
+        },
+      };
+    },
+  },
+  'no-index-access-types': {
+    meta: {
+      type: 'problem',
+      docs: {
+        description: 'Disallow TypeScript indexed access types (e.g., T["K"]).',
+      },
+      schema: [],
+    },
+    create(context) {
+      return {
+        TSIndexedAccessType(node) {
+          context.report({
+            node,
+            message:
+              'Avoid indexed access types (T["K"]); define a named type instead for clarity.',
+          });
+        },
+      };
+    },
+  },
   'no-instanceof-error-autofix': {
     meta: {
       type: 'suggestion',

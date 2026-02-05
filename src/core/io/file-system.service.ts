@@ -22,7 +22,60 @@ import * as path from 'node:path';
 import { INDEX_FILENAME } from '../../types/index.js';
 import { getErrorMessage } from '../../utils/index.js';
 
-const IGNORED_DIRECTORIES = new Set(['node_modules', '.git']);
+const IGNORED_DIRECTORIES = new Set([
+  // Dependencies
+  'node_modules',
+  'bower_components',
+  // Version control
+  '.git',
+  '.svn',
+  '.hg',
+  // Build output
+  'dist',
+  'build',
+  'out',
+  'lib',
+  // IDE/Editor
+  '.vscode',
+  '.idea',
+  '.vs',
+  // Cache
+  '.cache',
+  '.turbo',
+  // Test directories
+  '__tests__',
+  '__mocks__',
+  '__fixtures__',
+  '__snapshots__',
+  '.vscode-test',
+  // Coverage
+  'coverage',
+  '.nyc_output',
+  // Storybook
+  '.storybook',
+  'storybook-static',
+  // Docs
+  'docs',
+  '.docusaurus',
+  // Temp
+  'tmp',
+  'temp',
+  // Vendor/public assets
+  'vendor',
+  'public',
+  'static',
+  'assets',
+]);
+
+/**
+ * Normalizes a filename to lowercase for case-insensitive comparisons.
+ * This handles cross-platform file system differences (Windows is case-insensitive).
+ * @param name The filename to normalize
+ * @returns Lowercase version of the filename
+ */
+function normalizeCase(name: string): string {
+  return name.toLowerCase();
+}
 
 /**
  * Service responsible for file system operations.
@@ -79,29 +132,36 @@ export class FileSystemService {
    * @returns True if the file should be excluded; otherwise, false
    */
   private shouldExcludeFile(filename: string): boolean {
-    return filename === INDEX_FILENAME || filename.endsWith('.d.ts') || this.isTestFile(filename);
+    const normalized = normalizeCase(filename);
+    return (
+      normalized === normalizeCase(INDEX_FILENAME) ||
+      normalized.endsWith('.d.ts') ||
+      this.isTestFile(normalized)
+    );
   }
 
   /**
    * Checks if a filename has a TypeScript extension.
-   * @param filename The filename to check
+   * @param filename The filename to check (should be normalized to lowercase)
    * @returns True if it's a TypeScript file extension; otherwise, false
    */
   private isTypeScriptExtension(filename: string): boolean {
-    return filename.endsWith('.ts') || filename.endsWith('.tsx');
+    const normalized = normalizeCase(filename);
+    return normalized.endsWith('.ts') || normalized.endsWith('.tsx');
   }
 
   /**
    * Checks if a filename represents a test file.
-   * @param filename The filename to check
+   * @param filename The filename to check (should be normalized to lowercase)
    * @returns True if it's a test file; otherwise, false
    */
   private isTestFile(filename: string): boolean {
+    const normalized = normalizeCase(filename);
     return (
-      filename.endsWith('.spec.ts') ||
-      filename.endsWith('.test.ts') ||
-      filename.endsWith('.spec.tsx') ||
-      filename.endsWith('.test.tsx')
+      normalized.endsWith('.spec.ts') ||
+      normalized.endsWith('.test.ts') ||
+      normalized.endsWith('.spec.tsx') ||
+      normalized.endsWith('.test.tsx')
     );
   }
 
@@ -111,8 +171,9 @@ export class FileSystemService {
    * @returns True if the directory should be traversed; otherwise, false
    */
   private isTraversableDirectory(entry: Dirent): boolean {
+    const normalized = normalizeCase(entry.name);
     return (
-      entry.isDirectory() && !IGNORED_DIRECTORIES.has(entry.name) && !entry.name.startsWith('.')
+      entry.isDirectory() && !IGNORED_DIRECTORIES.has(normalized) && !normalized.startsWith('.')
     );
   }
 
@@ -120,10 +181,21 @@ export class FileSystemService {
    * Reads the content of a file.
    * @param filePath The file path to read
    * @returns The file content as a string
-   * @throws Error if the read operation fails
+   * @throws Error if the read operation fails or file is too large
    */
   async readFile(filePath: string): Promise<string> {
     try {
+      // Check file size before reading to prevent memory issues with large files
+      const maxFileSizeBytes = 10 * 1024 * 1024; // 10MB limit
+      const stats = await this.fs.stat(filePath);
+
+      if (stats.size > maxFileSizeBytes) {
+        throw new Error(
+          `File ${filePath} is too large (${(stats.size / 1024 / 1024).toFixed(2)}MB). ` +
+            `Maximum allowed size is ${(maxFileSizeBytes / 1024 / 1024).toFixed(0)}MB.`,
+        );
+      }
+
       return await this.fs.readFile(filePath, 'utf-8');
     } catch (error) {
       const errorMessage = getErrorMessage(error);
@@ -216,6 +288,21 @@ export class FileSystemService {
       return stat.isDirectory();
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Gets file statistics.
+   * @param filePath The path to get stats for
+   * @returns Promise that resolves to file stats
+   * @throws Error if the stat operation fails
+   */
+  async getFileStats(filePath: string): Promise<import('fs').Stats> {
+    try {
+      return await this.fs.stat(filePath);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      throw new Error(`Failed to get stats for ${filePath}: ${errorMessage}`);
     }
   }
 

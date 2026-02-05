@@ -1,52 +1,69 @@
 # Agents & Automation
 
-This file documents automation, scripts, and "agent"-style tooling used in the repository.
+This file documents automation, scripts, CI checks, and packaging conventions used in this repository.
 
 ## Overview
 
-- Purpose: centralize notes about automation, dependency checks, CI steps, and conventions so they are easy to find and maintain.
+- Purpose: keep automation behavior and developer conventions in one place.
+- Scope: dependency checks, test execution, packaging/release commands, and CI expectations.
 
 ## Dependency checks
 
 - Canonical runner: `scripts/run-depcheck.cjs`
 - Command: `npm run deps:check`
-- Behavior: runs `depcheck` programmatically, writes `.depcheck.json`, filters references found in repository files and scripts, and exits non-zero if unused packages remain.
-- Rationale: avoids `npx` platform issues and ensures CI and local runs behave identically.
+- Behavior: runs `depcheck` programmatically, writes `.depcheck.json`, filters references found in repository files/scripts, and exits non-zero when unused packages remain.
+- Rationale: avoids `npx` platform inconsistencies and keeps local/CI behavior aligned.
 
-## Testing & test conventions
+## Testing conventions
 
-- Test naming: all unit test titles must start with the word `should` (e.g., `should return true when input is null`). This is enforced by an ESLint rule.
-- Shared test helpers: use `src/test/testTypes.ts` for common test utilities (fake URIs, logger helpers, etc.).
-- Test runner: `scripts/run-tests.js` executes the test suite; invoked by `npm test` and `npm run test:unit`.
-- Commands:
-  - `npm test` — full pipeline (compile tests, compile extension, lint, then run tests)
-  - `npm run test:unit` — quick test run (compile tests and extension, then run tests without linting)
-  - `npm run test:vscode` — VS Code integration tests (compile tests, then run VS Code test harness)
+- Unit test titles must start with `should` (enforced by ESLint).
+- Shared test helpers live in `src/test/testTypes.ts`.
+- Test runner script: `scripts/run-tests.cjs`.
+- Test discovery is glob-based in `dist/test/**` and `dist/src/test/**` to support platform/compiler output differences.
+- Test commands:
+  - `npm test` - compile tests, compile extension, lint, then run tests
+  - `npm run test:unit` - compile tests, compile extension, then run tests (no lint)
+  - `npm run test:vscode` - compile tests, run VS Code integration harness
 
-## Packaging & release
+## Packaging and release
 
-- Packaging: `npm run package` / `npm run ext:package`
-- Install packaged VSIX locally: `npm run ext:install`
-- Quick reinstall: `npm run ext:reinstall` (packages and installs the latest vsix using `scripts/install-extension.cjs` which uses package.json version)
+- Bundle compile: `npm run package`
+- VSIX package: `npm run ext:package`
+- Install packaged VSIX: `npm run ext:install`
+- Quick reinstall: `npm run ext:reinstall`
+
+### Publish allowlist
+
+`.vscodeignore` uses an allowlist strategy. Intended packaged files are:
+
+- `package.json`
+- `LICENSE`
+- `README.md`
+- `dist/extension.js`
+- `public/img/barrel-roll-icon.png`
+
+Verify with `npx @vscode/vsce ls` before publishing.
+
+### Packaging note
+
+`vsce` may include generated companion files in some builds (for example, source maps and webpack license sidecars). Always validate the actual file list from `vsce ls` before release.
 
 ## CI
 
-- The CI workflows run the dependency check and tests. See `.github/workflows/ci.yml` and `.github/workflows/release.yml`.
+CI runs dependency checks and tests. See:
 
-## How to run locally
+- `.github/workflows/ci.yml`
+- `.github/workflows/release.yml`
+
+## Local runbook
 
 ```bash
-# install deps
 npm install
-
-# run dependency check
 npm run deps:check
-
-# run lint + dependency check
 npm run lint
-
-# run tests
 npm test
 ```
 
-If you have questions about automation or want to extend the tooling, please open a PR or ask in the repository discussion.
+## Change discipline
+
+When changing automation scripts, update this document and relevant user-facing docs (`README.md`, `CONTRIBUTING.md`) in the same PR.

@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
 import type { OutputChannel } from 'vscode';
 
-import { LogLevel, OutputChannelLogger } from './output-channel.logger.js';
+import { LogLevel, OutputChannelLogger } from '../../../logging/output-channel.logger.js';
 
 describe('OutputChannelLogger', () => {
   let outputLines: string[];

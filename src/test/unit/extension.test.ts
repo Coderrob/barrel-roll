@@ -25,17 +25,17 @@ import type {
   TestCommandsApi,
   ActivateFn,
   DeactivateFn,
-} from './test/testTypes.js';
-import { uriFile } from './test/testTypes.js';
-import { BarrelGenerationMode } from './types/index.js';
-import type { ExtensionContext, ProgressOptions } from 'vscode';
+  ExtensionContext,
+  ProgressOptions,
+} from '../testTypes.js';
+import { uriFile } from '../testTypes.js';
+import { BarrelGenerationMode } from '../../types/index.js';
 
 /**
  * Creates a mock ExtensionContext for testing.
  */
 function createContext(): ExtensionContext {
-  const base = { subscriptions: [] as unknown[] };
-  return base as unknown as ExtensionContext;
+  return { subscriptions: [] };
 }
 
 describe('Extension', () => {
@@ -143,7 +143,7 @@ describe('Extension', () => {
     }
   }
 
-  class PinoLoggerStub {
+  class OutputChannelLoggerStub {
     /**
      *
      */
@@ -154,7 +154,7 @@ describe('Extension', () => {
     }
   }
 
-  mock.module('vscode', {
+  mock.module('../../vscode.js', {
     namedExports: {
       Uri: uriApi,
       FileType,
@@ -165,15 +165,15 @@ describe('Extension', () => {
     },
   });
 
-  mock.module('./core/barrel/barrel-file.generator.js', {
+  mock.module('../../core/barrel/barrel-file.generator.js', {
     namedExports: {
       BarrelFileGenerator: FakeBarrelFileGenerator,
     },
   });
 
-  mock.module('./logging/pino.logger.js', {
+  mock.module('../../logging/output-channel.logger.js', {
     namedExports: {
-      PinoLogger: PinoLoggerStub,
+      OutputChannelLogger: OutputChannelLoggerStub,
     },
   });
 
@@ -201,7 +201,11 @@ describe('Extension', () => {
 
   beforeEach(async () => {
     resetState();
-    ({ activate, deactivate } = await import('./extension.js'));
+    // Use type assertion because the dynamically imported extension expects
+    // vscode.ExtensionContext, but at runtime our mock module provides it
+    const ext = await import('../../extension.js');
+    activate = ext.activate as unknown as ActivateFn;
+    deactivate = ext.deactivate as DeactivateFn;
   });
 
   /**
@@ -288,7 +292,8 @@ describe('Extension', () => {
 
       await command();
 
-      assert.strictEqual(generatorInstances.length, 0);
+      assert.strictEqual(generatorInstances.length, 1);
+      assert.strictEqual(generatorInstances[0].calls.length, 0);
       assert.deepStrictEqual(informationMessages, []);
       assert.deepStrictEqual(errorMessages, []);
       assert.strictEqual(showOpenDialogCalls, 1);
@@ -347,7 +352,8 @@ describe('Extension', () => {
       assert.deepStrictEqual(errorMessages, [
         'Barrel Roll: Unable to access selected resource: permission denied',
       ]);
-      assert.strictEqual(generatorInstances.length, 0);
+      assert.strictEqual(generatorInstances.length, 1);
+      assert.strictEqual(generatorInstances[0].calls.length, 0);
     });
   });
 });

@@ -10,17 +10,11 @@ const { globSync } = require('glob');
 
 // Define test file patterns
 const patterns = [
-  'dist/core/barrel/*.test.js',
-  'dist/core/io/*.test.js',
-  'dist/core/parser/*.test.js',
-  'dist/logging/*.test.js',
-  'dist/utils/*.test.js',
+  'dist/test/unit/**/*.test.js',
+  'dist/test/integration/**/*.test.js',
   // Also include tests emitted under dist/src (tsc may emit to this path depending on config)
-  'dist/src/core/barrel/*.test.js',
-  'dist/src/core/io/*.test.js',
-  'dist/src/core/parser/*.test.js',
-  'dist/src/logging/*.test.js',
-  'dist/src/utils/*.test.js',
+  'dist/src/test/unit/**/*.test.js',
+  'dist/src/test/integration/**/*.test.js',
 ];
 
 // Expand all glob patterns to actual file paths
@@ -32,7 +26,8 @@ if (testFiles.length === 0) {
 }
 
 // Run node --test with the expanded file list
-const nodeTest = spawn('node', ['--test', ...testFiles], {
+// Note: --experimental-test-module-mocks enables mock.module() for mocking modules
+const nodeTest = spawn('node', ['--experimental-test-module-mocks', '--test', ...testFiles], {
   stdio: 'inherit',
   shell: false,
 });

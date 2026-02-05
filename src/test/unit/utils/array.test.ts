@@ -17,7 +17,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isEmptyArray } from './array.js';
+import { isEmptyArray } from '../../../utils/array.js';
 
 /**
  * Formats a value for display in test descriptions.

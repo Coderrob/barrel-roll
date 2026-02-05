@@ -17,9 +17,27 @@
 
 import * as path from 'node:path';
 
-import type { ExtensionContext, ProgressOptions, Uri as VsCodeUri } from 'vscode';
+// Note: We define these types inline to avoid runtime resolution of 'vscode'
+// module which doesn't exist when running unit tests outside VS Code.
+// These are minimal interfaces that match what our tests require.
 
-export type FakeUri = Pick<VsCodeUri, 'fsPath'>;
+/**
+ * Minimal ExtensionContext interface for unit testing.
+ * Only includes properties used by our tests.
+ */
+export interface ExtensionContext {
+  subscriptions: { dispose(): void }[];
+}
+
+/**
+ * Minimal ProgressOptions interface for unit testing.
+ */
+export interface ProgressOptions {
+  title?: string;
+  location: number;
+}
+
+export type FakeUri = { fsPath: string };
 
 /**
  *
@@ -48,18 +66,4 @@ export type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
 export type DeactivateFn = () => void;
 
 // Minimal runtime shape for the OutputChannelLogger class used in tests
-export interface LoggerInstance {
-  isLoggerAvailable(): boolean;
-  info(message: string, metadata?: Record<string, unknown>): void;
-  debug(message: string, metadata?: Record<string, unknown>): void;
-  warn(message: string, metadata?: Record<string, unknown>): void;
-  error(message: string, metadata?: Record<string, unknown>): void;
-  fatal(message: string, metadata?: Record<string, unknown>): void;
-  group?<T>(name: string, fn: () => Promise<T>): Promise<T>;
-  child?(bindings: Record<string, unknown>): LoggerInstance;
-}
-
-export interface LoggerConstructor {
-  new (...args: unknown[]): LoggerInstance;
-  configureOutputChannel(channel?: { appendLine(value: string): void }): void;
-}
+export type { LoggerConstructor, LoggerInstance } from '../types/index.js';

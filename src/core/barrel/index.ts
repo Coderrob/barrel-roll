@@ -17,3 +17,15 @@
 
 export { BarrelContentBuilder } from './barrel-content.builder.js';
 export { BarrelFileGenerator } from './barrel-file.generator.js';
+export { BarrelContentSanitizer, type SanitizationResult } from './content-sanitizer.js';
+export { type CachedExport, ExportCache, type ExportCacheOptions } from './export-cache.js';
+export {
+  detectExtensionFromBarrelContent,
+  extractAllExportPaths,
+  extractExportPath,
+  extractExtensionFromLine,
+  isExportLine,
+  isMultilineExportEnd,
+  isMultilineExportStart,
+  normalizeExportPath,
+} from './export-patterns.js';
