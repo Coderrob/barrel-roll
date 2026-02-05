@@ -92,35 +92,14 @@ export default [
       'no-restricted-syntax': [
         'error',
         {
-          selector: String.raw`ExportAllDeclaration[source.value=/^\.\.\//]`,
-          message:
-            'Re-exporting from parent directories (\'export * from "../..."\') is not allowed. Import from the source directly.',
-        },
-        {
-          selector: String.raw`ExportNamedDeclaration[source.value=/^\.\.\//]`,
-          message:
-            'Re-exporting from parent directories (\'export { } from "../..."\') is not allowed. Import from the source directly.',
-        },
-        {
           selector: 'TSTypeQuery > TSImportType',
           message:
             "Avoid using 'typeof import(...)' types. Import the type directly instead (easier and clearer).",
         },
         {
-          selector: 'TSIndexedAccessType > TSTypeQuery > TSImportType',
-          message:
-            'Avoid using \'typeof import(...)["T"]\' indexed import types; import the type and refer to it directly.',
-        },
-        {
           selector: "BinaryExpression[operator='instanceof'][right.name='Error']",
           message:
             "Avoid ad-hoc 'instanceof Error' checks — prefer `getErrorMessage` or `formatErrorForLog` from 'src/utils/errors' for consistent error handling and logging.",
-        },
-        {
-          selector:
-            "TSTypeReference[typeName.name='ReturnType'] > TSTypeParameterInstantiation > TSIndexedAccessType",
-          message:
-            'Avoid ReturnType applied to indexed access types; define a named type/interface instead.',
         },
         {
           selector:
@@ -135,6 +114,8 @@ export default [
       ],
       'sonarjs/no-duplicate-string': ['error', { threshold: 3 }],
       'local/no-instanceof-error-autofix': 'error',
+      'local/no-parent-reexport-from-index': 'error',
+      'local/no-index-access-types': 'error',
       'sonarjs/no-identical-functions': 'error',
       'sonarjs/prefer-immediate-return': 'error',
       'sonarjs/pseudo-random': 'warn',
@@ -314,6 +295,7 @@ export default [
     files: ['**/src/test/runTest.ts'],
     rules: {
       '@typescript-eslint/no-floating-promises': 'off',
+      'local/no-index-access-types': 'off',
       'unicorn/prefer-top-level-await': 'off',
     },
   },
@@ -323,6 +305,7 @@ export default [
     files: ['**/*.test.ts', '**/*.test.js', '**/test/**'],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
+      'local/no-index-access-types': 'off',
       'no-restricted-syntax': 'off',
     },
   },
