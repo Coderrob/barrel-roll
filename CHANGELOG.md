@@ -4,6 +4,39 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 
 ## [Unreleased]
 
+## [1.1.1]
+
+### Fixed
+
+- Export duplication during barrel operations when comments containing closing braces (`}`) were present in existing imports
+- Regex patterns in `export-patterns.ts` now use non-greedy matching (`[\s\S]*?`) to properly handle comments with closing braces
+- Added support for trailing line comments (`//`) and block comments (`/* */`) in export statements
+- Added support for TypeScript's type-only exports (`export type { ... } from './path'`)
+- Added support for comments between export parts (e.g., `export * /* comment */ from './path'`)
+- Added support for exports without spaces (e.g., `export{` instead of `export {`, `export*from` instead of `export * from`)
+
+### Added
+
+- Comprehensive test coverage with 312 tests covering edge cases including:
+  - Single-line and multiline exports with comments
+  - Star exports with inline comments
+  - Type-only exports
+  - Varied whitespace handling
+  - Exports without spaces after keywords
+  - Edge cases for invalid export statements
+
+### Changed
+
+- `BarrelContentBuilder` now emits TypeScript 4.5+ mixed export syntax when a module has both value and type exports (for example: `export { Foo, type Bar } from './mod';`)
+- Simplified module-path generation logic in `BarrelContentBuilder` for file vs directory exports while preserving cross-platform path normalization
+- Consolidated barrel exports in `src/core/barrel/index.ts`, `src/types/index.ts`, and `src/logging/index.ts` to improve type/value export consistency
+- Added `.depcheck.json` to `.gitignore` to avoid committing local dependency-check output
+
+### Removed
+
+- Removed Jest compatibility shim (`src/test/testHarness.ts`) and test barrel export file (`src/test/index.ts`)
+- Removed Jest-specific dev dependencies (`eslint-plugin-jest`, `expect`) from the repository
+
 ## [1.1.0]
 
 ### Added

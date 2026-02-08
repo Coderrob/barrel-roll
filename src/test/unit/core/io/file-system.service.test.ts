@@ -18,8 +18,8 @@
 import assert from 'node:assert/strict';
 import { Dirent } from 'node:fs';
 import * as path from 'node:path';
+import { beforeEach, describe, it } from 'node:test';
 
-import { afterEach, beforeEach, describe, it, jest } from '../../../testHarness.js';
 import { INDEX_FILENAME } from '../../../../types/index.js';
 import { FileSystemService } from '../../../../core/io/file-system.service.js';
 
@@ -117,10 +117,6 @@ describe('FileSystemService', () => {
     mockFs.readdir.mockResolvedValue([]);
 
     service = new FileSystemService(mockFs);
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
   });
 
   it('should use default fs when no argument provided', () => {
