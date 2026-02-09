@@ -278,6 +278,7 @@ export class BarrelContentBuilder {
     directoryPath: string,
   ): Promise<string> {
     const isDirectory = await this.isDirectory(filePath, directoryPath);
+
     // For directories, append /index + extension if extension is specified
     if (isDirectory) {
       return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
