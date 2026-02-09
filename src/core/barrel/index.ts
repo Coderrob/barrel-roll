@@ -14,18 +14,16 @@
  * limitations under the License.
  *
  */
-
 export { BarrelContentBuilder } from './barrel-content.builder.js';
 export { BarrelFileGenerator } from './barrel-file.generator.js';
-export type { SanitizationResult } from './content-sanitizer.js';
-export { BarrelContentSanitizer } from './content-sanitizer.js';
-export type {
-  CachedExport,
-  ExportCacheFileSystem,
-  ExportCacheOptions,
-  ExportCacheParser,
+export { BarrelContentSanitizer, type SanitizationResult } from './content-sanitizer.js';
+export {
+  type CachedExport,
+  ExportCache,
+  type ExportCacheFileSystem,
+  type ExportCacheOptions,
+  type ExportCacheParser,
 } from './export-cache.js';
-export { ExportCache } from './export-cache.js';
 export {
   detectExtensionFromBarrelContent,
   extractAllExportPaths,
