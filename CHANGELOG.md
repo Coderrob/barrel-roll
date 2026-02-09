@@ -31,6 +31,11 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 - Simplified module-path generation logic in `BarrelContentBuilder` for file vs directory exports while preserving cross-platform path normalization
 - Consolidated barrel exports in `src/core/barrel/index.ts`, `src/types/index.ts`, and `src/logging/index.ts` to improve type/value export consistency
 - Added `.depcheck.json` to `.gitignore` to avoid committing local dependency-check output
+ - Streamlined exports in `src/types/index.ts` and related barrel index files for improved clarity and organization
+ - Updated coverage badge to reflect 98.75% and refreshed `badges/coverage.svg`
+ - Webpack: enhanced externals configuration to treat `ts-morph` and `@ts-morph/common` as externals, avoiding bundling their large dist artifacts
+ - Updated package metadata: refined `keywords` in `package.json` for improved discoverability
+ - Added `webpack-stats.json` to `.gitignore` to avoid committing build output artifacts
 
 ### Removed
 
