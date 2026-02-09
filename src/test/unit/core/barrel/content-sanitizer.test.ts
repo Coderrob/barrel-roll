@@ -47,6 +47,7 @@ describe('BarrelContentSanitizer', () => {
     assert.ok(!preserved.includes("from './beta';"));
     assert.ok(preserved.includes('export const direct = 1;'));
   });
+
   it('should handle exports with comments containing closing braces', () => {
     const sanitizer = new BarrelContentSanitizer();
     const existingContent = [

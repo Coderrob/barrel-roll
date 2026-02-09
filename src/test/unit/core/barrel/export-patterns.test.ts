@@ -68,6 +68,7 @@ describe('Export Path Utils', () => {
   it('should return null for extension checks on non-export lines', () => {
     assert.strictEqual(extractExtensionFromLine('const alpha = 1;'), null);
   });
+
   it('should extract export paths from exports containing comments', () => {
     // Single-line export with block comment containing closing brace
     const withBlockComment = "export { alpha /* some } comment */ } from './alpha';";

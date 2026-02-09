@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 import { Dirent } from 'node:fs';
 import * as path from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
+
 import { INDEX_FILENAME } from '../../../../types/index.js';
 import { FileSystemService } from '../../../../core/io/file-system.service.js';
 

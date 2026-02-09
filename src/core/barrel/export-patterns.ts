@@ -88,7 +88,7 @@ export function extractAllExportPaths(content: string): Set<string> {
 }
 
 /**
- * Checks if a line is an export statement.
+ * Checks if a line is an export statement using AST parsing.
  * @param line The line to check.
  * @returns True if the line is an export statement.
  */
@@ -144,17 +144,19 @@ export function detectExtensionFromBarrelContent(content: string): string | null
 }
 
 /**
- * Checks if a line ends a multiline export statement.
+ * Checks if a line closes a multiline export statement.
+ * Simple heuristic check for performance since this is called per-line.
  * @param line The line to check.
  * @returns True if the line ends a multiline export.
  */
 export function isMultilineExportEnd(line: string): boolean {
   // Quick heuristic: line contains } followed by from and a quote
-  return /\}\s*from\s*["']/.test(line);
+  return /\}\s*from\s*['"]/.test(line);
 }
 
 /**
  * Checks if a line starts a multiline export (opens but doesn't close on same line).
+ * Simple heuristic check for performance since this is called per-line.
  * @param line The line to check.
  * @returns True if the line starts a multiline export.
  */

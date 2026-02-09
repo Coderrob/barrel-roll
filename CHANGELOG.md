@@ -27,7 +27,7 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 
 ### Changed
 
-- `BarrelContentBuilder` now emits TypeScript 4.5+ mixed export syntax when a module has both values and type exports (for example: `export { Foo, type Bar } from './mod';`)
+- `BarrelContentBuilder` now emits TypeScript 4.5+ mixed export syntax when a module has both value and type exports (for example: `export { Foo, type Bar } from './mod';`)
 - Simplified module-path generation logic in `BarrelContentBuilder` for file vs directory exports while preserving cross-platform path normalization
 - Consolidated barrel exports in `src/core/barrel/index.ts`, `src/types/index.ts`, and `src/logging/index.ts` to improve type/value export consistency
 - Added `.depcheck.json` to `.gitignore` to avoid committing local dependency-check output
