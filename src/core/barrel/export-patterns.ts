@@ -23,7 +23,7 @@
  * Supports exports with or without spaces (export{ or export {).
  */
 const EXPORT_PATH_PATTERN =
-  /^export(?:\s+type)?\s*(?:\*|\{[\s\S]*?\})[\s\S]*?from\s*'([^']+)'\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/;
+  /^export(?:\s+type)?\s*(?:\*|\{[\s\S]*?\})[\s\S]*?from\s*["']([^"']+)["']\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/;
 
 /**
  * Regex pattern for multiline export statements.
@@ -32,7 +32,7 @@ const EXPORT_PATH_PATTERN =
  * Supports exports with or without spaces (export{ or export {).
  */
 const MULTILINE_EXPORT_PATTERN =
-  /^export(?:\s+type)?\s*\{[\s\S]*?\}[\s\S]*?from\s*'([^']+)'\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/s;
+  /^export(?:\s+type)?\s*\{[\s\S]*?\}[\s\S]*?from\s*["']([^"']+)["']\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/s;
 
 /**
  * Extracts the export path from a barrel export line or multiline block.

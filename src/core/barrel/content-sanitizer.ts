@@ -172,6 +172,10 @@ export class BarrelContentSanitizer {
       return;
     }
 
+    this.logger.debug(
+      `[SANITIZER] Checking: ${exportPath} → ${normalizedPath} isExternal: ${isExternal} willBeRegenerated: ${willBeRegenerated}`,
+    );
+
     if (isExternal) {
       this.logger.debug(`Stripping external re-export: ${exportPath}`);
       return;

@@ -204,7 +204,7 @@ describe('Export Path Utils', () => {
     // Note: Current implementation only supports single quotes
     // This test documents expected behavior
     const doubleQuoted = 'export { alpha } from "./path";';
-    // Current implementation returns null for double quotes
-    assert.strictEqual(extractExportPath(doubleQuoted), null);
+    // Implementation now supports both single and double quotes
+    assert.strictEqual(extractExportPath(doubleQuoted), './path');
   });
 });
