@@ -15,7 +15,7 @@ const config = {
     libraryTarget: 'commonjs2',
     devtoolModuleFilenameTemplate: '../[resource-path]',
   },
-  devtool: 'source-map',
+  devtool: process.env.NODE_ENV === 'production' ? 'hidden-source-map' : 'source-map',
   externals: [
     function ({ request }, callback) {
       // Treat any import from 'ts-morph' or its subpaths as external to avoid
