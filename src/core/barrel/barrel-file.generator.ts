@@ -19,7 +19,6 @@ import * as path from 'node:path';
 
 import type { Uri } from 'vscode';
 
-import type { LoggerInstance } from '../../types/index.js';
 import {
   type BarrelEntry,
   BarrelEntryKind,
@@ -30,6 +29,7 @@ import {
   type IBarrelGenerationOptions,
   INDEX_FILENAME,
   type IParsedExport,
+  type LoggerInstance,
   type NormalizedBarrelGenerationOptions,
 } from '../../types/index.js';
 import { processConcurrently } from '../../utils/semaphore.js';
