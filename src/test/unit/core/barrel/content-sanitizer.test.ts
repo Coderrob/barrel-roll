@@ -20,27 +20,36 @@ import { describe, it } from 'node:test';
 
 import { BarrelContentSanitizer } from '../../../../core/barrel/content-sanitizer.js';
 
+/**
+ * Helper function to run sanitizer with given lines and paths.
+ * @param lines - Array of strings representing the content lines.
+ * @param paths - Array of paths to sanitize.
+ * @returns The preserved lines as a single string.
+ */
+function runSanitize(lines: string[], paths: string[]): string {
+  const sanitizer = new BarrelContentSanitizer();
+  const existingContent = lines.join('\n');
+  const result = sanitizer.preserveDefinitionsAndSanitizeExports(
+    existingContent,
+    new Set<string>(paths),
+  );
+  return result.preservedLines.join('\n');
+}
+
 describe('BarrelContentSanitizer', () => {
   it('should preserve direct definitions and strip regenerated or external re-exports', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export * from '../external';",
-      "export { alpha } from './alpha';",
-      'export {',
-      '  beta,',
-      "} from './beta';",
-      '',
-      'export const direct = 1;',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./alpha', './beta']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export * from '../external';",
+        "export { alpha } from './alpha';",
+        'export {',
+        '  beta,',
+        "} from './beta';",
+        '',
+        'export const direct = 1;',
+      ],
+      ['./alpha', './beta'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     assert.ok(!preserved.includes("export * from '../external';"));
     assert.ok(!preserved.includes("export { alpha } from './alpha';"));
@@ -49,24 +58,17 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should handle exports with comments containing closing braces', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export { alpha /* comment with } brace */ } from './alpha';",
-      "export { beta, gamma } from './module'; // line comment",
-      'export {',
-      '  delta, // comment with } brace',
-      '  epsilon /* another } comment */',
-      "} from './complex';",
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./alpha', './complex']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export { alpha /* comment with } brace */ } from './alpha';",
+        "export { beta, gamma } from './module'; // line comment",
+        'export {',
+        '  delta, // comment with } brace',
+        '  epsilon /* another } comment */',
+        "} from './complex';",
+      ],
+      ['./alpha', './complex'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports that will be regenerated
     assert.ok(!preserved.includes('./alpha'));
@@ -77,27 +79,20 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should preserve direct function definitions between exports', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export { alpha } from './alpha';",
-      '',
-      'export function helperFunction() {',
-      '  return "helper";',
-      '}',
-      '',
-      "export { beta } from './beta';",
-      '',
-      'export const CONSTANT = 42;',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./alpha', './beta']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export { alpha } from './alpha';",
+        '',
+        'export function helperFunction() {',
+        '  return "helper";',
+        '}',
+        '',
+        "export { beta } from './beta';",
+        '',
+        'export const CONSTANT = 42;',
+      ],
+      ['./alpha', './beta'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports
     assert.ok(!preserved.includes('./alpha'));
@@ -109,33 +104,26 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should preserve direct class and type definitions', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export * from './types';",
-      '',
-      'export class CustomError extends Error {',
-      '  constructor(message: string) {',
-      '    super(message);',
-      '  }',
-      '}',
-      '',
-      'export interface LocalInterface {',
-      '  id: string;',
-      '}',
-      '',
-      'export type LocalType = string | number;',
-      '',
-      "export { utilities } from './utils';",
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./types', './utils']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export * from './types';",
+        '',
+        'export class CustomError extends Error {',
+        '  constructor(message: string) {',
+        '    super(message);',
+        '  }',
+        '}',
+        '',
+        'export interface LocalInterface {',
+        '  id: string;',
+        '}',
+        '',
+        'export type LocalType = string | number;',
+        '',
+        "export { utilities } from './utils';",
+      ],
+      ['./types', './utils'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports
     assert.ok(!preserved.includes("from './types'"));
@@ -148,22 +136,15 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should handle star exports with comments', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export * from './all'; // re-export everything",
-      "export * from './types'; /* all types */",
-      '',
-      'export const LOCAL = true;',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./all', './types']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export * from './all'; // re-export everything",
+        "export * from './types'; /* all types */",
+        '',
+        'export const LOCAL = true;',
+      ],
+      ['./all', './types'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports
     assert.ok(!preserved.includes('./all'));
@@ -174,29 +155,22 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should handle complex multiline exports with inline comments', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      'export {',
-      '  alpha, // first item with } in comment',
-      '  beta, /* second item */',
-      '  gamma /* { nested } braces */',
-      "} from './source';",
-      '',
-      '// This is a standalone comment',
-      'export enum Status {',
-      '  Active = "active",',
-      '  Inactive = "inactive"',
-      '}',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./source']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        'export {',
+        '  alpha, // first item with } in comment',
+        '  beta, /* second item */',
+        '  gamma /* { nested } braces */',
+        "} from './source';",
+        '',
+        '// This is a standalone comment',
+        'export enum Status {',
+        '  Active = "active",',
+        '  Inactive = "inactive"',
+        '}',
+      ],
+      ['./source'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-export
     assert.ok(!preserved.includes('./source'));
@@ -207,26 +181,19 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should handle empty lines and whitespace correctly', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export { alpha } from './alpha';",
-      '',
-      '',
-      '   ',
-      "export { beta } from './beta';",
-      '',
-      'export const VALUE = 1;',
-      '',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./alpha', './beta']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export { alpha } from './alpha';",
+        '',
+        '',
+        '   ',
+        "export { beta } from './beta';",
+        '',
+        'export const VALUE = 1;',
+        '',
+      ],
+      ['./alpha', './beta'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports
     assert.ok(!preserved.includes('./alpha'));
@@ -239,22 +206,15 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should handle exports without semicolons', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export { alpha } from './alpha'",
-      "export * from './all'",
-      '',
-      'export const NO_SEMICOLON = true',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./alpha', './all']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export { alpha } from './alpha'",
+        "export * from './all'",
+        '',
+        'export const NO_SEMICOLON = true',
+      ],
+      ['./alpha', './all'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports (with or without semicolons)
     assert.ok(!preserved.includes('./alpha'));
@@ -265,23 +225,16 @@ describe('BarrelContentSanitizer', () => {
   });
 
   it('should handle exports without spaces', () => {
-    const sanitizer = new BarrelContentSanitizer();
-    const existingContent = [
-      "export{alpha,beta}from'./compact';",
-      "export*from'./star';",
-      "export type{Type}from'./type';",
-      '',
-      'export const LOCAL = true;',
-    ].join('\n');
-
-    const newContentPaths = new Set<string>(['./compact', './star', './type']);
-
-    const result = sanitizer.preserveDefinitionsAndSanitizeExports(
-      existingContent,
-      newContentPaths,
+    const preserved = runSanitize(
+      [
+        "export{alpha,beta}from'./compact';",
+        "export*from'./star';",
+        "export type{Type}from'./type';",
+        '',
+        'export const LOCAL = true;',
+      ],
+      ['./compact', './star', './type'],
     );
-
-    const preserved = result.preservedLines.join('\n');
 
     // Should strip re-exports without spaces
     assert.ok(!preserved.includes('./compact'));
