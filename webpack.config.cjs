@@ -17,20 +17,9 @@ const config = {
   },
   devtool: process.env.NODE_ENV === 'production' ? 'hidden-source-map' : 'source-map',
   externals: [
-    function ({ request }, callback) {
-      // Treat any import from 'ts-morph' or its subpaths as external to avoid
-      // bundling the large ts-morph dist file (some imports reference
-      // 'ts-morph/dist/ts-morph.js').
-      if (/^ts-morph(?:\/|$)/.test(request)) {
-        return callback(null, 'commonjs ' + request);
-      }
-      callback();
-    },
     {
       vscode: 'commonjs vscode',
       typescript: 'commonjs typescript', // Required for ts-morph to work properly
-      '@ts-morph/common': 'commonjs @ts-morph/common',
-      'ts-morph': 'commonjs ts-morph',
     },
   ],
   ignoreWarnings: [
