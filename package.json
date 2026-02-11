@@ -101,13 +101,11 @@
     "eslint": "^9.21.0",
     "eslint-import-resolver-typescript": "^3.8.0",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-jsdoc": "^62.4.0",
     "eslint-plugin-prettier": "^5.2.3",
     "eslint-plugin-simple-import-sort": "^12.1.0",
     "eslint-plugin-sonarjs": "^3.0.5",
     "eslint-plugin-unused-imports": "^4.2.0",
-    "expect": "^29.7.0",
     "glob": "^10.5.0",
     "jscodeshift": "^17.3.0",
     "jscpd": "^4.0.5",
@@ -177,5 +175,5 @@
     "watch": "webpack --watch",
     "watch-tests": "tsc -p . -w --outDir dist"
   },
-  "version": "1.1.0"
+  "version": "1.1.1"
 }

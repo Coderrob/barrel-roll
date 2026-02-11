@@ -120,6 +120,27 @@ describe('BarrelContentBuilder', () => {
       assert.strictEqual(result.trim(), "export { Echo } from './echo';");
     });
 
+    it('should combine value and type exports using mixed export syntax', async () => {
+      const entries = new Map<string, BarrelEntry>();
+      entries.set('mixed.ts', {
+        kind: BarrelEntryKind.File,
+        exports: [
+          { kind: BarrelExportKind.Value, name: 'Something' },
+          { kind: BarrelExportKind.Type, name: 'OtherThing' },
+          { kind: BarrelExportKind.Value, name: 'AnotherValue' },
+          { kind: BarrelExportKind.Type, name: 'AnotherType' },
+        ],
+      });
+
+      const result = await builder.buildContent(entries, '');
+
+      // Should use TypeScript 4.5+ mixed export syntax
+      assert.strictEqual(
+        result.trim(),
+        "export { AnotherValue, Something, type AnotherType, type OtherThing } from './mixed';",
+      );
+    });
+
     const parentDirectoryCases: Array<Map<string, BarrelEntry>> = [
       new Map<string, BarrelEntry>([['../outside', { kind: BarrelEntryKind.Directory }]]),
       new Map<string, BarrelEntry>([

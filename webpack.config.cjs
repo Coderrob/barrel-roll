@@ -15,11 +15,13 @@ const config = {
     libraryTarget: 'commonjs2',
     devtoolModuleFilenameTemplate: '../[resource-path]',
   },
-  devtool: 'source-map',
-  externals: {
-    vscode: 'commonjs vscode',
-    typescript: 'commonjs typescript', // Required for ts-morph to work properly
-  },
+  devtool: process.env.NODE_ENV === 'production' ? 'hidden-source-map' : 'source-map',
+  externals: [
+    {
+      vscode: 'commonjs vscode',
+      typescript: 'commonjs typescript', // Required for ts-morph to work properly
+    },
+  ],
   ignoreWarnings: [
     {
       module: /@ts-morph\/common\/dist\/typescript\.js/,

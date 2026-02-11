@@ -17,20 +17,22 @@
 
 /**
  * Regex pattern for extracting export paths from barrel export lines.
- * Handles both single-line export statements.
+ * Uses non-greedy matching to handle comments containing closing braces.
+ * Matches: export * from 'path', export { ... } from 'path', export type { ... } from 'path'
+ * Handles comments between export parts and trailing line/block comments.
+ * Supports exports with or without spaces (export{ or export {).
  */
-const EXPORT_PATH_PATTERN = /^export (?:\*|\{[^}]*\}) from '([^']+)';?$/;
+const EXPORT_PATH_PATTERN =
+  /^export(?:\s+type)?\s*(?:\*|\{[\s\S]*?\})[\s\S]*?from\s*["']([^"']+)["']\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/;
 
 /**
  * Regex pattern for multiline export statements.
- * Captures: export { ... } from 'path'; spanning multiple lines.
+ * Uses non-greedy matching to handle comments containing closing braces.
+ * Captures: export { ... } from 'path' or export type { ... } from 'path' spanning multiple lines.
+ * Supports exports with or without spaces (export{ or export {).
  */
-const MULTILINE_EXPORT_PATTERN = /^export\s*\{[^}]*\}\s*from\s*'([^']+)'\s*;?$/s;
-
-/**
- * Regex to detect the end of a multiline export: } from 'path'
- */
-const MULTILINE_EXPORT_END = /\}\s*from\s*'/;
+const MULTILINE_EXPORT_PATTERN =
+  /^export(?:\s+type)?\s*\{[\s\S]*?\}[\s\S]*?from\s*["']([^"']+)["']\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/s;
 
 /**
  * Extracts the export path from a barrel export line or multiline block.
@@ -86,12 +88,13 @@ export function extractAllExportPaths(content: string): Set<string> {
 }
 
 /**
- * Checks if a line is an export statement.
+ * Checks if a line is an export statement using AST parsing.
  * @param line The line to check.
  * @returns True if the line is an export statement.
  */
 export function isExportLine(line: string): boolean {
-  return line.startsWith("export * from '") || line.startsWith('export {');
+  const path = extractExportPath(line);
+  return path !== null;
 }
 
 /**
@@ -100,19 +103,20 @@ export function isExportLine(line: string): boolean {
  * @returns The extension pattern, or null if none found.
  */
 export function extractExtensionFromLine(line: string): string | null {
-  if (line.includes('.js')) {
-    return '.js';
-  }
-
-  if (line.includes('.mjs')) {
-    return '.mjs';
-  }
-
-  // If we find exports without extensions, return empty string
-  if (!/from '[^']*'(\s*;|$)/.exec(line)) {
+  const exportPath = extractExportPath(line);
+  if (!exportPath) {
     return null;
   }
 
+  if (exportPath.includes('.js')) {
+    return '.js';
+  }
+
+  if (exportPath.includes('.mjs')) {
+    return '.mjs';
+  }
+
+  // Export without extension
   return '';
 }
 
@@ -141,18 +145,29 @@ export function detectExtensionFromBarrelContent(content: string): string | null
 
 /**
  * Checks if a line closes a multiline export statement.
+ * Simple heuristic check for performance since this is called per-line.
  * @param line The line to check.
  * @returns True if the line ends a multiline export.
  */
 export function isMultilineExportEnd(line: string): boolean {
-  return MULTILINE_EXPORT_END.test(line);
+  // Quick heuristic: line contains } followed by from and a quote
+  return /\}\s*from\s*['"]/.test(line);
 }
 
 /**
  * Checks if a line starts a multiline export (opens but doesn't close on same line).
+ * Simple heuristic check for performance since this is called per-line.
  * @param line The line to check.
  * @returns True if the line starts a multiline export.
  */
 export function isMultilineExportStart(line: string): boolean {
-  return line.startsWith('export {') && !isMultilineExportEnd(line);
+  const trimmed = line.trim();
+
+  // Must start with export and contain opening brace
+  if (!/^export(?:\s+type)?\s*\{/.test(trimmed)) {
+    return false;
+  }
+
+  // If it already ends on the same line, it's not a multiline start
+  return !isMultilineExportEnd(trimmed);
 }

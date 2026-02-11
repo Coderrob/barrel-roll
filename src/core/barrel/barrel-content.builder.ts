@@ -218,25 +218,33 @@ export class BarrelContentBuilder {
 
   /**
    * Generates export statement(s) based on the type of exports.
+   * Uses TypeScript 4.5+ mixed export syntax to combine value and type exports
+   * in a single statement when both are present.
    * @param modulePath The module path
    * @param exports The exports
    * @returns The export statement(s)
    */
+  // eslint-disable-next-line complexity -- Acceptable complexity for export combination logic
   private generateExportStatements(modulePath: string, exports: BarrelExport[]): string[] {
     const lines: string[] = [];
 
     const valueNames = this.getExportNames(exports, BarrelExportKind.Value);
     const typeNames = this.getExportNames(exports, BarrelExportKind.Type);
+    const hasDefault = exports.some((exp) => exp.kind === BarrelExportKind.Default);
 
-    if (valueNames.length > 0) {
+    // If we have both values and types, combine them using TypeScript 4.5+ syntax
+    if (valueNames.length > 0 && typeNames.length > 0) {
+      const combinedExports = [...valueNames, ...typeNames.map((name) => `type ${name}`)].join(
+        ', ',
+      );
+      lines.push(`export { ${combinedExports} } from './${modulePath}';`);
+    } else if (valueNames.length > 0) {
       lines.push(`export { ${valueNames.join(', ')} } from './${modulePath}';`);
-    }
-
-    if (typeNames.length > 0) {
+    } else if (typeNames.length > 0) {
       lines.push(`export type { ${typeNames.join(', ')} } from './${modulePath}';`);
     }
 
-    if (exports.some((exp) => exp.kind === BarrelExportKind.Default)) {
+    if (hasDefault) {
       lines.push(`export { default } from './${modulePath}';`);
     }
 
@@ -270,17 +278,15 @@ export class BarrelContentBuilder {
     directoryPath: string,
   ): Promise<string> {
     const isDirectory = await this.isDirectory(filePath, directoryPath);
-
-    if (!isDirectory) {
-      // For files, remove .ts/.tsx extension and replace with the desired export extension
-      let modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
-      // Normalize path separators for cross-platform compatibility
-      modulePath = modulePath.replaceAll('\\', '/');
-      return modulePath;
+    // For directories, append /index + extension if extension is specified
+    if (isDirectory) {
+      return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
     }
 
-    // For directories, append /index + extension if extension is specified
-    return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
+    // For files, remove .ts/.tsx extension and replace with the desired export extension
+    const modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
+    // Normalize path separators for cross-platform compatibility
+    return modulePath.replaceAll('\\', '/');
   }
 
   /**

@@ -50,6 +50,8 @@ class BarrelCommandQueue {
           resolve();
         } catch (error) {
           reject(error);
+          // Rethrow so the processing loop can observe/log the failure.
+          throw error;
         }
       });
       void this.processQueue();

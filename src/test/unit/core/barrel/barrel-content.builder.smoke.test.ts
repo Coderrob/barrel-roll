@@ -76,8 +76,11 @@ describe('BarrelContentBuilder Test Suite', () => {
 
     const content = await builder.buildContent(entries, '/some/path');
 
-    assert.ok(content.includes("export { MyClass } from './myFile';"));
-    assert.ok(content.includes("export type { MyInterface } from './myFile';"));
+    // TypeScript 4.5+ mixed export syntax combines value and type in one statement
+    assert.ok(
+      content.includes("export { MyClass, type MyInterface } from './myFile';"),
+      'Expected combined value and type export',
+    );
     assert.ok(content.includes("export { default } from './myFile';"));
   });
 

@@ -15,14 +15,21 @@
  *
  */
 
-export type {
-  BarrelEntry,
-  BarrelExport,
-  IBarrelGenerationOptions,
-  IParsedExport,
-  NormalizedBarrelGenerationOptions,
+/**
+ * @fileoverview Central barrel export for type definitions
+ * @module types
+ */
+
+export {
+  type BarrelEntry,
+  BarrelEntryKind,
+  type BarrelExport,
+  BarrelExportKind,
+  BarrelGenerationMode,
+  type IBarrelGenerationOptions,
+  type IParsedExport,
+  type NormalizedBarrelGenerationOptions,
 } from './barrel.js';
-export { BarrelEntryKind, BarrelExportKind, BarrelGenerationMode } from './barrel.js';
 export {
   DEFAULT_EXPORT_NAME,
   INDEX_FILENAME,
@@ -30,4 +37,4 @@ export {
   PARENT_DIRECTORY_SEGMENT,
 } from './constants.js';
 export type { IEnvironmentVariables } from './env.js';
-export type { LoggerConstructor, LoggerInstance } from './logger.js';
+export type { LoggerConstructor, LoggerInstance, OutputChannel } from './logger.js';
