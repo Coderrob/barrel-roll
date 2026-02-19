@@ -2,7 +2,41 @@
 
 All notable changes to the "barrel-roll" extension will be documented in this file.
 
-## [Unreleased]
+## [1.1.1] - 2026-02-19
+
+### Added
+
+- **Major architectural refactoring**: Implemented modular barrel generation system with dedicated processors, strategies, and validators
+  - `EntryCollector` processor for gathering TypeScript files and directories
+  - `DirectoryProcessor` for recursive directory handling with concurrency control
+  - `ContentMerger` for intelligent content merging and deduplication
+  - `BarrelGenerationStrategy` for configurable generation modes
+  - `ReExportValidator` for validating and cleaning re-exports
+- Enhanced performance with intelligent caching system (`ExportCache`) and concurrency control (`Semaphore`)
+- Comprehensive test coverage expanded to 349 tests covering all new architectural components
+- Contract validation tests for type safety and enum exhaustiveness
+- File size validation in `FileSystemService` to prevent processing oversized files
+
+### Changed
+
+- **Refactored barrel generation architecture**: Split monolithic `BarrelFileGenerator` into modular components for better maintainability and testability
+- Enhanced export parsing with improved regex patterns supporting double quotes and complex comment scenarios
+- Consolidated utility functions and improved error handling throughout the codebase
+- Updated build configuration with enhanced webpack externals and improved TypeScript compilation settings
+
+### Fixed
+
+- Export duplication during barrel operations when comments containing closing braces (`}`) were present in existing imports
+- Regex patterns in `export-patterns.ts` now use non-greedy matching (`[\s\S]*?`) to properly handle comments with closing braces
+- Added support for trailing line comments (`//`) and block comments (`/* */`) in export statements
+- Added support for TypeScript's type-only exports (`export type { ... } from './path'`)
+- Added support for comments between export parts (e.g., `export * /* comment */ from './path'`)
+- Added support for exports without spaces (e.g., `export{` instead of `export {`, `export*from` instead of `export * from`)
+
+### Removed
+
+- Removed Jest compatibility shim (`src/test/testHarness.ts`) and test barrel export file (`src/test/index.ts`)
+- Removed Jest-specific dev dependencies (`eslint-plugin-jest`, `expect`) from the repository
 
 ## [1.1.1]
 
