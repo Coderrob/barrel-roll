@@ -68,4 +68,4 @@ export type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
 export type DeactivateFn = () => void;
 
 // Minimal runtime shape for the OutputChannelLogger class used in tests
-export type { LoggerConstructor, LoggerInstance } from '../types/index.js';
+export type { ILoggerConstructor, ILoggerInstance } from '../types/index.js';

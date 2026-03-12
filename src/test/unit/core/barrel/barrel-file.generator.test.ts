@@ -25,13 +25,13 @@ import type { Uri } from 'vscode';
 
 import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
 import { FileSystemService } from '../../../../core/io/file-system.service.js';
-import type { LoggerInstance } from '../../../../types/index.js';
+import type { ILoggerInstance } from '../../../../types/index.js';
 import { BarrelGenerationMode, INDEX_FILENAME } from '../../../../types/index.js';
 
 /**
  * Creates a mock logger that captures log calls for testing.
  */
-function createMockLogger(): LoggerInstance & { calls: { level: string; message: string }[] } {
+function createMockLogger(): ILoggerInstance & { calls: { level: string; message: string }[] } {
   const calls: { level: string; message: string }[] = [];
   return {
     calls,

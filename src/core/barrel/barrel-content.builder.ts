@@ -253,9 +253,6 @@ export class BarrelContentBuilder {
 
   /**
    * Extracts and sorts export names of a specific kind.
-   * @param exports TODO: describe parameter
-   * @param kind TODO: describe parameter
-   * @returns TODO: describe return value
    */
   private getExportNames(
     exports: BarrelExport[],
@@ -289,7 +286,7 @@ export class BarrelContentBuilder {
     // For files, remove .ts/.tsx extension and replace with the desired export extension
     const modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
     // Normalize path separators for cross-platform compatibility
-    return modulePath.replaceAll(String.raw`\`, '/');
+    return modulePath.replaceAll('\\', '/');
   }
 
   /**
