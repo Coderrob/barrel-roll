@@ -20,7 +20,7 @@ import type { IParsedExport } from '../../types/index.js';
 /**
  * Minimal file system interface required by ExportCache.
  */
-export interface ExportCacheFileSystem {
+export interface IExportCacheFileSystem {
   getFileStats(filePath: string): Promise<{ mtime: Date }>;
   readFile(filePath: string): Promise<string>;
 }
@@ -28,14 +28,14 @@ export interface ExportCacheFileSystem {
 /**
  * Minimal export parser interface required by ExportCache.
  */
-export interface ExportCacheParser {
+export interface IExportCacheParser {
   extractExports(content: string): IParsedExport[];
 }
 
 /**
  * Represents cached export information for a file.
  */
-export interface CachedExport {
+export interface ICachedExport {
   exports: IParsedExport[];
   mtime: number;
 }
@@ -43,17 +43,19 @@ export interface CachedExport {
 /**
  * Configuration options for the export cache.
  */
-export interface ExportCacheOptions {
+export interface IExportCacheOptions {
   /** Maximum number of entries to cache. Default: 1000 */
   maxSize?: number;
 }
+
+const DEFAULT_MAX_CACHE_SIZE = 1000;
 
 /**
  * Cache for parsed exports to avoid re-parsing unchanged files.
  * Uses file modification time to invalidate stale entries.
  */
 export class ExportCache {
-  private readonly cache = new Map<string, CachedExport>();
+  private readonly cache = new Map<string, ICachedExport>();
   private readonly maxSize: number;
 
   /**
@@ -63,38 +65,39 @@ export class ExportCache {
    * @param options Cache configuration options.
    */
   constructor(
-    private readonly fileSystemService: ExportCacheFileSystem,
-    private readonly exportParser: ExportCacheParser,
-    options?: ExportCacheOptions,
+    private readonly fileSystemService: IExportCacheFileSystem,
+    private readonly exportParser: IExportCacheParser,
+    options?: IExportCacheOptions,
   ) {
-    this.maxSize = options?.maxSize ?? 1000;
+    this.maxSize = options?.maxSize ?? DEFAULT_MAX_CACHE_SIZE;
   }
 
   /**
-   * Gets exports for a file, using cache if available and valid.
+   * Resolves exports for a file, using cache if available and valid.
    * @param filePath The file path to get exports for.
    * @returns Promise that resolves to the parsed exports.
    */
-  async getExports(filePath: string): Promise<IParsedExport[]> {
+  async resolveExports(filePath: string): Promise<IParsedExport[]> {
     const stats = await this.fileSystemService.getFileStats(filePath);
     const currentMtime = stats.mtime.getTime();
-
-    // Check cache first
     const cached = this.cache.get(filePath);
     if (cached?.mtime === currentMtime) {
       return cached.exports;
     }
+    return this.fetchAndCacheExports(filePath, currentMtime);
+  }
 
-    // Parse and cache the exports
+  /**
+   * Fetches, parses, and caches exports for a file that has changed.
+   * @param filePath - The file path to fetch exports for.
+   * @param currentMtime - The current modification time.
+   * @returns Promise resolving to the parsed exports.
+   */
+  private async fetchAndCacheExports(filePath: string, currentMtime: number): Promise<IParsedExport[]> {
     const content = await this.fileSystemService.readFile(filePath);
     const exports = this.exportParser.extractExports(content);
-
-    // Cache with modification time
     this.cache.set(filePath, { exports, mtime: currentMtime });
-
-    // Evict oldest entry if over capacity
     this.evictIfNeeded();
-
     return exports;
   }
 
@@ -107,6 +110,7 @@ export class ExportCache {
 
   /**
    * Returns the current number of cached entries.
+   * @returns TODO: describe return value
    */
   get size(): number {
     return this.cache.size;

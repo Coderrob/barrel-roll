@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import zeroTolerance from '@coderrob/eslint-plugin-zero-tolerance';
 import _import from 'eslint-plugin-import';
 import jsdoc from 'eslint-plugin-jsdoc';
 import prettier from 'eslint-plugin-prettier';
@@ -69,6 +70,7 @@ export default [
       jsdoc,
       'simple-import-sort': simpleImportSort,
       sonarjs,
+      'zero-tolerance': zeroTolerance,
       local: localPlugin,
     },
     settings: {
@@ -176,6 +178,9 @@ export default [
       'no-shadow': 'off',
       'space-in-parens': ['error', 'never'],
       'spaced-comment': ['error', 'always'],
+
+      // Zero-tolerance rules
+      ...zeroTolerance.configs.recommended.rules,
     },
   },
 

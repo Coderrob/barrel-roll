@@ -19,14 +19,14 @@ import assert from 'node:assert/strict';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import type { Uri } from 'vscode';
-
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
+import type { Uri } from 'vscode';
+
+import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
+import { FileSystemService } from '../../../../core/io/file-system.service.js';
 import type { LoggerInstance } from '../../../../types/index.js';
 import { BarrelGenerationMode, INDEX_FILENAME } from '../../../../types/index.js';
-import { FileSystemService } from '../../../../core/io/file-system.service.js';
-import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
 
 /**
  * Creates a mock logger that captures log calls for testing.

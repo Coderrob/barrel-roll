@@ -41,6 +41,8 @@ export type FakeUri = { fsPath: string };
 
 /**
  *
+ * @param fsPath TODO: describe parameter
+ * @returns TODO: describe return value
  */
 export function uriFile(fsPath: string): FakeUri {
   return { fsPath: path.normalize(fsPath) };

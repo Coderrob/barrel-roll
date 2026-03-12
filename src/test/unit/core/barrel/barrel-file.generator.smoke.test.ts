@@ -20,9 +20,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import type { Uri } from 'vscode';
-
 import { afterEach, beforeEach, describe, it } from 'node:test';
+
+import type { Uri } from 'vscode';
 
 import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
 

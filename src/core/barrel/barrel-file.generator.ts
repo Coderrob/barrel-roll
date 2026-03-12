@@ -29,7 +29,7 @@ import {
   type IBarrelGenerationOptions,
   INDEX_FILENAME,
   type IParsedExport,
-  type LoggerInstance,
+  type ILoggerInstance,
   type NormalizedBarrelGenerationOptions,
 } from '../../types/index.js';
 import { processConcurrently } from '../../utils/semaphore.js';
@@ -70,7 +70,7 @@ export class BarrelFileGenerator {
     fileSystemService?: FileSystemService,
     exportParser?: ExportParser,
     barrelContentBuilder?: BarrelContentBuilder,
-    logger?: LoggerInstance,
+    logger?: ILoggerInstance,
   ) {
     this.barrelContentBuilder = barrelContentBuilder || new BarrelContentBuilder();
     this.fileSystemService = fileSystemService || new FileSystemService();
@@ -200,6 +200,8 @@ export class BarrelFileGenerator {
 
   /**
    * Reads directory info for TypeScript files and subdirectories.
+   * @param directoryPath TODO: describe parameter
+   * @returns TODO: describe return value
    */
   private async readDirectoryInfo(directoryPath: string): Promise<DirectoryInfo> {
     const [tsFiles, subdirectories] = await Promise.all([
@@ -286,7 +288,7 @@ export class BarrelFileGenerator {
       const batch = tsFiles.slice(i, i + batchSize);
       const results = await processConcurrently(batch, concurrencyLimit, async (filePath) => {
         try {
-          const parsedExports = await this.exportCache.getExports(filePath);
+          const parsedExports = await this.exportCache.resolveExports(filePath);
           const exports = this.normalizeParsedExports(parsedExports);
 
           if (exports.length === 0) {

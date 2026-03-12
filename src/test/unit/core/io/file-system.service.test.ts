@@ -20,8 +20,8 @@ import { Dirent } from 'node:fs';
 import * as path from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
 
-import { INDEX_FILENAME } from '../../../../types/index.js';
 import { FileSystemService } from '../../../../core/io/file-system.service.js';
+import { INDEX_FILENAME } from '../../../../types/index.js';
 
 describe('FileSystemService', () => {
   let service: FileSystemService;

@@ -29,6 +29,14 @@ export class Semaphore {
   constructor(private permits: number) {}
 
   /**
+   * Enqueues a resolve callback for later execution when a permit becomes available.
+   * @param resolve - The resolve callback to enqueue.
+   */
+  private enqueueResolve(resolve: () => void): void {
+    this.waiting.push(resolve);
+  }
+
+  /**
    * Acquires a permit from the semaphore.
    * If no permits are available, the promise will wait until one is released.
    * @returns Promise that resolves when a permit is acquired.
@@ -38,10 +46,7 @@ export class Semaphore {
       this.permits--;
       return;
     }
-
-    return new Promise((resolve) => {
-      this.waiting.push(resolve);
-    });
+    return new Promise<void>(this.enqueueResolve.bind(this));
   }
 
   /**
@@ -53,8 +58,10 @@ export class Semaphore {
     if (this.waiting.length === 0) {
       return;
     }
-
-    const resolve = this.waiting.shift()!;
+    const resolve = this.waiting.shift();
+    if (!resolve) {
+      return;
+    }
     this.permits--;
     resolve();
   }
@@ -90,14 +97,21 @@ export async function processConcurrently<T, R>(
 ): Promise<R[]> {
   const semaphore = new Semaphore(concurrencyLimit);
 
-  const promises = items.map(async (item) => {
+  /**
+   * Processes a single item under semaphore control.
+   * @param item - The item to process.
+   * @returns Promise resolving to the processed result.
+   */
+  async function processItem(item: T): Promise<R> {
     await semaphore.acquire();
     try {
       return await processor(item);
     } finally {
       semaphore.release();
     }
-  });
+  }
+
+  const promises = items.map(processItem);
 
   return Promise.all(promises);
 }

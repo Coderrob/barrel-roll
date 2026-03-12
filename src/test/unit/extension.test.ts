@@ -18,6 +18,7 @@
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { beforeEach, describe, it, mock } from 'node:test';
+import { BarrelGenerationMode } from '../../types/index.js';
 import type {
   FakeUri,
   CommandHandler,
@@ -29,7 +30,6 @@ import type {
   ProgressOptions,
 } from '../testTypes.js';
 import { uriFile } from '../testTypes.js';
-import { BarrelGenerationMode } from '../../types/index.js';
 
 /**
  * Creates a mock ExtensionContext for testing.

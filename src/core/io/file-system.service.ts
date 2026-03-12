@@ -310,6 +310,7 @@ export class FileSystemService {
    * Reads the entries of a directory with error handling.
    * @param directoryPath The directory path
    * @returns Array of directory entries
+   * @throws {Error} TODO: describe error condition
    */
   private async readDirectory(directoryPath: string): Promise<Dirent[]> {
     try {

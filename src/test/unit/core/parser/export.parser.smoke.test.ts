@@ -73,7 +73,7 @@ describe('ExportParser Test Suite', () => {
     const content = 'export default class MyClass {}';
     const exports = parser.extractExports(content);
 
-    assert.ok(exports.some((entry) => entry.name === 'default' && entry.typeOnly === false));
+    assert.ok(exports.some((entry) => entry.name === 'default' && !entry.typeOnly));
   });
 
   it('should extract multiple exports', () => {
@@ -120,7 +120,7 @@ describe('ExportParser Test Suite', () => {
     const content = 'export { MyClass as RenamedClass };';
     const exports = parser.extractExports(content);
 
-    assert.ok(exports.some((entry) => entry.name === 'RenamedClass' && entry.typeOnly === false));
+    assert.ok(exports.some((entry) => entry.name === 'RenamedClass' && !entry.typeOnly));
   });
 
   it('should ignore comments', () => {
