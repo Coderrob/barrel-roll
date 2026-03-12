@@ -88,6 +88,7 @@
   },
   "description": "A Visual Studio Code extension to automatically export types, functions, constants, and classes through barrel files",
   "devDependencies": {
+    "@coderrob/eslint-plugin-zero-tolerance": "^1.1.4",
     "@types/glob": "^8.1.0",
     "@types/node": "^22.x",
     "@types/vscode": "^1.80.0",
