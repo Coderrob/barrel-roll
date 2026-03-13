@@ -57,10 +57,15 @@ describe('ExportParser Integration Tests', () => {
         return;
       }
 
-      for (const filePath of files) {
-        const content = await readFile(filePath, 'utf8');
-        const exports = parser.extractExports(content);
+      const results = await Promise.all(
+        files.map(async (filePath) => {
+          const content = await readFile(filePath, 'utf8');
+          const exports = parser.extractExports(content);
+          return { filePath, exports };
+        }),
+      );
 
+      for (const { filePath, exports } of results) {
         // Test files should have no real exports - they only contain test code
         // with export statements inside strings as test fixtures
         assert.deepStrictEqual(

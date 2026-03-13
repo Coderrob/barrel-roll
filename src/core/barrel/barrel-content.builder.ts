@@ -30,6 +30,18 @@ import { sortAlphabetically } from '../../utils/string.js';
 import { FileSystemService } from '../io/file-system.service.js';
 
 /**
+ * Converts a legacy export name string to a BarrelExport object.
+ * @param name The export name to convert.
+ * @returns The corresponding BarrelExport object.
+ */
+function legacyExportFromName(name: string): BarrelExport {
+  if (name === DEFAULT_EXPORT_NAME) {
+    return { kind: BarrelExportKind.Default };
+  }
+  return { kind: BarrelExportKind.Value, name };
+}
+
+/**
  * Service to build the content of a barrel file from exports.
  */
 export class BarrelContentBuilder {
@@ -78,33 +90,39 @@ export class BarrelContentBuilder {
     directoryPath: string,
     exportExtension = '',
   ): Promise<string> {
-    const lines: string[] = [];
     const normalizedEntries = this.normalizeEntries(entries);
+    const lines = await this.collectAllExportLines(
+      normalizedEntries,
+      exportExtension,
+      directoryPath,
+    );
+    return lines.join(NEWLINE) + NEWLINE;
+  }
 
-    // Sort files alphabetically for consistent output
+  /**
+   * Collects all export lines from the normalized entry map using parallel resolution.
+   * @param normalizedEntries Map of relative paths to barrel entries.
+   * @param exportExtension The file extension to use for exports.
+   * @param directoryPath The directory path for relative imports.
+   * @returns Flattened array of all export lines.
+   */
+  private async collectAllExportLines(
+    normalizedEntries: Map<string, BarrelEntry>,
+    exportExtension: string,
+    directoryPath: string,
+  ): Promise<string[]> {
     const sortedPaths = sortAlphabetically(normalizedEntries.keys());
-
+    const promises: Promise<string[]>[] = [];
     for (const relativePath of sortedPaths) {
       const entry = normalizedEntries.get(relativePath);
-      if (!entry) {
-        continue;
+      if (entry) {
+        promises.push(
+          this.createLinesForEntry(relativePath, entry, exportExtension, directoryPath),
+        );
       }
-
-      const exportLines = await this.createLinesForEntry(
-        relativePath,
-        entry,
-        exportExtension,
-        directoryPath,
-      );
-      if (exportLines.length === 0) {
-        continue;
-      }
-
-      lines.push(...exportLines);
     }
-
-    // Add newline at end of file
-    return lines.join(NEWLINE) + NEWLINE;
+    const lineGroups = await Promise.all(promises);
+    return lineGroups.flat();
   }
 
   /**
@@ -119,7 +137,7 @@ export class BarrelContentBuilder {
       if (Array.isArray(entry)) {
         normalized.set(relativePath, {
           kind: BarrelEntryKind.File,
-          exports: entry.map((name) => this.toLegacyExport(name)),
+          exports: entry.map(legacyExportFromName),
         });
       } else {
         normalized.set(relativePath, entry);
@@ -127,19 +145,6 @@ export class BarrelContentBuilder {
     }
 
     return normalized;
-  }
-
-  /**
-   * Converts a legacy export name to a BarrelExport object.
-   * @param name The export name.
-   * @returns The corresponding BarrelExport object.
-   */
-  private toLegacyExport(name: string): BarrelExport {
-    if (name === DEFAULT_EXPORT_NAME) {
-      return { kind: BarrelExportKind.Default };
-    }
-
-    return { kind: BarrelExportKind.Value, name };
   }
 
   /**
@@ -183,6 +188,17 @@ export class BarrelContentBuilder {
   }
 
   /**
+   * Determines whether an export should be retained (not a parent-directory reference).
+   * @param exp The barrel export to check.
+   * @returns True if the export should be kept.
+   */
+  private isRelevantExport(exp: BarrelExport): boolean {
+    return exp.kind === BarrelExportKind.Default
+      ? true
+      : !exp.name.includes(PARENT_DIRECTORY_SEGMENT);
+  }
+
+  /**
    * Builds export statement(s) for a file and its exports.
    * @param filePath The file path
    * @param exports The exports from the file
@@ -196,9 +212,7 @@ export class BarrelContentBuilder {
     exportExtension: string,
     directoryPath: string,
   ): Promise<string[]> {
-    const cleanedExports = exports.filter((exp) =>
-      exp.kind === BarrelExportKind.Default ? true : !exp.name.includes(PARENT_DIRECTORY_SEGMENT),
-    );
+    const cleanedExports = exports.filter(this.isRelevantExport.bind(this));
 
     // Skip files with no exports
     if (cleanedExports.length === 0) {
@@ -224,27 +238,18 @@ export class BarrelContentBuilder {
    * @param exports The exports
    * @returns The export statement(s)
    */
-  // eslint-disable-next-line complexity -- Acceptable complexity for export combination logic
   private generateExportStatements(modulePath: string, exports: BarrelExport[]): string[] {
     const lines: string[] = [];
 
     const valueNames = this.getExportNames(exports, BarrelExportKind.Value);
     const typeNames = this.getExportNames(exports, BarrelExportKind.Type);
-    const hasDefault = exports.some((exp) => exp.kind === BarrelExportKind.Default);
+    const namedLine = this.buildNamedExportLine(modulePath, valueNames, typeNames);
 
-    // If we have both values and types, combine them using TypeScript 4.5+ syntax
-    if (valueNames.length > 0 && typeNames.length > 0) {
-      const combinedExports = [...valueNames, ...typeNames.map((name) => `type ${name}`)].join(
-        ', ',
-      );
-      lines.push(`export { ${combinedExports} } from './${modulePath}';`);
-    } else if (valueNames.length > 0) {
-      lines.push(`export { ${valueNames.join(', ')} } from './${modulePath}';`);
-    } else if (typeNames.length > 0) {
-      lines.push(`export type { ${typeNames.join(', ')} } from './${modulePath}';`);
+    if (namedLine) {
+      lines.push(namedLine);
     }
 
-    if (hasDefault) {
+    if (exports.some(this.isDefaultKindExport.bind(this))) {
       lines.push(`export { default } from './${modulePath}';`);
     }
 
@@ -252,17 +257,75 @@ export class BarrelContentBuilder {
   }
 
   /**
+   * Checks whether a barrel export is a default export.
+   * @param exp The barrel export to check.
+   * @returns True if the export kind is Default.
+   */
+  private isDefaultKindExport(exp: BarrelExport): boolean {
+    return exp.kind === BarrelExportKind.Default;
+  }
+
+  /**
+   * Prefixes an export name with 'type ' for mixed export syntax.
+   * @param name The export name to prefix.
+   * @returns The name with a 'type ' prefix.
+   */
+  private toTypeExportName(name: string): string {
+    return `type ${name}`;
+  }
+
+  /**
+   * Builds a combined or single named export line for the given module.
+   * Returns null when there are no value or type names to export.
+   * @param modulePath The module path for the export statement.
+   * @param valueNames The value export names.
+   * @param typeNames The type export names.
+   * @returns An export line string, or null if nothing to export.
+   */
+  private buildNamedExportLine(
+    modulePath: string,
+    valueNames: string[],
+    typeNames: string[],
+  ): string | null {
+    if (valueNames.length > 0 && typeNames.length > 0) {
+      const combined = [...valueNames, ...typeNames.map(this.toTypeExportName.bind(this))].join(
+        ', ',
+      );
+      return `export { ${combined} } from './${modulePath}';`;
+    }
+    if (valueNames.length > 0) {
+      return `export { ${valueNames.join(', ')} } from './${modulePath}';`;
+    }
+    if (typeNames.length > 0) {
+      return `export type { ${typeNames.join(', ')} } from './${modulePath}';`;
+    }
+    return null;
+  }
+
+  /**
    * Extracts and sorts export names of a specific kind.
+   * @param exports TODO: describe parameter
+   * @param kind TODO: describe parameter
+   * @returns TODO: describe return value
    */
   private getExportNames(
     exports: BarrelExport[],
     kind: BarrelExportKind.Value | BarrelExportKind.Type,
   ): string[] {
-    return sortAlphabetically(
-      exports
-        .filter((exp): exp is BarrelExport & { name: string } => exp.kind === kind && 'name' in exp)
-        .map((exp) => exp.name),
-    );
+    /**
+     * Checks whether an export has the given kind and a name property.
+     * @param exp - The barrel export to check.
+     * @returns True if the export matches the kind and has a name.
+     */
+    const matchesKind = (exp: BarrelExport): exp is BarrelExport & { name: string } =>
+      exp.kind === kind && 'name' in exp;
+    /**
+     * Extracts the name from a named barrel export.
+     * @param exp - The named barrel export.
+     * @returns The export name string.
+     */
+    const getName = (exp: BarrelExport & { name: string }): string => exp.name;
+    return sortAlphabetically(exports.filter(matchesKind).map(getName));
   }
 
   /**
@@ -286,7 +349,7 @@ export class BarrelContentBuilder {
     // For files, remove .ts/.tsx extension and replace with the desired export extension
     const modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
     // Normalize path separators for cross-platform compatibility
-    return modulePath.replaceAll('\\', '/');
+    return modulePath.replaceAll(/\\/g, '/');
   }
 
   /**

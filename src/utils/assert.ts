@@ -41,9 +41,9 @@ export function assert(condition: unknown, message?: string): asserts condition 
  * @param message The error message to throw if values are not equal
  * @throws {Error} TODO: describe error condition
  */
-export function assertDefined<T>(value: T, message?: string): asserts value is NonNullable<T> {
-  if (value == null) {
-    throw new TypeError(message ?? `Assertion failed: value is null or undefined`);
+export function assertBoolean(value: unknown, message?: string): asserts value is boolean {
+  if (typeof value !== 'boolean') {
+    throw new TypeError(message ?? `Assertion failed: expected boolean, but got ${typeof value}`);
   }
 }
 
@@ -53,9 +53,9 @@ export function assertDefined<T>(value: T, message?: string): asserts value is N
  * @param message The error message to throw if value is not a boolean
  * @throws {Error} TODO: describe error condition
  */
-export function assertBoolean(value: unknown, message?: string): asserts value is boolean {
-  if (typeof value !== 'boolean') {
-    throw new TypeError(message ?? `Assertion failed: expected boolean, but got ${typeof value}`);
+export function assertDefined<T>(value: T, message?: string): asserts value is NonNullable<T> {
+  if (value == null) {
+    throw new TypeError(message ?? `Assertion failed: value is null or undefined`);
   }
 }
 

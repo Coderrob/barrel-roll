@@ -237,7 +237,7 @@ describe('assert utils', () => {
 
     it('should throw TypeError when function does not throw', () => {
       assert.throws(() => assertThrows(() => {}), TypeError);
-      assert.throws(() => assertThrows(() => 1 + 1), TypeError);
+      assert.throws(() => assertThrows(() => 1 + 2), TypeError);
     });
 
     it('should not throw when function throws expected error type', () => {
@@ -304,7 +304,7 @@ describe('assert utils', () => {
   describe('assertDoesNotThrow', () => {
     it('should not throw when function does not throw', () => {
       assert.doesNotThrow(() => assertDoesNotThrow(() => {}));
-      assert.doesNotThrow(() => assertDoesNotThrow(() => 1 + 1));
+      assert.doesNotThrow(() => assertDoesNotThrow(() => 1 + 2));
       assert.doesNotThrow(() => assertDoesNotThrow(() => 'string'));
     });
 

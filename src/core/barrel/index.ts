@@ -18,8 +18,8 @@ export { BarrelContentBuilder } from './barrel-content.builder.js';
 export { BarrelFileGenerator } from './barrel-file.generator.js';
 export { BarrelContentSanitizer, type ISanitizationResult } from './content-sanitizer.js';
 export {
-  type ICachedExport,
   ExportCache,
+  type ICachedExport,
   type IExportCacheFileSystem,
   type IExportCacheOptions,
   type IExportCacheParser,

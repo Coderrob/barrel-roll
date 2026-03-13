@@ -102,16 +102,27 @@ export async function processConcurrently<T, R>(
    * @param item - The item to process.
    * @returns Promise resolving to the processed result.
    */
-  async function processItem(item: T): Promise<R> {
-    await semaphore.acquire();
-    try {
-      return await processor(item);
-    } finally {
-      semaphore.release();
-    }
+  const processItem = (item: T): Promise<R> => runWithSemaphore(semaphore, processor, item);
+
+  return Promise.all(items.map(processItem));
+}
+
+/**
+ * Runs a single item under semaphore control.
+ * @param semaphore - The semaphore to use for concurrency control.
+ * @param processor - The function that processes the item.
+ * @param item - The item to process.
+ * @returns Promise resolving to the processed result.
+ */
+async function runWithSemaphore<T, R>(
+  semaphore: Semaphore,
+  processor: (item: T) => Promise<R>,
+  item: T,
+): Promise<R> {
+  await semaphore.acquire();
+  try {
+    return await processor(item);
+  } finally {
+    semaphore.release();
   }
-
-  const promises = items.map(processItem);
-
-  return Promise.all(promises);
 }

@@ -218,14 +218,16 @@ export class BarrelContentSanitizer {
     normalizedPath: string,
     decision: IPreservationDecision,
   ): void {
+    const { logger } = this;
+    if (!logger) return;
     if (decision.isExternal) {
-      this.logger?.debug(`Stripping external re-export: ${exportPath}`);
+      logger.debug(`Stripping external re-export: ${exportPath}`);
     } else if (decision.willBeRegenerated) {
-      this.logger?.debug(
+      logger.debug(
         `Stripping re-export that will be regenerated: ${exportPath} (normalized: ${normalizedPath})`,
       );
     } else {
-      this.logger?.debug(`Preserving re-export: ${exportPath}`);
+      logger.debug(`Preserving re-export: ${exportPath}`);
     }
   }
 }

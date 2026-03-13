@@ -16,7 +16,6 @@
  */
 
 import type { IOutputChannel } from '../types/logger.js';
-
 import { formatErrorForLog, isError, safeStringify } from '../utils/index.js';
 
 export type LogMetadata = Record<string, unknown>;

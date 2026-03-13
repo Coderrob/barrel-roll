@@ -15,12 +15,18 @@
  *
  */
 
+import type { Stats } from 'node:fs';
 import { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { INDEX_FILENAME } from '../../types/index.js';
 import { getErrorMessage } from '../../utils/index.js';
+
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
+const MAX_FILE_SIZE_MB = 10;
+const MB_DECIMAL_PLACES = 2;
 
 const IGNORED_DIRECTORIES = new Set([
   // Dependencies
@@ -98,9 +104,13 @@ export class FileSystemService {
    */
   async getTypeScriptFiles(directoryPath: string): Promise<string[]> {
     const entries = await this.readDirectory(directoryPath);
-    return entries
-      .filter((entry) => this.isTypeScriptFile(entry))
-      .map((entry) => path.join(directoryPath, entry.name));
+    /**
+     * Converts a directory entry to its absolute file path.
+     * @param entry - The directory entry to convert.
+     * @returns The absolute file path.
+     */
+    const toAbsolutePath = (entry: Dirent): string => path.join(directoryPath, entry.name);
+    return entries.filter(this.isTypeScriptFile.bind(this)).map(toAbsolutePath);
   }
 
   /**
@@ -110,9 +120,13 @@ export class FileSystemService {
    */
   async getSubdirectories(directoryPath: string): Promise<string[]> {
     const entries = await this.readDirectory(directoryPath);
-    return entries
-      .filter((entry) => this.isTraversableDirectory(entry))
-      .map((entry) => path.join(directoryPath, entry.name));
+    /**
+     * Converts a directory entry to its absolute directory path.
+     * @param entry - The directory entry to convert.
+     * @returns The absolute directory path.
+     */
+    const toAbsolutePath = (entry: Dirent): string => path.join(directoryPath, entry.name);
+    return entries.filter(this.isTraversableDirectory.bind(this)).map(toAbsolutePath);
   }
 
   /**
@@ -186,13 +200,13 @@ export class FileSystemService {
   async readFile(filePath: string): Promise<string> {
     try {
       // Check file size before reading to prevent memory issues with large files
-      const maxFileSizeBytes = 10 * 1024 * 1024; // 10MB limit
+      const maxFileSizeBytes = MAX_FILE_SIZE_MB * BYTES_PER_MB;
       const stats = await this.fs.stat(filePath);
 
       if (stats.size > maxFileSizeBytes) {
         throw new Error(
-          `File ${filePath} is too large (${(stats.size / 1024 / 1024).toFixed(2)}MB). ` +
-            `Maximum allowed size is ${(maxFileSizeBytes / 1024 / 1024).toFixed(0)}MB.`,
+          `File ${filePath} is too large (${(stats.size / BYTES_PER_MB).toFixed(MB_DECIMAL_PLACES)}MB). ` +
+            `Maximum allowed size is ${(maxFileSizeBytes / BYTES_PER_MB).toFixed(0)}MB.`,
         );
       }
 
@@ -297,7 +311,7 @@ export class FileSystemService {
    * @returns Promise that resolves to file stats
    * @throws Error if the stat operation fails
    */
-  async getFileStats(filePath: string): Promise<import('fs').Stats> {
+  async getFileStats(filePath: string): Promise<Stats> {
     try {
       return await this.fs.stat(filePath);
     } catch (error) {

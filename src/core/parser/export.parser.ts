@@ -37,6 +37,21 @@ const SCRIPT_KIND_MAP: Record<string, ScriptKind> = {
 };
 
 /**
+ * Options describing the type-only status of an export to record.
+ */
+interface IRecordExportOptions {
+  typeOnly: boolean;
+}
+
+/**
+ * Options describing the specifier and type-only status of a named export declaration.
+ */
+interface INamedExportOptions {
+  hasModuleSpecifier: boolean;
+  isTypeOnly: boolean;
+}
+
+/**
  * Service responsible for parsing TypeScript exports using the TypeScript AST.
  * This provides accurate parsing by using the TypeScript compiler itself,
  * avoiding false positives from export statements inside strings, comments,
@@ -50,12 +65,7 @@ export class ExportParser {
    * @returns TODO: describe return value
    */
   extractExports(content: string, fileName = 'temp.ts'): IParsedExport[] {
-    // Create a new project instance for each parsing operation to avoid memory accumulation
-    const project = new Project({
-      useInMemoryFileSystem: true,
-      compilerOptions: { allowJs: true, noEmit: true, skipLibCheck: true },
-    });
-
+    const project = this.createProject();
     const exportMap = new Map<string, IParsedExport>();
     const sourceFile = project.createSourceFile(fileName, content, {
       overwrite: true,
@@ -72,12 +82,29 @@ export class ExportParser {
   }
 
   /**
+   * Creates a new in-memory TypeScript project for parsing.
+   * @returns A new Project instance configured for in-memory use.
+   */
+  private createProject(): Project {
+    return new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: { allowJs: true, noEmit: true, skipLibCheck: true },
+    });
+  }
+
+  /**
    * Determines the script kind for a file based on its extension.
    * @param fileName TODO: describe parameter
    * @returns TODO: describe return value
    */
   private getScriptKind(fileName: string): ScriptKind {
-    const ext = Object.keys(SCRIPT_KIND_MAP).find((e) => fileName.endsWith(e));
+    /**
+     * Checks whether the filename ends with the given extension.
+     * @param ext - The file extension to match.
+     * @returns True if the filename ends with the extension.
+     */
+    const matchesExtension = (ext: string): boolean => fileName.endsWith(ext);
+    const ext = Object.keys(SCRIPT_KIND_MAP).find(matchesExtension);
     return ext ? SCRIPT_KIND_MAP[ext] : ScriptKind.TS;
   }
 
@@ -92,7 +119,13 @@ export class ExportParser {
     exportMap: Map<string, IParsedExport>,
   ): IParsedExport[] {
     const result = Array.from(exportMap.values());
-    if (this.hasDefaultExport(sourceFile) && !result.some((e) => e.name === DEFAULT_EXPORT_NAME)) {
+    /**
+     * Checks whether a parsed export is the default export.
+     * @param e - The parsed export to check.
+     * @returns True if the export name matches the default export name.
+     */
+    const isDefaultExport = (e: IParsedExport): boolean => e.name === DEFAULT_EXPORT_NAME;
+    if (this.hasDefaultExport(sourceFile) && !result.some(isDefaultExport)) {
       result.push({ name: DEFAULT_EXPORT_NAME, typeOnly: false });
     }
     return result;
@@ -125,43 +158,41 @@ export class ExportParser {
     const isTypeOnly = exportDecl.isTypeOnly();
 
     for (const namedExport of exportDecl.getNamedExports()) {
-      this.processNamedExport(namedExport, hasModuleSpecifier, isTypeOnly, exportMap);
+      this.processNamedExport(namedExport, { hasModuleSpecifier, isTypeOnly }, exportMap);
     }
   }
 
   /**
    * Records an individual named export, accounting for aliasing and type-only flags.
    * @param namedExport TODO: describe parameter
-   * @param hasModuleSpecifier TODO: describe parameter
-   * @param isTypeOnly TODO: describe parameter
+   * @param options TODO: describe parameter
    * @param exportMap TODO: describe parameter
    */
   private processNamedExport(
     namedExport: ExportSpecifier,
-    hasModuleSpecifier: boolean,
-    isTypeOnly: boolean,
+    options: INamedExportOptions,
     exportMap: Map<string, IParsedExport>,
   ): void {
     const alias = namedExport.getAliasNode()?.getText();
 
     // Skip re-exports without aliases (export { foo } from './module')
-    if (this.isUnaliasedReExport(hasModuleSpecifier, alias)) {
+    if (this.isUnaliasedReExport(options, alias)) {
       return;
     }
 
     const name = alias ?? namedExport.getName();
-    const typeOnly = isTypeOnly || namedExport.isTypeOnly();
-    this.recordExport(exportMap, name, typeOnly);
+    const typeOnly = options.isTypeOnly || namedExport.isTypeOnly();
+    this.recordExport(exportMap, name, { typeOnly });
   }
 
   /**
    * Determines whether a named export is an unaliased re-export (export { foo } from ...).
-   * @param hasModuleSpecifier TODO: describe parameter
+   * @param options TODO: describe parameter
    * @param alias TODO: describe parameter
    * @returns TODO: describe return value
    */
-  private isUnaliasedReExport(hasModuleSpecifier: boolean, alias: string | undefined): boolean {
-    return hasModuleSpecifier && !alias;
+  private isUnaliasedReExport(options: INamedExportOptions, alias: string | undefined): boolean {
+    return options.hasModuleSpecifier && !alias;
   }
 
   /**
@@ -189,10 +220,10 @@ export class ExportParser {
    */
   private processTypeDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
     if (Node.isInterfaceDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), true);
+      this.recordExport(map, stmt.getName(), { typeOnly: true });
     }
     if (Node.isTypeAliasDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), true);
+      this.recordExport(map, stmt.getName(), { typeOnly: true });
     }
   }
 
@@ -207,7 +238,7 @@ export class ExportParser {
     }
     const name = stmt.getName();
     if (name) {
-      this.recordExport(map, name, false);
+      this.recordExport(map, name, { typeOnly: false });
     }
   }
 
@@ -222,7 +253,7 @@ export class ExportParser {
     }
     const name = stmt.getName();
     if (name) {
-      this.recordExport(map, name, false);
+      this.recordExport(map, name, { typeOnly: false });
     }
   }
 
@@ -233,7 +264,7 @@ export class ExportParser {
    */
   private processEnumDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
     if (Node.isEnumDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), false);
+      this.recordExport(map, stmt.getName(), { typeOnly: false });
     }
   }
 
@@ -247,7 +278,7 @@ export class ExportParser {
       return;
     }
     for (const decl of stmt.getDeclarations()) {
-      this.recordExport(map, decl.getName(), false);
+      this.recordExport(map, decl.getName(), { typeOnly: false });
     }
   }
 
@@ -275,7 +306,7 @@ export class ExportParser {
       }
       const hasDefaultAlias = exportDecl
         .getNamedExports()
-        .some((e) => e.getAliasNode()?.getText() === 'default');
+        .some(this.isDefaultAliasSpecifier.bind(this));
       if (hasDefaultAlias) {
         return true;
       }
@@ -284,12 +315,21 @@ export class ExportParser {
   }
 
   /**
+   * Checks whether an export specifier uses the default export name as its alias.
+   * @param specifier - The export specifier to check.
+   * @returns True if the specifier's alias is the default export name.
+   */
+  private isDefaultAliasSpecifier(specifier: ExportSpecifier): boolean {
+    return specifier.getAliasNode()?.getText() === DEFAULT_EXPORT_NAME;
+  }
+
+  /**
    * Detects default export statements (class/function/export assignment).
    * @param sourceFile TODO: describe parameter
    * @returns TODO: describe return value
    */
   private hasDefaultStatement(sourceFile: SourceFile): boolean {
-    return sourceFile.getStatements().some((stmt) => this.isDefaultExportStatement(stmt));
+    return sourceFile.getStatements().some(this.isDefaultExportStatement.bind(this));
   }
 
   /**
@@ -314,11 +354,15 @@ export class ExportParser {
    * Inserts or merges an export entry, preserving type-only status.
    * @param map TODO: describe parameter
    * @param name TODO: describe parameter
-   * @param typeOnly TODO: describe parameter
+   * @param options TODO: describe parameter
    */
-  private recordExport(map: Map<string, IParsedExport>, name: string, typeOnly: boolean): void {
+  private recordExport(
+    map: Map<string, IParsedExport>,
+    name: string,
+    options: IRecordExportOptions,
+  ): void {
     const existing = map.get(name);
-    const merged = existing ? existing.typeOnly && typeOnly : typeOnly;
+    const merged = existing ? existing.typeOnly && options.typeOnly : options.typeOnly;
     map.set(name, { name, typeOnly: merged });
   }
 }

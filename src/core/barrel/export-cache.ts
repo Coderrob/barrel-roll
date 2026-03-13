@@ -93,7 +93,10 @@ export class ExportCache {
    * @param currentMtime - The current modification time.
    * @returns Promise resolving to the parsed exports.
    */
-  private async fetchAndCacheExports(filePath: string, currentMtime: number): Promise<IParsedExport[]> {
+  private async fetchAndCacheExports(
+    filePath: string,
+    currentMtime: number,
+  ): Promise<IParsedExport[]> {
     const content = await this.fileSystemService.readFile(filePath);
     const exports = this.exportParser.extractExports(content);
     this.cache.set(filePath, { exports, mtime: currentMtime });

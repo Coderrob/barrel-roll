@@ -30,26 +30,15 @@ function compareDefault(a: string, b: string): number {
  * @param fragment - The string fragment to trim.
  * @returns The trimmed string.
  */
-function trimFragment(fragment: string): string {
-  return fragment.trim();
+function isNonEmpty(fragment: string): boolean {
+  return fragment.length > 0;
 }
 
 /**
  * Checks whether a string fragment is non-empty.
  * @param fragment - The fragment to check.
  * @returns True if the fragment is non-empty.
- */
-function isNonEmpty(fragment: string): boolean {
-  return fragment.length > 0;
-}
-
-/**
- * Splits a string by the given delimiter, trims whitespace from each fragment,
- * and removes any empty fragments.
- *
- * @param value - The string to split and clean.
- * @param delimiter - The delimiter to split the string by. Defaults to a comma.
- * @returns An array of cleaned string fragments.
+ * @param locale TODO: describe parameter
  * @param options TODO: describe parameter
  */
 export function sortAlphabetically(
@@ -68,16 +57,26 @@ export function sortAlphabetically(
   }
 
   /**
-   * Compares two strings using locale-aware comparison.
-   * @param a - The first string.
-   * @param b - The second string.
+   * Compares two strings using locale settings.
+   * @param a - First string to compare.
+   * @param b - Second string to compare.
    * @returns Negative, zero, or positive comparison result.
    */
-  function compareLocale(a: string, b: string): number {
-    return a.localeCompare(b, locale, options);
-  }
+  const localeCompare = (a: string, b: string): number => a.localeCompare(b, locale, options);
+  return entries.sort(localeCompare);
+}
 
-  return entries.sort(compareLocale);
+/**
+ * Splits a string by the given delimiter, trims whitespace from each fragment,
+ * and removes any empty fragments.
+ *
+ * @param value - The string to split and clean.
+ * @param delimiter - The delimiter to split the string by. Defaults to a comma.
+ * @returns An array of cleaned string fragments.
+ * @param options TODO: describe parameter
+ */
+export function splitAndClean(value: string, delimiter: string | RegExp = /,/): string[] {
+  return value.split(delimiter).map(trimFragment).filter(isNonEmpty);
 }
 
 /**
@@ -88,6 +87,6 @@ export function sortAlphabetically(
  * @param options - Optional Intl.Collator configuration for fine-grained control.
  * @returns A new array containing the sorted values.
  */
-export function splitAndClean(value: string, delimiter: string | RegExp = /,/): string[] {
-  return value.split(delimiter).map(trimFragment).filter(isNonEmpty);
+function trimFragment(fragment: string): string {
+  return fragment.trim();
 }

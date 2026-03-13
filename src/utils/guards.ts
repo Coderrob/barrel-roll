@@ -22,8 +22,7 @@
  */
 export function isError(value: unknown): value is Error {
   return (
-    value instanceof Error ||
-    (isObject(value) && 'message' in value && isString((value as Record<string, unknown>).message))
+    value instanceof Error || (isObject(value) && 'message' in value && isString(value.message))
   );
 }
 
