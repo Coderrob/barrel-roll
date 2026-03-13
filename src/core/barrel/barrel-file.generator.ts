@@ -27,9 +27,9 @@ import {
   BarrelGenerationMode,
   DEFAULT_EXPORT_NAME,
   type IBarrelGenerationOptions,
+  type ILoggerInstance,
   INDEX_FILENAME,
   type IParsedExport,
-  type LoggerInstance,
   type NormalizedBarrelGenerationOptions,
 } from '../../types/index.js';
 import { processConcurrently } from '../../utils/semaphore.js';
@@ -45,9 +45,25 @@ type NormalizedGenerationOptions = NormalizedBarrelGenerationOptions;
 /**
  * Information about TypeScript files and subdirectories in a directory.
  */
-interface DirectoryInfo {
+interface IDirectoryInfo {
   tsFiles: string[];
   subdirectories: string[];
+}
+
+/**
+ * Options for building barrel file content.
+ */
+interface IBarrelBuildOptions {
+  hasExistingIndex: boolean;
+}
+
+/**
+ * Checks whether a string line contains any non-whitespace content.
+ * @param line - The line to check.
+ * @returns True if the line is non-empty after trimming.
+ */
+function isNonEmptyTrimmedLine(line: string): boolean {
+  return line.trim().length > 0;
 }
 
 /**
@@ -70,7 +86,7 @@ export class BarrelFileGenerator {
     fileSystemService?: FileSystemService,
     exportParser?: ExportParser,
     barrelContentBuilder?: BarrelContentBuilder,
-    logger?: LoggerInstance,
+    logger?: ILoggerInstance,
   ) {
     this.barrelContentBuilder = barrelContentBuilder || new BarrelContentBuilder();
     this.fileSystemService = fileSystemService || new FileSystemService();
@@ -103,23 +119,35 @@ export class BarrelFileGenerator {
   ): Promise<void> {
     const barrelFilePath = path.join(directoryPath, INDEX_FILENAME);
     const { tsFiles, subdirectories } = await this.readDirectoryInfo(directoryPath);
-
     if (options.recursive) {
       await this.processChildDirectories(subdirectories, options, depth);
     }
-
     const entries = await this.collectEntries(directoryPath, tsFiles, subdirectories);
+    await this.writeBarrelIfNeeded(directoryPath, entries, barrelFilePath, options);
+  }
 
+  /**
+   * Writes the barrel file if content generation conditions are met.
+   * @param directoryPath The directory path.
+   * @param entries The collected entries.
+   * @param barrelFilePath The barrel file path.
+   * @param options Normalized generation options.
+   * @returns Promise that resolves when done.
+   */
+  private async writeBarrelIfNeeded(
+    directoryPath: string,
+    entries: Map<string, BarrelEntry>,
+    barrelFilePath: string,
+    options: NormalizedGenerationOptions,
+  ): Promise<void> {
     const hasExistingIndex = await this.fileSystemService.fileExists(barrelFilePath);
-    if (!this.shouldWriteBarrel(entries, options, hasExistingIndex)) {
-      return;
-    }
-
+    const buildOptions: IBarrelBuildOptions = { hasExistingIndex };
+    if (!this.shouldWriteBarrel(entries, options, buildOptions)) return;
     const barrelContent = await this.buildBarrelContent(
       directoryPath,
       entries,
       barrelFilePath,
-      hasExistingIndex,
+      buildOptions,
     );
     await this.fileSystemService.writeFile(barrelFilePath, barrelContent);
   }
@@ -136,9 +164,9 @@ export class BarrelFileGenerator {
     directoryPath: string,
     entries: Map<string, BarrelEntry>,
     barrelFilePath: string,
-    hasExistingIndex: boolean,
+    buildOptions: IBarrelBuildOptions,
   ): Promise<string> {
-    const exportExtension = await this.determineExportExtension(barrelFilePath, hasExistingIndex);
+    const exportExtension = await this.determineExportExtension(barrelFilePath, buildOptions);
 
     const newContent = await this.barrelContentBuilder.buildContent(
       entries,
@@ -146,7 +174,7 @@ export class BarrelFileGenerator {
       exportExtension,
     );
 
-    if (!hasExistingIndex) {
+    if (!buildOptions.hasExistingIndex) {
       return newContent;
     }
 
@@ -174,7 +202,7 @@ export class BarrelFileGenerator {
 
     const newContentLines = newContent.trim() ? newContent.trim().split('\n') : [];
     const allLines = [...preservedLines, ...newContentLines];
-    const filteredLines = allLines.filter((line) => line.trim().length > 0);
+    const filteredLines = allLines.filter(isNonEmptyTrimmedLine);
 
     return filteredLines.length > 0 ? filteredLines.join('\n') + '\n' : '\n';
   }
@@ -200,8 +228,10 @@ export class BarrelFileGenerator {
 
   /**
    * Reads directory info for TypeScript files and subdirectories.
+   * @param directoryPath TODO: describe parameter
+   * @returns TODO: describe return value
    */
-  private async readDirectoryInfo(directoryPath: string): Promise<DirectoryInfo> {
+  private async readDirectoryInfo(directoryPath: string): Promise<IDirectoryInfo> {
     const [tsFiles, subdirectories] = await Promise.all([
       this.fileSystemService.getTypeScriptFiles(directoryPath),
       this.fileSystemService.getSubdirectories(directoryPath),
@@ -286,7 +316,7 @@ export class BarrelFileGenerator {
       const batch = tsFiles.slice(i, i + batchSize);
       const results = await processConcurrently(batch, concurrencyLimit, async (filePath) => {
         try {
-          const parsedExports = await this.exportCache.getExports(filePath);
+          const parsedExports = await this.exportCache.resolveExports(filePath);
           const exports = this.normalizeParsedExports(parsedExports);
 
           if (exports.length === 0) {

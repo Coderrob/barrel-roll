@@ -16,27 +16,30 @@
  */
 
 /**
- * Splits a string by the given delimiter, trims whitespace from each fragment,
- * and removes any empty fragments.
- *
- * @param value - The string to split and clean.
- * @param delimiter - The delimiter to split the string by. Defaults to a comma.
- * @returns An array of cleaned string fragments.
+ * Compares two strings using default locale comparison.
+ * @param a - The first string.
+ * @param b - The second string.
+ * @returns Negative, zero, or positive comparison result.
  */
-export function splitAndClean(value: string, delimiter: string | RegExp = /,/): string[] {
-  return value
-    .split(delimiter)
-    .map((fragment) => fragment.trim())
-    .filter((fragment) => fragment.length > 0);
+function compareDefault(a: string, b: string): number {
+  return a.localeCompare(b);
 }
 
 /**
- * Returns a new array of strings sorted alphabetically using locale-aware comparison.
- *
- * @param values - Iterable collection of string values to sort.
- * @param locale - Optional locale or locales to use for comparison.
- * @param options - Optional Intl.Collator configuration for fine-grained control.
- * @returns A new array containing the sorted values.
+ * Trims leading and trailing whitespace from a string fragment.
+ * @param fragment - The string fragment to trim.
+ * @returns The trimmed string.
+ */
+function isNonEmpty(fragment: string): boolean {
+  return fragment.length > 0;
+}
+
+/**
+ * Checks whether a string fragment is non-empty.
+ * @param fragment - The fragment to check.
+ * @returns True if the fragment is non-empty.
+ * @param locale TODO: describe parameter
+ * @param options TODO: describe parameter
  */
 export function sortAlphabetically(
   values: Iterable<string>,
@@ -50,8 +53,40 @@ export function sortAlphabetically(
   }
 
   if (locale === undefined && options === undefined) {
-    return entries.sort((a, b) => a.localeCompare(b));
+    return entries.sort(compareDefault);
   }
 
-  return entries.sort((a, b) => a.localeCompare(b, locale, options));
+  /**
+   * Compares two strings using locale settings.
+   * @param a - First string to compare.
+   * @param b - Second string to compare.
+   * @returns Negative, zero, or positive comparison result.
+   */
+  const localeCompare = (a: string, b: string): number => a.localeCompare(b, locale, options);
+  return entries.sort(localeCompare);
+}
+
+/**
+ * Splits a string by the given delimiter, trims whitespace from each fragment,
+ * and removes any empty fragments.
+ *
+ * @param value - The string to split and clean.
+ * @param delimiter - The delimiter to split the string by. Defaults to a comma.
+ * @returns An array of cleaned string fragments.
+ * @param options TODO: describe parameter
+ */
+export function splitAndClean(value: string, delimiter: string | RegExp = /,/): string[] {
+  return value.split(delimiter).map(trimFragment).filter(isNonEmpty);
+}
+
+/**
+ * Returns a new array of strings sorted alphabetically using locale-aware comparison.
+ *
+ * @param values - Iterable collection of string values to sort.
+ * @param locale - Optional locale or locales to use for comparison.
+ * @param options - Optional Intl.Collator configuration for fine-grained control.
+ * @returns A new array containing the sorted values.
+ */
+function trimFragment(fragment: string): string {
+  return fragment.trim();
 }

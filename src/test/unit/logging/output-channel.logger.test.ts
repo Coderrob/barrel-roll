@@ -217,13 +217,13 @@ describe('OutputChannelLogger', () => {
 
   it('should log errors from grouped operations', async () => {
     const logger = new OutputChannelLogger({ console: false });
-    const failure = new Error('group failure');
+    const failureMessage = 'group failure';
 
     await assert.rejects(
       logger.group('failures', async () => {
-        throw failure;
+        throw new Error(failureMessage);
       }),
-      (error) => error === failure,
+      (error) => error instanceof Error && error.message === failureMessage,
     );
 
     assert.strictEqual(outputLines.length, 2);

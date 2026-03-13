@@ -41,6 +41,8 @@ export type FakeUri = { fsPath: string };
 
 /**
  *
+ * @param fsPath TODO: describe parameter
+ * @returns TODO: describe return value
  */
 export function uriFile(fsPath: string): FakeUri {
   return { fsPath: path.normalize(fsPath) };
@@ -66,4 +68,4 @@ export type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
 export type DeactivateFn = () => void;
 
 // Minimal runtime shape for the OutputChannelLogger class used in tests
-export type { LoggerConstructor, LoggerInstance } from '../types/index.js';
+export type { ILoggerConstructor, ILoggerInstance } from '../types/index.js';

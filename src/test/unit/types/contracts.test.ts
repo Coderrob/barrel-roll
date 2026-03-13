@@ -19,15 +19,6 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
-  assert as customAssert,
-  assertDefined,
-  assertEqual,
-  assertString,
-  assertNumber,
-  assertBoolean,
-} from '../../../utils/assert.js';
-
-import {
   BarrelEntryKind,
   BarrelExportKind,
   BarrelGenerationMode,
@@ -41,6 +32,15 @@ import {
   type IParsedExport,
   type NormalizedBarrelGenerationOptions,
 } from '../../../types/index.js';
+
+import {
+  assert as customAssert,
+  assertDefined,
+  assertEqual,
+  assertString,
+  assertNumber,
+  assertBoolean,
+} from '../../../utils/assert.js';
 
 /**
  * Contract validation tests to ensure type safety and behavioral expectations

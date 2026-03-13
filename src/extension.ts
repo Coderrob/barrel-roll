@@ -138,6 +138,51 @@ export function deactivate(): void {
  * @param generator The barrel file generator instance.
  * @param descriptor The command descriptor containing options and messages.
  * @returns A disposable for the registered command.
+ * @throws {Error} TODO: describe error condition
+ */
+async function ensureDirectoryUri(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
+  try {
+    const stat = await vscode.workspace.fs.stat(uri);
+    if (stat.type === vscode.FileType.Directory) {
+      return uri;
+    }
+    if (stat.type === vscode.FileType.File) {
+      return vscode.Uri.file(path.dirname(uri.fsPath));
+    }
+  } catch (error) {
+    const message = getErrorMessage(error);
+    throw new Error(`Unable to access selected resource: ${message}`);
+  }
+
+  return uri;
+}
+
+/**
+ * Resolves the target directory for barrel generation from the provided URI or user prompt.
+ * @param uri Optional URI from the command invocation.
+ * @returns Promise that resolves to the target directory URI, or undefined if cancelled.
+ * @param descriptor TODO: describe parameter
+ */
+async function promptForDirectory(): Promise<vscode.Uri | undefined> {
+  const selected = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    openLabel: 'Select folder to barrel',
+  });
+
+  if (!selected || selected.length === 0) {
+    return undefined;
+  }
+
+  return selected[0];
+}
+
+/**
+ * Prompts the user to select a directory for barrel generation.
+ * @returns Promise that resolves to the selected directory URI, or undefined if cancelled.
+ * @param uri TODO: describe parameter
+ * @param descriptor TODO: describe parameter
  */
 function registerBarrelCommand(
   generator: BarrelFileGenerator,
@@ -165,9 +210,10 @@ function registerBarrelCommand(
 }
 
 /**
- * Resolves the target directory for barrel generation from the provided URI or user prompt.
- * @param uri Optional URI from the command invocation.
- * @returns Promise that resolves to the target directory URI, or undefined if cancelled.
+ * Ensures the provided URI points to a directory, converting file URIs to their parent directory.
+ * @param uri The URI to validate and potentially convert.
+ * @returns Promise that resolves to a directory URI, or undefined if validation fails.
+ * @throws {Error} TODO: describe error condition
  */
 async function resolveTargetDirectory(uri?: vscode.Uri): Promise<vscode.Uri | undefined> {
   const initial = uri ?? (await promptForDirectory());
@@ -176,47 +222,6 @@ async function resolveTargetDirectory(uri?: vscode.Uri): Promise<vscode.Uri | un
   }
 
   return ensureDirectoryUri(initial);
-}
-
-/**
- * Prompts the user to select a directory for barrel generation.
- * @returns Promise that resolves to the selected directory URI, or undefined if cancelled.
- */
-async function promptForDirectory(): Promise<vscode.Uri | undefined> {
-  const selected = await vscode.window.showOpenDialog({
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    openLabel: 'Select folder to barrel',
-  });
-
-  if (!selected || selected.length === 0) {
-    return undefined;
-  }
-
-  return selected[0];
-}
-
-/**
- * Ensures the provided URI points to a directory, converting file URIs to their parent directory.
- * @param uri The URI to validate and potentially convert.
- * @returns Promise that resolves to a directory URI, or undefined if validation fails.
- */
-async function ensureDirectoryUri(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
-  try {
-    const stat = await vscode.workspace.fs.stat(uri);
-    if (stat.type === vscode.FileType.Directory) {
-      return uri;
-    }
-    if (stat.type === vscode.FileType.File) {
-      return vscode.Uri.file(path.dirname(uri.fsPath));
-    }
-  } catch (error) {
-    const message = getErrorMessage(error);
-    throw new Error(`Unable to access selected resource: ${message}`);
-  }
-
-  return uri;
 }
 
 /**

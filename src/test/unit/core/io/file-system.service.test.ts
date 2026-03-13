@@ -20,8 +20,8 @@ import { Dirent } from 'node:fs';
 import * as path from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
 
-import { INDEX_FILENAME } from '../../../../types/index.js';
 import { FileSystemService } from '../../../../core/io/file-system.service.js';
+import { INDEX_FILENAME } from '../../../../types/index.js';
 
 describe('FileSystemService', () => {
   let service: FileSystemService;
@@ -52,7 +52,7 @@ describe('FileSystemService', () => {
   ): Promise<void> {
     for (const [index, { entry, shouldInclude }] of testCases.entries()) {
       it(`${testNamePrefix} ${index}`, async () => {
-        mockFs.readdir.mockResolvedValue([entry] as never);
+        mockFs.readdir.mockResolvedValueOnce([entry] as never);
 
         const result = await methodUnderTest(directoryPath);
 
@@ -82,12 +82,12 @@ describe('FileSystemService', () => {
       }) as any;
 
       mockFn.mock = { calls };
-      mockFn.mockResolvedValue = (value: any) => {
+      mockFn.mockResolvedValueOnce = (value: any) => {
         resolvedValue = value;
         rejectedValue = undefined;
         return mockFn;
       };
-      mockFn.mockRejectedValue = (error: any) => {
+      mockFn.mockRejectedValueOnce = (error: any) => {
         rejectedValue = error;
         resolvedValue = undefined;
         return mockFn;
@@ -108,13 +108,13 @@ describe('FileSystemService', () => {
     };
 
     // Set default implementations
-    mockFs.readFile.mockResolvedValue('');
-    mockFs.writeFile.mockResolvedValue(undefined);
-    mockFs.mkdir.mockResolvedValue(undefined);
-    mockFs.rm.mockResolvedValue(undefined);
-    mockFs.mkdtemp.mockResolvedValue('');
-    mockFs.access.mockResolvedValue(undefined);
-    mockFs.readdir.mockResolvedValue([]);
+    mockFs.readFile.mockResolvedValueOnce('');
+    mockFs.writeFile.mockResolvedValueOnce(undefined);
+    mockFs.mkdir.mockResolvedValueOnce(undefined);
+    mockFs.rm.mockResolvedValueOnce(undefined);
+    mockFs.mkdtemp.mockResolvedValueOnce('');
+    mockFs.access.mockResolvedValueOnce(undefined);
+    mockFs.readdir.mockResolvedValueOnce([]);
 
     service = new FileSystemService(mockFs);
   });
@@ -141,7 +141,7 @@ describe('FileSystemService', () => {
         createFileEntry('component.test.tsx'),
         createDirectoryEntry('nested'),
       ];
-      mockFs.readdir.mockResolvedValue(mockEntries as never);
+      mockFs.readdir.mockResolvedValueOnce(mockEntries as never);
 
       const result = await service.getTypeScriptFiles(directoryPath);
 
@@ -173,7 +173,7 @@ describe('FileSystemService', () => {
     );
 
     it('should throw error if directory read fails', async () => {
-      mockFs.readdir.mockRejectedValue(new Error('Read error'));
+      mockFs.readdir.mockRejectedValueOnce(new Error('Read error'));
 
       await assert.rejects(
         service.getTypeScriptFiles('/invalid/path'),
@@ -182,7 +182,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if directory read fails with non-Error object', async () => {
-      mockFs.readdir.mockRejectedValue('String error');
+      mockFs.readdir.mockRejectedValueOnce('String error');
 
       await assert.rejects(
         service.getTypeScriptFiles('/invalid/path'),
@@ -201,7 +201,7 @@ describe('FileSystemService', () => {
         createDirectoryEntry('.hidden'),
         createFileEntry('file.ts'),
       ];
-      mockFs.readdir.mockResolvedValue(mockEntries as never);
+      mockFs.readdir.mockResolvedValueOnce(mockEntries as never);
 
       const result = await service.getSubdirectories(directoryPath);
 
@@ -224,7 +224,7 @@ describe('FileSystemService', () => {
     );
 
     it('should throw error if directory read fails', async () => {
-      mockFs.readdir.mockRejectedValue(new Error('Read error'));
+      mockFs.readdir.mockRejectedValueOnce(new Error('Read error'));
 
       await assert.rejects(
         service.getSubdirectories('/invalid/path'),
@@ -233,7 +233,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if directory read fails with non-Error object', async () => {
-      mockFs.readdir.mockRejectedValue('String error');
+      mockFs.readdir.mockRejectedValueOnce('String error');
 
       await assert.rejects(
         service.getSubdirectories('/invalid/path'),
@@ -244,8 +244,8 @@ describe('FileSystemService', () => {
 
   describe('readFile', () => {
     it('should read file content successfully', async () => {
-      mockFs.stat.mockResolvedValue({ size: 1024, mtime: new Date() });
-      mockFs.readFile.mockResolvedValue('file content');
+      mockFs.stat.mockResolvedValueOnce({ size: 1024, mtime: new Date() });
+      mockFs.readFile.mockResolvedValueOnce('file content');
 
       const result = await service.readFile('/path/to/file.ts');
 
@@ -254,8 +254,8 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file read fails', async () => {
-      mockFs.stat.mockResolvedValue({ size: 1024, mtime: new Date() });
-      mockFs.readFile.mockRejectedValue(new Error('Read error'));
+      mockFs.stat.mockResolvedValueOnce({ size: 1024, mtime: new Date() });
+      mockFs.readFile.mockRejectedValueOnce(new Error('Read error'));
 
       await assert.rejects(
         service.readFile('/invalid/path'),
@@ -264,8 +264,8 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file read fails with non-Error object', async () => {
-      mockFs.stat.mockResolvedValue({ size: 1024, mtime: new Date() });
-      mockFs.readFile.mockRejectedValue({ custom: 'error' });
+      mockFs.stat.mockResolvedValueOnce({ size: 1024, mtime: new Date() });
+      mockFs.readFile.mockRejectedValueOnce({ custom: 'error' });
 
       await assert.rejects(
         service.readFile('/invalid/path'),
@@ -274,7 +274,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file is too large', async () => {
-      mockFs.stat.mockResolvedValue({ size: 15 * 1024 * 1024, mtime: new Date() }); // 15MB
+      mockFs.stat.mockResolvedValueOnce({ size: 15 * 1024 * 1024, mtime: new Date() }); // 15MB
 
       await assert.rejects(
         service.readFile('/path/to/large-file.ts'),
@@ -285,7 +285,7 @@ describe('FileSystemService', () => {
 
   describe('writeFile', () => {
     it('should write file content successfully', async () => {
-      mockFs.writeFile.mockResolvedValue(undefined as never);
+      mockFs.writeFile.mockResolvedValueOnce(undefined as never);
 
       await service.writeFile('/path/to/file.ts', 'content');
 
@@ -295,7 +295,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file write fails', async () => {
-      mockFs.writeFile.mockRejectedValue(new Error('Write error'));
+      mockFs.writeFile.mockRejectedValueOnce(new Error('Write error'));
 
       await assert.rejects(
         service.writeFile('/invalid/path', 'content'),
@@ -304,7 +304,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error if file write fails with non-Error object', async () => {
-      mockFs.writeFile.mockRejectedValue('String error');
+      mockFs.writeFile.mockRejectedValueOnce('String error');
 
       await assert.rejects(
         service.writeFile('/invalid/path', 'content'),
@@ -315,7 +315,7 @@ describe('FileSystemService', () => {
 
   describe('ensureDirectory', () => {
     it('should create directory recursively', async () => {
-      mockFs.mkdir.mockResolvedValue(undefined as never);
+      mockFs.mkdir.mockResolvedValueOnce(undefined as never);
 
       await service.ensureDirectory('/path/to/dir');
 
@@ -323,7 +323,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error when directory creation fails', async () => {
-      mockFs.mkdir.mockRejectedValue(new Error('mkdir error'));
+      mockFs.mkdir.mockRejectedValueOnce(new Error('mkdir error'));
 
       await assert.rejects(
         service.ensureDirectory('/path/to/dir'),
@@ -332,7 +332,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error when directory creation fails with non-Error object', async () => {
-      mockFs.mkdir.mockRejectedValue('String error');
+      mockFs.mkdir.mockRejectedValueOnce('String error');
 
       await assert.rejects(
         service.ensureDirectory('/path/to/dir'),
@@ -343,7 +343,7 @@ describe('FileSystemService', () => {
 
   describe('removePath', () => {
     it('should remove path recursively', async () => {
-      mockFs.rm.mockResolvedValue(undefined as never);
+      mockFs.rm.mockResolvedValueOnce(undefined as never);
 
       await service.removePath('/path/to/remove');
 
@@ -353,7 +353,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error when removal fails', async () => {
-      mockFs.rm.mockRejectedValue(new Error('rm error'));
+      mockFs.rm.mockRejectedValueOnce(new Error('rm error'));
 
       await assert.rejects(
         service.removePath('/path/to/remove'),
@@ -362,7 +362,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error when removal fails with non-Error object', async () => {
-      mockFs.rm.mockRejectedValue('String error');
+      mockFs.rm.mockRejectedValueOnce('String error');
 
       await assert.rejects(
         service.removePath('/path/to/remove'),
@@ -373,7 +373,7 @@ describe('FileSystemService', () => {
 
   describe('createTempDirectory', () => {
     it('should create temp directory with prefix', async () => {
-      mockFs.mkdtemp.mockResolvedValue('/tmp/foo123' as never);
+      mockFs.mkdtemp.mockResolvedValueOnce('/tmp/foo123' as never);
 
       const result = await service.createTempDirectory('/tmp/foo-');
 
@@ -382,7 +382,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error when temp directory creation fails', async () => {
-      mockFs.mkdtemp.mockRejectedValue(new Error('mkdtemp error'));
+      mockFs.mkdtemp.mockRejectedValueOnce(new Error('mkdtemp error'));
 
       await assert.rejects(
         service.createTempDirectory('/tmp/foo-'),
@@ -391,7 +391,7 @@ describe('FileSystemService', () => {
     });
 
     it('should throw error when temp directory creation fails with non-Error object', async () => {
-      mockFs.mkdtemp.mockRejectedValue('String error');
+      mockFs.mkdtemp.mockRejectedValueOnce('String error');
 
       await assert.rejects(
         service.createTempDirectory('/tmp/foo-'),
@@ -407,9 +407,9 @@ describe('FileSystemService', () => {
       it(`should evaluate file existence ${index}`, async () => {
         const filePath = expected ? '/path/to/file.ts' : '/invalid/path';
         if (expected) {
-          mockFs.access.mockResolvedValue(undefined as never);
+          mockFs.access.mockResolvedValueOnce(undefined as never);
         } else {
-          mockFs.access.mockRejectedValue(new Error('Access error'));
+          mockFs.access.mockRejectedValueOnce(new Error('Access error'));
         }
 
         const result = await service.fileExists(filePath);
@@ -426,7 +426,7 @@ describe('FileSystemService', () => {
     for (const [index, expected] of isDirectoryCases.entries()) {
       it(`should evaluate if path is directory ${index}`, async () => {
         const filePath = expected ? '/path/to/directory' : '/path/to/file.ts';
-        mockFs.stat.mockResolvedValue({
+        mockFs.stat.mockResolvedValueOnce({
           isDirectory: () => expected,
         } as never);
 
@@ -439,7 +439,7 @@ describe('FileSystemService', () => {
 
     it('should return false when stat fails', async () => {
       const filePath = '/invalid/path';
-      mockFs.stat.mockRejectedValue(new Error('Stat error'));
+      mockFs.stat.mockRejectedValueOnce(new Error('Stat error'));
 
       const result = await service.isDirectory(filePath);
 

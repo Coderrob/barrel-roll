@@ -16,13 +16,13 @@
  */
 export { BarrelContentBuilder } from './barrel-content.builder.js';
 export { BarrelFileGenerator } from './barrel-file.generator.js';
-export { BarrelContentSanitizer, type SanitizationResult } from './content-sanitizer.js';
+export { BarrelContentSanitizer, type ISanitizationResult } from './content-sanitizer.js';
 export {
-  type CachedExport,
   ExportCache,
-  type ExportCacheFileSystem,
-  type ExportCacheOptions,
-  type ExportCacheParser,
+  type ICachedExport,
+  type IExportCacheFileSystem,
+  type IExportCacheOptions,
+  type IExportCacheParser,
 } from './export-cache.js';
 export {
   detectExtensionFromBarrelContent,

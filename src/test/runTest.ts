@@ -64,6 +64,7 @@ async function main(): Promise<void> {
 
 /**
  * Determines whether to skip VS Code integration tests based on environment conditions.
+ * @returns TODO: describe return value
  */
 function shouldSkipVscodeTests(): boolean {
   return Boolean(process.env.CI) || !process.stdout.isTTY || process.platform === 'linux';

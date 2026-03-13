@@ -15,8 +15,7 @@
  *
  */
 
-import type { OutputChannel } from 'vscode';
-
+import type { IOutputChannel } from '../types/logger.js';
 import { formatErrorForLog, isError, safeStringify } from '../utils/index.js';
 
 export type LogMetadata = Record<string, unknown>;
@@ -32,11 +31,31 @@ export enum LogLevel {
 /**
  * Configuration options for the OutputChannelLogger.
  */
-export interface LoggerOptions {
+export interface ILoggerOptions {
   /** Minimum log level to emit. Defaults to LogLevel.Info. */
   level?: LogLevel;
   /** Whether to also log to the console. Defaults to true. */
   console?: boolean;
+}
+
+const LOG_LEVEL_DEBUG = 0;
+const LOG_LEVEL_INFO = 1;
+const LOG_LEVEL_WARN = 2;
+const LOG_LEVEL_ERROR = 3;
+const LOG_LEVEL_FATAL = 4;
+
+/**
+ * Normalizes a single metadata entry by replacing Error values with their message.
+ * @param accumulator - The accumulating normalized record.
+ * @param entry - The key-value pair to normalize.
+ * @returns The updated accumulator.
+ */
+function normalizeMetadataEntry(
+  accumulator: Record<string, unknown>,
+  [key, value]: [string, unknown],
+): Record<string, unknown> {
+  accumulator[key] = isError(value) ? value.message : value;
+  return accumulator;
 }
 
 /**
@@ -44,23 +63,23 @@ export interface LoggerOptions {
  * Provides structured logging with metadata support and optional console output.
  */
 export class OutputChannelLogger {
-  private static sharedOutputChannel?: OutputChannel;
-  private readonly options: Required<LoggerOptions>;
+  private static sharedOutputChannel?: IOutputChannel;
+  private readonly options: Required<ILoggerOptions>;
   private bindings: LogMetadata = {};
 
   private static readonly LOG_LEVELS: Record<LogLevel, number> = {
-    [LogLevel.Debug]: 0,
-    [LogLevel.Info]: 1,
-    [LogLevel.Warn]: 2,
-    [LogLevel.Error]: 3,
-    [LogLevel.Fatal]: 4,
+    [LogLevel.Debug]: LOG_LEVEL_DEBUG,
+    [LogLevel.Info]: LOG_LEVEL_INFO,
+    [LogLevel.Warn]: LOG_LEVEL_WARN,
+    [LogLevel.Error]: LOG_LEVEL_ERROR,
+    [LogLevel.Fatal]: LOG_LEVEL_FATAL,
   };
 
   /**
    * Creates a new OutputChannelLogger instance.
    * @param options - Optional configuration for the logger.
    */
-  constructor(options?: LoggerOptions) {
+  constructor(options?: ILoggerOptions) {
     this.options = {
       level: options?.level ?? LogLevel.Info,
       console: options?.console ?? true,
@@ -71,7 +90,7 @@ export class OutputChannelLogger {
    * Configure a shared VS Code output channel used by all logger instances.
    * @param channel - Output channel to use for log messages.
    */
-  static configureOutputChannel(channel: OutputChannel | undefined): void {
+  static configureOutputChannel(channel: IOutputChannel | undefined): void {
     OutputChannelLogger.sharedOutputChannel = channel;
   }
 
@@ -144,6 +163,7 @@ export class OutputChannelLogger {
    * @param name - The name of the group.
    * @param fn - The function to execute within the group.
    * @returns A promise that resolves when the group operation completes.
+   * @throws {Error} TODO: describe error condition
    */
   async group<T>(name: string, fn: () => Promise<T>): Promise<T> {
     const childLogger = this.child({ group: name });
@@ -241,15 +261,10 @@ export class OutputChannelLogger {
     if (!metadata || Object.keys(metadata).length === 0) {
       return undefined;
     }
-
     const normalized = Object.entries(metadata).reduce<Record<string, unknown>>(
-      (accumulator, [key, value]) => {
-        accumulator[key] = isError(value) ? value.message : value;
-        return accumulator;
-      },
+      normalizeMetadataEntry,
       {},
     );
-
     return safeStringify(normalized);
   }
 

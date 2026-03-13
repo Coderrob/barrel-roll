@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
+import zeroTolerance from '@coderrob/eslint-plugin-zero-tolerance';
 import _import from 'eslint-plugin-import';
 import jsdoc from 'eslint-plugin-jsdoc';
 import prettier from 'eslint-plugin-prettier';
@@ -69,6 +70,7 @@ export default [
       jsdoc,
       'simple-import-sort': simpleImportSort,
       sonarjs,
+      'zero-tolerance': zeroTolerance,
       local: localPlugin,
     },
     settings: {
@@ -176,6 +178,9 @@ export default [
       'no-shadow': 'off',
       'space-in-parens': ['error', 'never'],
       'spaced-comment': ['error', 'always'],
+
+      // Zero-tolerance rules
+      ...zeroTolerance.configs.recommended.rules,
     },
   },
 
@@ -202,12 +207,33 @@ export default [
       'sonarjs/publicly-writable-directories': 'off',
       'simple-import-sort/imports': 'off',
       'simple-import-sort/exports': 'off',
+      // Zero-tolerance rules relaxed for test callbacks and test data
+      'zero-tolerance/max-function-lines': 'off', // describe/it callbacks are inherently long
+      'zero-tolerance/no-magic-numbers': 'off', // test data values are inline by design
+      'zero-tolerance/no-magic-strings': 'off', // test data strings are inline by design
+      'zero-tolerance/no-type-assertion': 'off', // test mocks need type assertions for VS Code types
+      'zero-tolerance/require-jsdoc-functions': 'off', // test callbacks don't need JSDoc
+    },
+  },
+
+  // Test infrastructure files (helpers, runners, shared types)
+  {
+    files: ['**/src/test/*.ts'],
+    rules: {
+      'zero-tolerance/max-function-lines': 'off',
+      'zero-tolerance/no-magic-numbers': 'off',
+      'zero-tolerance/no-magic-strings': 'off',
+      'zero-tolerance/no-type-assertion': 'off',
+      'zero-tolerance/require-jsdoc-functions': 'off',
+      'zero-tolerance/require-interface-prefix': 'off', // test helper interfaces don't need I prefix
+      'zero-tolerance/no-re-export': 'off', // test helpers may re-export types for convenience
+      'zero-tolerance/no-banned-types': 'off', // test helpers may use indexed access types
     },
   },
 
   // Allow 'instanceof Error' only within guards helper to implement the guard itself
   {
-    files: ['src/utils/guards.ts'],
+    files: ['src/utils/guards.ts', 'src/utils/assert.ts'],
     rules: {
       'no-restricted-syntax': 'off',
     },

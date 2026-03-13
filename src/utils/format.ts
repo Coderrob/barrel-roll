@@ -21,6 +21,8 @@ import { isString } from './guards.js';
  * Safely stringify a value for logging/serialization.
  * Returns the original string if provided, otherwise attempts JSON.stringify and falls back to String(value) on failure.
  * Returns an empty string for undefined values.
+ * @param value TODO: describe parameter
+ * @returns TODO: describe return value
  */
 export function safeStringify(value: unknown): string {
   if (isString(value)) return value;

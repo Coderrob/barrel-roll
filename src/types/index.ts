@@ -37,4 +37,4 @@ export {
   PARENT_DIRECTORY_SEGMENT,
 } from './constants.js';
 export type { IEnvironmentVariables } from './env.js';
-export type { LoggerConstructor, LoggerInstance, OutputChannel } from './logger.js';
+export type { ILoggerConstructor, ILoggerInstance, IOutputChannel } from './logger.js';

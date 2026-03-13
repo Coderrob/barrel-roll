@@ -23,16 +23,18 @@ import { isError, isObject } from './guards.js';
  * @param value The thrown value
  * @returns The extracted message string
  */
-export function getErrorMessage(value: unknown): string {
-  return isError(value) ? value.message : String(value);
+export function formatErrorForLog(error: unknown): string {
+  if (isError(error)) return error.stack || error.message;
+  if (isObject(error)) return safeStringify(error);
+  return getErrorMessage(error);
 }
 
 /**
  * Formats an error for logging. If an Error instance, uses stack or message.
  * If an object, uses JSON safe stringification. Otherwise, falls back to getErrorMessage.
+ * @param value TODO: describe parameter
+ * @returns TODO: describe return value
  */
-export function formatErrorForLog(error: unknown): string {
-  if (isError(error)) return error.stack || error.message;
-  if (isObject(error)) return safeStringify(error);
-  return getErrorMessage(error);
+export function getErrorMessage(value: unknown): string {
+  return isError(value) ? value.message : String(value);
 }

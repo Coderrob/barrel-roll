@@ -18,6 +18,7 @@
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { beforeEach, describe, it, mock } from 'node:test';
+import { BarrelGenerationMode } from '../../types/index.js';
 import type {
   FakeUri,
   CommandHandler,
@@ -29,7 +30,6 @@ import type {
   ProgressOptions,
 } from '../testTypes.js';
 import { uriFile } from '../testTypes.js';
-import { BarrelGenerationMode } from '../../types/index.js';
 
 /**
  * Creates a mock ExtensionContext for testing.
@@ -138,7 +138,10 @@ describe('Extension', () => {
     async generateBarrelFile(targetDirectory: FakeUri, options: unknown): Promise<void> {
       this.calls.push({ targetDirectory, options });
       if (generatorFailure) {
-        throw generatorFailure;
+        if (generatorFailure instanceof Error) {
+          throw new Error(generatorFailure.message);
+        }
+        throw new Error(String(generatorFailure));
       }
     }
   }
@@ -222,9 +225,12 @@ describe('Extension', () => {
    */
   function lastGeneratorCall(): { targetDirectory: FakeUri; options: unknown } {
     assert.ok(generatorInstances.length > 0, 'No generator instances were created');
-    const instance = generatorInstances.at(-1)!;
+    const instance = generatorInstances.at(-1);
+    if (!instance) throw new TypeError('No generator instances were created');
     assert.ok(instance.calls.length > 0, 'Generator was not invoked');
-    return instance.calls.at(-1)!;
+    const call = instance.calls.at(-1);
+    if (!call) throw new TypeError('Generator was not invoked');
+    return call;
   }
 
   describe('extension activation', () => {

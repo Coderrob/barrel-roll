@@ -18,8 +18,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { IParsedExport } from '../../../../types/index.js';
 import { ExportCache } from '../../../../core/barrel/export-cache.js';
+import type { IParsedExport } from '../../../../types/index.js';
 
 /** Fake file system service for testing ExportCache. */
 class FakeFileSystemService {
