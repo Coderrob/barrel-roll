@@ -75,8 +75,8 @@ describe('ExportCache', () => {
     const mtime = new Date('2025-01-01T00:00:00Z');
     fileSystem.setFile(filePath, 'alpha,beta', mtime);
 
-    const first = await cache.getExports(filePath);
-    const second = await cache.getExports(filePath);
+    const first = await cache.resolveExports(filePath);
+    const second = await cache.resolveExports(filePath);
 
     assert.deepStrictEqual(first, second);
     assert.strictEqual(parser.calls, 1);
@@ -92,9 +92,9 @@ describe('ExportCache', () => {
     fileSystem.setFile(firstPath, 'first', new Date('2025-01-01T00:00:00Z'));
     fileSystem.setFile(secondPath, 'second', new Date('2025-01-02T00:00:00Z'));
 
-    await cache.getExports(firstPath);
-    await cache.getExports(secondPath);
-    await cache.getExports(firstPath);
+    await cache.resolveExports(firstPath);
+    await cache.resolveExports(secondPath);
+    await cache.resolveExports(firstPath);
 
     assert.strictEqual(cache.size, 1);
     assert.strictEqual(parser.calls, 3);
