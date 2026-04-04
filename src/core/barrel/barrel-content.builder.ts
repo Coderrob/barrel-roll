@@ -112,13 +112,11 @@ export class BarrelContentBuilder {
     directoryPath: string,
   ): Promise<string[]> {
     const sortedPaths = sortAlphabetically(normalizedEntries.keys());
-    const promises = sortedPaths
-      .filter((relativePath) => normalizedEntries.has(relativePath))
-      .map((relativePath) => {
-        const entry = normalizedEntries.get(relativePath);
-        if (!entry) throw new TypeError(`Missing entry for path: ${relativePath}`);
-        return this.createLinesForEntry(relativePath, entry, exportExtension, directoryPath);
-      });
+    const promises = sortedPaths.flatMap((relativePath) => {
+      const entry = normalizedEntries.get(relativePath);
+      if (!entry) return [];
+      return [this.createLinesForEntry(relativePath, entry, exportExtension, directoryPath)];
+    });
     const lineGroups = await Promise.all(promises);
     return lineGroups.flat();
   }
