@@ -27,7 +27,7 @@ class FakeFileSystemService {
   private readonly contents = new Map<string, string>();
 
   /** Registers fake file content and modification time. */
-  setFile(filePath: string, content: string, mtime: Date): void {
+  setFile(filePath: string, content: string, mtime: Readonly<Date>): void {
     this.contents.set(filePath, content);
     this.stats.set(filePath, mtime);
   }

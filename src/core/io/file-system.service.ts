@@ -109,7 +109,8 @@ export class FileSystemService {
      * @param entry - The directory entry to convert.
      * @returns The absolute file path.
      */
-    const toAbsolutePath = (entry: Dirent): string => path.join(directoryPath, entry.name);
+    const toAbsolutePath = (entry: Readonly<Dirent>): string =>
+      path.join(directoryPath, entry.name);
     return entries.filter(this.isTypeScriptFile.bind(this)).map(toAbsolutePath);
   }
 
@@ -125,7 +126,8 @@ export class FileSystemService {
      * @param entry - The directory entry to convert.
      * @returns The absolute directory path.
      */
-    const toAbsolutePath = (entry: Dirent): string => path.join(directoryPath, entry.name);
+    const toAbsolutePath = (entry: Readonly<Dirent>): string =>
+      path.join(directoryPath, entry.name);
     return entries.filter(this.isTraversableDirectory.bind(this)).map(toAbsolutePath);
   }
 
@@ -134,7 +136,7 @@ export class FileSystemService {
    * @param entry The directory entry
    * @returns True if it's a TypeScript file; otherwise, false
    */
-  private isTypeScriptFile(entry: Dirent): boolean {
+  private isTypeScriptFile(entry: Readonly<Dirent>): boolean {
     if (!entry.isFile()) return false;
     if (this.shouldExcludeFile(entry.name)) return false;
     return this.isTypeScriptExtension(entry.name);
@@ -184,7 +186,7 @@ export class FileSystemService {
    * @param entry The directory entry
    * @returns True if the directory should be traversed; otherwise, false
    */
-  private isTraversableDirectory(entry: Dirent): boolean {
+  private isTraversableDirectory(entry: Readonly<Dirent>): boolean {
     const normalized = normalizeCase(entry.name);
     return (
       entry.isDirectory() && !IGNORED_DIRECTORIES.has(normalized) && !normalized.startsWith('.')
@@ -282,7 +284,7 @@ export class FileSystemService {
    * @param filePath The path to check
    * @returns True if the path exists; otherwise, false
    */
-  async fileExists(filePath: string): Promise<boolean> {
+  async hasFile(filePath: string): Promise<boolean> {
     try {
       await this.fs.access(filePath);
       return true;

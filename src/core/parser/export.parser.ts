@@ -103,8 +103,8 @@ export class ExportParser {
      * @param ext - The file extension to match.
      * @returns True if the filename ends with the extension.
      */
-    const matchesExtension = (ext: string): boolean => fileName.endsWith(ext);
-    const ext = Object.keys(SCRIPT_KIND_MAP).find(matchesExtension);
+    const isMatchingExtension = (ext: string): boolean => fileName.endsWith(ext);
+    const ext = Object.keys(SCRIPT_KIND_MAP).find(isMatchingExtension);
     return ext ? SCRIPT_KIND_MAP[ext] : ScriptKind.TS;
   }
 
@@ -115,8 +115,8 @@ export class ExportParser {
    * @returns TODO: describe return value
    */
   private buildResult(
-    sourceFile: SourceFile,
-    exportMap: Map<string, IParsedExport>,
+    sourceFile: Readonly<SourceFile>,
+    exportMap: Readonly<Map<string, IParsedExport>>,
   ): IParsedExport[] {
     const result = Array.from(exportMap.values());
     /**
@@ -124,9 +124,9 @@ export class ExportParser {
      * @param e - The parsed export to check.
      * @returns True if the export name matches the default export name.
      */
-    const isDefaultExport = (e: IParsedExport): boolean => e.name === DEFAULT_EXPORT_NAME;
+    const isDefaultExport = (e: Readonly<IParsedExport>): boolean => e.name === DEFAULT_EXPORT_NAME;
     if (this.hasDefaultExport(sourceFile) && !result.some(isDefaultExport)) {
-      result.push({ name: DEFAULT_EXPORT_NAME, typeOnly: false });
+      return [...result, { name: DEFAULT_EXPORT_NAME, typeOnly: false }];
     }
     return result;
   }
@@ -137,8 +137,8 @@ export class ExportParser {
    * @param exportMap TODO: describe parameter
    */
   private collectExportDeclarations(
-    sourceFile: SourceFile,
-    exportMap: Map<string, IParsedExport>,
+    sourceFile: Readonly<SourceFile>,
+    exportMap: Readonly<Map<string, IParsedExport>>,
   ): void {
     for (const exportDecl of sourceFile.getExportDeclarations()) {
       this.processExportDeclaration(exportDecl, exportMap);
@@ -151,8 +151,8 @@ export class ExportParser {
    * @param exportMap TODO: describe parameter
    */
   private processExportDeclaration(
-    exportDecl: ExportDeclaration,
-    exportMap: Map<string, IParsedExport>,
+    exportDecl: Readonly<ExportDeclaration>,
+    exportMap: Readonly<Map<string, IParsedExport>>,
   ): void {
     const hasModuleSpecifier = Boolean(exportDecl.getModuleSpecifier());
     const isTypeOnly = exportDecl.isTypeOnly();
@@ -169,9 +169,9 @@ export class ExportParser {
    * @param exportMap TODO: describe parameter
    */
   private processNamedExport(
-    namedExport: ExportSpecifier,
-    options: INamedExportOptions,
-    exportMap: Map<string, IParsedExport>,
+    namedExport: Readonly<ExportSpecifier>,
+    options: Readonly<INamedExportOptions>,
+    exportMap: Readonly<Map<string, IParsedExport>>,
   ): void {
     const alias = namedExport.getAliasNode()?.getText();
 
@@ -191,7 +191,10 @@ export class ExportParser {
    * @param alias TODO: describe parameter
    * @returns TODO: describe return value
    */
-  private isUnaliasedReExport(options: INamedExportOptions, alias: string | undefined): boolean {
+  private isUnaliasedReExport(
+    options: Readonly<INamedExportOptions>,
+    alias: string | undefined,
+  ): boolean {
     return options.hasModuleSpecifier && !alias;
   }
 
@@ -201,8 +204,8 @@ export class ExportParser {
    * @param exportMap TODO: describe parameter
    */
   private collectExportedStatements(
-    sourceFile: SourceFile,
-    exportMap: Map<string, IParsedExport>,
+    sourceFile: Readonly<SourceFile>,
+    exportMap: Readonly<Map<string, IParsedExport>>,
   ): void {
     for (const statement of sourceFile.getStatements()) {
       this.processTypeDeclaration(statement, exportMap);
@@ -218,7 +221,7 @@ export class ExportParser {
    * @param stmt TODO: describe parameter
    * @param map TODO: describe parameter
    */
-  private processTypeDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
+  private processTypeDeclaration(stmt: Statement, map: Readonly<Map<string, IParsedExport>>): void {
     if (Node.isInterfaceDeclaration(stmt) && stmt.isExported()) {
       this.recordExport(map, stmt.getName(), { typeOnly: true });
     }
@@ -232,7 +235,10 @@ export class ExportParser {
    * @param stmt TODO: describe parameter
    * @param map TODO: describe parameter
    */
-  private processClassDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
+  private processClassDeclaration(
+    stmt: Statement,
+    map: Readonly<Map<string, IParsedExport>>,
+  ): void {
     if (!Node.isClassDeclaration(stmt) || !stmt.isExported() || stmt.isDefaultExport()) {
       return;
     }
@@ -247,7 +253,10 @@ export class ExportParser {
    * @param stmt TODO: describe parameter
    * @param map TODO: describe parameter
    */
-  private processFunctionDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
+  private processFunctionDeclaration(
+    stmt: Statement,
+    map: Readonly<Map<string, IParsedExport>>,
+  ): void {
     if (!Node.isFunctionDeclaration(stmt) || !stmt.isExported() || stmt.isDefaultExport()) {
       return;
     }
@@ -262,7 +271,7 @@ export class ExportParser {
    * @param stmt TODO: describe parameter
    * @param map TODO: describe parameter
    */
-  private processEnumDeclaration(stmt: Statement, map: Map<string, IParsedExport>): void {
+  private processEnumDeclaration(stmt: Statement, map: Readonly<Map<string, IParsedExport>>): void {
     if (Node.isEnumDeclaration(stmt) && stmt.isExported()) {
       this.recordExport(map, stmt.getName(), { typeOnly: false });
     }
@@ -273,7 +282,10 @@ export class ExportParser {
    * @param stmt TODO: describe parameter
    * @param map TODO: describe parameter
    */
-  private processVariableStatement(stmt: Statement, map: Map<string, IParsedExport>): void {
+  private processVariableStatement(
+    stmt: Statement,
+    map: Readonly<Map<string, IParsedExport>>,
+  ): void {
     if (!Node.isVariableStatement(stmt) || !stmt.isExported()) {
       return;
     }
@@ -287,7 +299,7 @@ export class ExportParser {
    * @param sourceFile TODO: describe parameter
    * @returns TODO: describe return value
    */
-  private hasDefaultExport(sourceFile: SourceFile): boolean {
+  private hasDefaultExport(sourceFile: Readonly<SourceFile>): boolean {
     if (sourceFile.getDefaultExportSymbol()) {
       return true;
     }
@@ -299,7 +311,7 @@ export class ExportParser {
    * @param sourceFile TODO: describe parameter
    * @returns TODO: describe return value
    */
-  private hasAliasedDefault(sourceFile: SourceFile): boolean {
+  private hasAliasedDefault(sourceFile: Readonly<SourceFile>): boolean {
     for (const exportDecl of sourceFile.getExportDeclarations()) {
       if (exportDecl.getModuleSpecifier()) {
         continue;
@@ -319,7 +331,7 @@ export class ExportParser {
    * @param specifier - The export specifier to check.
    * @returns True if the specifier's alias is the default export name.
    */
-  private isDefaultAliasSpecifier(specifier: ExportSpecifier): boolean {
+  private isDefaultAliasSpecifier(specifier: Readonly<ExportSpecifier>): boolean {
     return specifier.getAliasNode()?.getText() === DEFAULT_EXPORT_NAME;
   }
 
@@ -328,7 +340,7 @@ export class ExportParser {
    * @param sourceFile TODO: describe parameter
    * @returns TODO: describe return value
    */
-  private hasDefaultStatement(sourceFile: SourceFile): boolean {
+  private hasDefaultStatement(sourceFile: Readonly<SourceFile>): boolean {
     return sourceFile.getStatements().some(this.isDefaultExportStatement.bind(this));
   }
 
@@ -357,9 +369,9 @@ export class ExportParser {
    * @param options TODO: describe parameter
    */
   private recordExport(
-    map: Map<string, IParsedExport>,
+    map: Readonly<Map<string, IParsedExport>>,
     name: string,
-    options: IRecordExportOptions,
+    options: Readonly<IRecordExportOptions>,
   ): void {
     const existing = map.get(name);
     const merged = existing ? existing.typeOnly && options.typeOnly : options.typeOnly;

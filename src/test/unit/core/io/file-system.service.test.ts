@@ -45,7 +45,7 @@ describe('FileSystemService', () => {
    *
    */
   async function testEntriesFiltering(
-    testCases: Array<{ entry: Dirent; shouldInclude: boolean }>,
+    testCases: Readonly<Array<{ entry: Dirent; shouldInclude: boolean }>>,
     methodUnderTest: (path: string) => Promise<string[]>,
     directoryPath: string,
     testNamePrefix: string,
@@ -400,7 +400,7 @@ describe('FileSystemService', () => {
     });
   });
 
-  describe('fileExists', () => {
+  describe('hasFile', () => {
     const fileExistsCases = [true, false] as const;
 
     for (const [index, expected] of fileExistsCases.entries()) {
@@ -412,7 +412,7 @@ describe('FileSystemService', () => {
           mockFs.access.mockRejectedValueOnce(new Error('Access error'));
         }
 
-        const result = await service.fileExists(filePath);
+        const result = await service.hasFile(filePath);
 
         assert.strictEqual(result, expected);
         assert.deepStrictEqual(mockFs.access.mock.calls, [[filePath]]);

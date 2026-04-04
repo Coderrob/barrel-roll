@@ -26,7 +26,7 @@ import { BarrelContentSanitizer } from '../../../../core/barrel/content-sanitize
  * @param paths - Array of paths to sanitize.
  * @returns The preserved lines as a single string.
  */
-function runSanitize(lines: string[], paths: string[]): string {
+function runSanitize(lines: readonly string[], paths: readonly string[]): string {
   const sanitizer = new BarrelContentSanitizer();
   const existingContent = lines.join('\n');
   const result = sanitizer.preserveDefinitionsAndSanitizeExports(

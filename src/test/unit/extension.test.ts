@@ -91,7 +91,7 @@ describe('Extension', () => {
       showOpenDialogCalls += 1;
       return showOpenDialogResult;
     },
-    async withProgress<T>(options: ProgressOptions, task: () => Promise<T>) {
+    async withProgress<T>(options: Readonly<ProgressOptions>, task: () => Promise<T>) {
       progressCalls.push({ options });
       return task();
     },
@@ -116,7 +116,7 @@ describe('Extension', () => {
 
   const workspaceApi: { fs: { stat(uri: FakeUri): Promise<{ type: number }> } } = {
     fs: {
-      stat(uri: FakeUri) {
+      stat(uri: Readonly<FakeUri>) {
         return workspaceStatImpl(uri);
       },
     },
@@ -135,7 +135,7 @@ describe('Extension', () => {
     /**
      * Fake implementation of generateBarrelFile for testing purposes.
      */
-    async generateBarrelFile(targetDirectory: FakeUri, options: unknown): Promise<void> {
+    async generateBarrelFile(targetDirectory: Readonly<FakeUri>, options: unknown): Promise<void> {
       this.calls.push({ targetDirectory, options });
       if (generatorFailure) {
         if (generatorFailure instanceof Error) {

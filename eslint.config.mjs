@@ -213,6 +213,10 @@ export default [
       'zero-tolerance/no-magic-strings': 'off', // test data strings are inline by design
       'zero-tolerance/no-type-assertion': 'off', // test mocks need type assertions for VS Code types
       'zero-tolerance/require-jsdoc-functions': 'off', // test callbacks don't need JSDoc
+      'zero-tolerance/no-array-mutation': 'off', // test setup legitimately mutates arrays
+      'zero-tolerance/no-object-mutation': 'off', // test setup legitimately mutates objects
+      'zero-tolerance/no-date-now': 'off', // test fixtures legitimately use Date
+      'zero-tolerance/prefer-readonly-parameters': 'off', // test callbacks and mock fns use mutable sigs
     },
   },
 
@@ -236,6 +240,36 @@ export default [
     files: ['src/utils/guards.ts', 'src/utils/assert.ts'],
     rules: {
       'no-restricted-syntax': 'off',
+    },
+  },
+
+  // Inherently stateful implementations that legitimately mutate internal state
+  {
+    files: [
+      'src/utils/semaphore.ts', // Semaphore requires mutable permit/queue state
+      'src/core/barrel/content-sanitizer.ts', // Multiline state machine requires mutable buffer
+      'src/extension.ts', // VS Code subscriptions.push() and queue class are externally constrained
+      'src/logging/output-channel.logger.ts', // Logger bindings and timestamp are implementation details
+    ],
+    rules: {
+      'zero-tolerance/no-array-mutation': 'off',
+      'zero-tolerance/no-object-mutation': 'off',
+      'zero-tolerance/no-date-now': 'off',
+      'zero-tolerance/no-await-in-loop': 'off', // BarrelCommandQueue.processQueue is intentionally sequential
+    },
+  },
+
+  // Files where prefer-readonly-parameters cannot be correctly applied
+  {
+    files: [
+      'src/utils/assert.ts', // generic T params - Readonly<T> breaks null/undefined inference
+      'src/core/barrel/barrel-content.builder.ts', // optional class-instance DI constructor params
+      'src/core/barrel/barrel-file.generator.ts', // optional class-instance DI constructor params
+      'src/core/barrel/content-sanitizer.ts', // mutable state machine IMultilineState param
+      'src/core/parser/export.parser.ts', // ts-morph Statement nodes - Readonly<Statement> != Statement
+    ],
+    rules: {
+      'zero-tolerance/prefer-readonly-parameters': 'off',
     },
   },
 

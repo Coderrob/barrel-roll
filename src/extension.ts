@@ -68,18 +68,25 @@ class BarrelCommandQueue {
     }
 
     this.isProcessing = true;
-
     while (this.queue.length > 0) {
-      const operation = this.queue.shift()!;
-      try {
-        await operation();
-      } catch (error) {
-        // Log error but continue processing queue
-        console.error('Barrel command failed:', error);
-      }
+      await this.runNextOperation();
     }
-
     this.isProcessing = false;
+  }
+
+  /**
+   * Dequeues and runs the next operation, logging any errors.
+   * @returns Promise that resolves when the operation completes.
+   */
+  private async runNextOperation(): Promise<void> {
+    const operation = this.queue.shift();
+    if (!operation) return;
+    try {
+      await operation();
+    } catch (error) {
+      // Log error but continue processing queue
+      console.error('Barrel command failed:', error);
+    }
   }
 }
 
@@ -89,7 +96,7 @@ const commandQueue = new BarrelCommandQueue();
  * Activates the Barrel Roll extension.
  * @param context The extension context provided by VS Code.
  */
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: Readonly<vscode.ExtensionContext>) {
   console.log('Barrel Roll extension is now active');
 
   const outputChannel = vscode.window.createOutputChannel('Barrel Roll');
@@ -99,7 +106,17 @@ export function activate(context: vscode.ExtensionContext) {
 
   const generator = new BarrelFileGenerator();
 
-  const descriptors: CommandDescriptor[] = [
+  for (const descriptor of createCommandDescriptors()) {
+    context.subscriptions.push(registerBarrelCommand(generator, descriptor));
+  }
+}
+
+/**
+ * Returns the list of barrel command descriptors for registration.
+ * @returns Array of command descriptors.
+ */
+function createCommandDescriptors(): CommandDescriptor[] {
+  return [
     {
       id: 'barrel-roll.generateBarrel',
       options: {
@@ -119,11 +136,6 @@ export function activate(context: vscode.ExtensionContext) {
       successMessage: 'Barrel Roll: index.ts files updated recursively.',
     },
   ];
-
-  for (const descriptor of descriptors) {
-    const disposable = registerBarrelCommand(generator, descriptor);
-    context.subscriptions.push(disposable);
-  }
 }
 
 /**
@@ -140,7 +152,7 @@ export function deactivate(): void {
  * @returns A disposable for the registered command.
  * @throws {Error} TODO: describe error condition
  */
-async function ensureDirectoryUri(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
+async function ensureDirectoryUri(uri: Readonly<vscode.Uri>): Promise<vscode.Uri | undefined> {
   try {
     const stat = await vscode.workspace.fs.stat(uri);
     if (stat.type === vscode.FileType.Directory) {
@@ -185,10 +197,10 @@ async function promptForDirectory(): Promise<vscode.Uri | undefined> {
  * @param descriptor TODO: describe parameter
  */
 function registerBarrelCommand(
-  generator: BarrelFileGenerator,
-  descriptor: CommandDescriptor,
+  generator: Readonly<BarrelFileGenerator>,
+  descriptor: Readonly<CommandDescriptor>,
 ): vscode.Disposable {
-  return vscode.commands.registerCommand(descriptor.id, async (uri?: vscode.Uri) => {
+  return vscode.commands.registerCommand(descriptor.id, async (uri?: Readonly<vscode.Uri>) => {
     try {
       const targetDirectory = await resolveTargetDirectory(uri);
       if (!targetDirectory) {
@@ -215,7 +227,7 @@ function registerBarrelCommand(
  * @returns Promise that resolves to a directory URI, or undefined if validation fails.
  * @throws {Error} TODO: describe error condition
  */
-async function resolveTargetDirectory(uri?: vscode.Uri): Promise<vscode.Uri | undefined> {
+async function resolveTargetDirectory(uri?: Readonly<vscode.Uri>): Promise<vscode.Uri | undefined> {
   const initial = uri ?? (await promptForDirectory());
   if (!initial) {
     return undefined;

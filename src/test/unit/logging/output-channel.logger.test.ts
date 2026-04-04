@@ -45,16 +45,16 @@ describe('OutputChannelLogger', () => {
     };
 
     // Mock console methods
-    console.log = mock.fn((...args: unknown[]) => {
+    console.log = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'info', message: String(args[0]) });
     });
-    console.debug = mock.fn((...args: unknown[]) => {
+    console.debug = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'debug', message: String(args[0]) });
     });
-    console.warn = mock.fn((...args: unknown[]) => {
+    console.warn = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'warn', message: String(args[0]) });
     });
-    console.error = mock.fn((...args: unknown[]) => {
+    console.error = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'error', message: String(args[0]) });
     });
 

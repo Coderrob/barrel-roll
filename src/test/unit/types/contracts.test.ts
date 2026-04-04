@@ -254,7 +254,7 @@ describe('Contract Validation', () => {
   describe('Behavioral Contracts', () => {
     describe('Enum Exhaustiveness', () => {
       it('should handle all BarrelExportKind values in switch', () => {
-        const testAllKinds = (kind: BarrelExportKind): string => {
+        const testAllKinds = (kind: Readonly<BarrelExportKind>): string => {
           switch (kind) {
             case BarrelExportKind.Value:
               return 'value';
@@ -273,7 +273,7 @@ describe('Contract Validation', () => {
       });
 
       it('should handle all BarrelEntryKind values in switch', () => {
-        const testAllKinds = (kind: BarrelEntryKind): string => {
+        const testAllKinds = (kind: Readonly<BarrelEntryKind>): string => {
           switch (kind) {
             case BarrelEntryKind.File:
               return 'file';
@@ -289,7 +289,7 @@ describe('Contract Validation', () => {
       });
 
       it('should handle all BarrelGenerationMode values in switch', () => {
-        const testAllModes = (mode: BarrelGenerationMode): string => {
+        const testAllModes = (mode: Readonly<BarrelGenerationMode>): string => {
           switch (mode) {
             case BarrelGenerationMode.CreateOrUpdate:
               return 'createOrUpdate';
@@ -307,31 +307,31 @@ describe('Contract Validation', () => {
 
     describe('Type Guards', () => {
       const isValueExport = (
-        exp: BarrelExport,
+        exp: Readonly<BarrelExport>,
       ): exp is BarrelExport & { kind: BarrelExportKind.Value } => {
         return exp.kind === BarrelExportKind.Value;
       };
 
       const isTypeExport = (
-        exp: BarrelExport,
+        exp: Readonly<BarrelExport>,
       ): exp is BarrelExport & { kind: BarrelExportKind.Type } => {
         return exp.kind === BarrelExportKind.Type;
       };
 
       const isDefaultExport = (
-        exp: BarrelExport,
+        exp: Readonly<BarrelExport>,
       ): exp is BarrelExport & { kind: BarrelExportKind.Default } => {
         return exp.kind === BarrelExportKind.Default;
       };
 
       const isFileEntry = (
-        entry: BarrelEntry,
+        entry: Readonly<BarrelEntry>,
       ): entry is BarrelEntry & { kind: BarrelEntryKind.File } => {
         return entry.kind === BarrelEntryKind.File;
       };
 
       const isDirectoryEntry = (
-        entry: BarrelEntry,
+        entry: Readonly<BarrelEntry>,
       ): entry is BarrelEntry & { kind: BarrelEntryKind.Directory } => {
         return entry.kind === BarrelEntryKind.Directory;
       };

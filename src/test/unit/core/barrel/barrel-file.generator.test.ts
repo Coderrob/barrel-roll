@@ -141,7 +141,7 @@ describe('BarrelFileGenerator', () => {
         mode: BarrelGenerationMode.UpdateExisting,
       });
 
-      const exists = await fileSystem.fileExists(path.join(nestedDir, INDEX_FILENAME));
+      const exists = await fileSystem.hasFile(path.join(nestedDir, INDEX_FILENAME));
 
       assert.strictEqual(exists, false);
     });
@@ -169,7 +169,7 @@ describe('BarrelFileGenerator', () => {
       const keepIndex = await fileSystem.readFile(path.join(keepDir, INDEX_FILENAME));
       assert.strictEqual(keepIndex, ["export { keep } from './keep';", ''].join('\n'));
 
-      const skipIndexExists = await fileSystem.fileExists(path.join(skipDir, INDEX_FILENAME));
+      const skipIndexExists = await fileSystem.hasFile(path.join(skipDir, INDEX_FILENAME));
       assert.strictEqual(skipIndexExists, false);
 
       const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
@@ -193,7 +193,7 @@ describe('BarrelFileGenerator', () => {
 
       await generator.generateBarrelFile(emptyDirUri, { recursive: true });
 
-      const exists = await fileSystem.fileExists(path.join(tmpDir, INDEX_FILENAME));
+      const exists = await fileSystem.hasFile(path.join(tmpDir, INDEX_FILENAME));
       assert.strictEqual(exists, false);
     });
 

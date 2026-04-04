@@ -86,7 +86,7 @@ export class BarrelContentBuilder {
    * @returns The barrel file content as a string.
    */
   async buildContent(
-    entries: Map<string, BarrelEntry | string[]>,
+    entries: Readonly<Map<string, BarrelEntry | string[]>>,
     directoryPath: string,
     exportExtension = '',
   ): Promise<string> {
@@ -107,20 +107,18 @@ export class BarrelContentBuilder {
    * @returns Flattened array of all export lines.
    */
   private async collectAllExportLines(
-    normalizedEntries: Map<string, BarrelEntry>,
+    normalizedEntries: Readonly<Map<string, BarrelEntry>>,
     exportExtension: string,
     directoryPath: string,
   ): Promise<string[]> {
     const sortedPaths = sortAlphabetically(normalizedEntries.keys());
-    const promises: Promise<string[]>[] = [];
-    for (const relativePath of sortedPaths) {
-      const entry = normalizedEntries.get(relativePath);
-      if (entry) {
-        promises.push(
-          this.createLinesForEntry(relativePath, entry, exportExtension, directoryPath),
-        );
-      }
-    }
+    const promises = sortedPaths
+      .filter((relativePath) => normalizedEntries.has(relativePath))
+      .map((relativePath) => {
+        const entry = normalizedEntries.get(relativePath);
+        if (!entry) throw new TypeError(`Missing entry for path: ${relativePath}`);
+        return this.createLinesForEntry(relativePath, entry, exportExtension, directoryPath);
+      });
     const lineGroups = await Promise.all(promises);
     return lineGroups.flat();
   }
@@ -130,7 +128,9 @@ export class BarrelContentBuilder {
    * @param entries Source entries (string[] or BarrelEntry)
    * @returns Map of BarrelEntry
    */
-  private normalizeEntries(entries: Map<string, BarrelEntry | string[]>): Map<string, BarrelEntry> {
+  private normalizeEntries(
+    entries: Readonly<Map<string, BarrelEntry | string[]>>,
+  ): Map<string, BarrelEntry> {
     const normalized = new Map<string, BarrelEntry>();
 
     for (const [relativePath, entry] of entries) {
@@ -157,7 +157,7 @@ export class BarrelContentBuilder {
    */
   private async createLinesForEntry(
     relativePath: string,
-    entry: BarrelEntry,
+    entry: Readonly<BarrelEntry>,
     exportExtension: string,
     directoryPath: string,
   ): Promise<string[]> {
@@ -192,7 +192,7 @@ export class BarrelContentBuilder {
    * @param exp The barrel export to check.
    * @returns True if the export should be kept.
    */
-  private isRelevantExport(exp: BarrelExport): boolean {
+  private isRelevantExport(exp: Readonly<BarrelExport>): boolean {
     return exp.kind === BarrelExportKind.Default
       ? true
       : !exp.name.includes(PARENT_DIRECTORY_SEGMENT);
@@ -208,7 +208,7 @@ export class BarrelContentBuilder {
    */
   private async buildFileExportLines(
     filePath: string,
-    exports: BarrelExport[],
+    exports: readonly BarrelExport[],
     exportExtension: string,
     directoryPath: string,
   ): Promise<string[]> {
@@ -238,22 +238,14 @@ export class BarrelContentBuilder {
    * @param exports The exports
    * @returns The export statement(s)
    */
-  private generateExportStatements(modulePath: string, exports: BarrelExport[]): string[] {
-    const lines: string[] = [];
-
+  private generateExportStatements(modulePath: string, exports: readonly BarrelExport[]): string[] {
     const valueNames = this.getExportNames(exports, BarrelExportKind.Value);
     const typeNames = this.getExportNames(exports, BarrelExportKind.Type);
     const namedLine = this.buildNamedExportLine(modulePath, valueNames, typeNames);
-
-    if (namedLine) {
-      lines.push(namedLine);
-    }
-
-    if (exports.some(this.isDefaultKindExport.bind(this))) {
-      lines.push(`export { default } from './${modulePath}';`);
-    }
-
-    return lines;
+    const defaultLine = exports.some(this.isDefaultKindExport.bind(this))
+      ? [`export { default } from './${modulePath}';`]
+      : [];
+    return [...(namedLine ? [namedLine] : []), ...defaultLine];
   }
 
   /**
@@ -261,7 +253,7 @@ export class BarrelContentBuilder {
    * @param exp The barrel export to check.
    * @returns True if the export kind is Default.
    */
-  private isDefaultKindExport(exp: BarrelExport): boolean {
+  private isDefaultKindExport(exp: Readonly<BarrelExport>): boolean {
     return exp.kind === BarrelExportKind.Default;
   }
 
@@ -284,8 +276,8 @@ export class BarrelContentBuilder {
    */
   private buildNamedExportLine(
     modulePath: string,
-    valueNames: string[],
-    typeNames: string[],
+    valueNames: readonly string[],
+    typeNames: readonly string[],
   ): string | null {
     if (valueNames.length > 0 && typeNames.length > 0) {
       const combined = [...valueNames, ...typeNames.map(this.toTypeExportName.bind(this))].join(
@@ -309,7 +301,7 @@ export class BarrelContentBuilder {
    * @returns TODO: describe return value
    */
   private getExportNames(
-    exports: BarrelExport[],
+    exports: readonly BarrelExport[],
     kind: BarrelExportKind.Value | BarrelExportKind.Type,
   ): string[] {
     /**
@@ -317,7 +309,7 @@ export class BarrelContentBuilder {
      * @param exp - The barrel export to check.
      * @returns True if the export matches the kind and has a name.
      */
-    const matchesKind = (exp: BarrelExport): exp is BarrelExport & { name: string } =>
+    const matchesKind = (exp: Readonly<BarrelExport>): exp is BarrelExport & { name: string } =>
       exp.kind === kind && 'name' in exp;
     /**
      * Extracts the name from a named barrel export.

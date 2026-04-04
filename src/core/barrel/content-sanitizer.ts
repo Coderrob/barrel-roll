@@ -54,7 +54,7 @@ export class BarrelContentSanitizer {
    * Creates a new BarrelContentSanitizer instance.
    * @param logger Optional logger for debug output.
    */
-  constructor(logger?: ILoggerInstance) {
+  constructor(logger?: Readonly<ILoggerInstance>) {
     this.logger = logger;
   }
 
@@ -67,7 +67,7 @@ export class BarrelContentSanitizer {
    */
   preserveDefinitionsAndSanitizeExports(
     existingContent: string,
-    newContentPaths: Set<string>,
+    newContentPaths: Readonly<Set<string>>,
   ): ISanitizationResult {
     const lines = existingContent.trim().split('\n');
     const state: IMultilineState = { buffer: [], inMultiline: false };
@@ -95,7 +95,7 @@ export class BarrelContentSanitizer {
   private processLineForPreservation(
     line: string,
     state: IMultilineState,
-    newContentPaths: Set<string>,
+    newContentPaths: Readonly<Set<string>>,
   ): string[] {
     const trimmedLine = line.trim();
     if (state.inMultiline) {
@@ -121,7 +121,7 @@ export class BarrelContentSanitizer {
     line: string,
     trimmedLine: string,
     state: IMultilineState,
-    newContentPaths: Set<string>,
+    newContentPaths: Readonly<Set<string>>,
   ): string[] {
     state.buffer.push(line);
     if (isMultilineExportEnd(trimmedLine)) {
@@ -139,14 +139,17 @@ export class BarrelContentSanitizer {
    * @param buffer TODO: describe parameter
    * @param newContentPaths TODO: describe parameter
    */
-  private processMultilineBlock(buffer: string[], newContentPaths: Set<string>): string[] {
+  private processMultilineBlock(
+    buffer: readonly string[],
+    newContentPaths: Readonly<Set<string>>,
+  ): string[] {
     const fullBlock = buffer.join('\n');
     const exportPath = extractExportPath(fullBlock);
     if (!exportPath) {
       // Failed to parse as export, preserve the lines
-      return buffer;
+      return [...buffer];
     }
-    return this.shouldPreserveReExport(exportPath, newContentPaths) ? buffer : [];
+    return this.shouldPreserveReExport(exportPath, newContentPaths) ? [...buffer] : [];
   }
 
   /**
@@ -159,7 +162,7 @@ export class BarrelContentSanitizer {
   private processSingleLine(
     line: string,
     trimmedLine: string,
-    newContentPaths: Set<string>,
+    newContentPaths: Readonly<Set<string>>,
   ): string[] {
     const exportPath = extractExportPath(trimmedLine);
     if (exportPath) {
@@ -177,7 +180,10 @@ export class BarrelContentSanitizer {
    * @param normalizedNewPaths Set of pre-normalized paths that will be regenerated.
    * @returns True if the re-export should be preserved.
    */
-  private shouldPreserveReExport(exportPath: string, normalizedNewPaths: Set<string>): boolean {
+  private shouldPreserveReExport(
+    exportPath: string,
+    normalizedNewPaths: Readonly<Set<string>>,
+  ): boolean {
     const isExternal = exportPath.startsWith('..');
     const normalizedPath = normalizeExportPath(exportPath);
     const willBeRegenerated = normalizedNewPaths.has(normalizedPath);
@@ -196,7 +202,7 @@ export class BarrelContentSanitizer {
   private logPreservationDecision(
     exportPath: string,
     normalizedPath: string,
-    decision: IPreservationDecision,
+    decision: Readonly<IPreservationDecision>,
   ): void {
     if (!this.logger) {
       return;
@@ -216,7 +222,7 @@ export class BarrelContentSanitizer {
   private logPreservationAction(
     exportPath: string,
     normalizedPath: string,
-    decision: IPreservationDecision,
+    decision: Readonly<IPreservationDecision>,
   ): void {
     const { logger } = this;
     if (!logger) return;

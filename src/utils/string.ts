@@ -42,9 +42,9 @@ function isNonEmpty(fragment: string): boolean {
  * @param options TODO: describe parameter
  */
 export function sortAlphabetically(
-  values: Iterable<string>,
+  values: Readonly<Iterable<string>>,
   locale?: string | string[],
-  options?: Intl.CollatorOptions,
+  options?: Readonly<Intl.CollatorOptions>,
 ): string[] {
   const entries = Array.from(values);
 
@@ -53,7 +53,7 @@ export function sortAlphabetically(
   }
 
   if (locale === undefined && options === undefined) {
-    return entries.sort(compareDefault);
+    return entries.toSorted(compareDefault);
   }
 
   /**
@@ -63,7 +63,7 @@ export function sortAlphabetically(
    * @returns Negative, zero, or positive comparison result.
    */
   const localeCompare = (a: string, b: string): number => a.localeCompare(b, locale, options);
-  return entries.sort(localeCompare);
+  return entries.toSorted(localeCompare);
 }
 
 /**

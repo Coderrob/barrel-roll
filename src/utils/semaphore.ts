@@ -91,7 +91,7 @@ export class Semaphore {
  * @returns Promise that resolves to array of results.
  */
 export async function processConcurrently<T, R>(
-  items: T[],
+  items: readonly T[],
   concurrencyLimit: number,
   processor: (item: T) => Promise<R>,
 ): Promise<R[]> {
@@ -102,7 +102,8 @@ export async function processConcurrently<T, R>(
    * @param item - The item to process.
    * @returns Promise resolving to the processed result.
    */
-  const processItem = (item: T): Promise<R> => runWithSemaphore(semaphore, processor, item);
+  const processItem = (item: Readonly<T>): Promise<R> =>
+    runWithSemaphore(semaphore, processor, item);
 
   return Promise.all(items.map(processItem));
 }
@@ -115,9 +116,9 @@ export async function processConcurrently<T, R>(
  * @returns Promise resolving to the processed result.
  */
 async function runWithSemaphore<T, R>(
-  semaphore: Semaphore,
+  semaphore: Readonly<Semaphore>,
   processor: (item: T) => Promise<R>,
-  item: T,
+  item: Readonly<T>,
 ): Promise<R> {
   await semaphore.acquire();
   try {

@@ -65,9 +65,9 @@ export class ExportCache {
    * @param options Cache configuration options.
    */
   constructor(
-    private readonly fileSystemService: IExportCacheFileSystem,
-    private readonly exportParser: IExportCacheParser,
-    options?: IExportCacheOptions,
+    private readonly fileSystemService: Readonly<IExportCacheFileSystem>,
+    private readonly exportParser: Readonly<IExportCacheParser>,
+    options?: Readonly<IExportCacheOptions>,
   ) {
     this.maxSize = options?.maxSize ?? DEFAULT_MAX_CACHE_SIZE;
   }
