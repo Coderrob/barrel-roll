@@ -48,6 +48,9 @@ npm run test
 
 ## Code style and quality
 
+Run `npm run quality` before submitting changes. It includes formatting and ESLint checks,
+dependency-cruiser validation, duplicate-code detection, and TypeScript-aware Madge analysis.
+
 - Language: TypeScript
 - Formatter: Prettier (`.prettierrc.json`)
 - Lint config: `eslint.config.mjs`
@@ -58,6 +61,7 @@ npm run test
 
 - Tests live under `src/test/`.
 - Test execution uses Node's built-in test runner via `scripts/run-tests.cjs`.
+- `npm run test:vscode` compiles and launches the VS Code-hosted integration harness.
 - Unit test titles must begin with `should`.
 - Add tests for both success and failure paths.
 - Prefer focused unit tests; add integration tests for behavior crossing module boundaries.

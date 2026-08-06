@@ -16,20 +16,10 @@
  */
 
 import type { ILoggerInstance } from '../../types/index.js';
-import {
-  extractExportPath,
-  isMultilineExportEnd,
-  isMultilineExportStart,
-  normalizeExportPath,
-} from './export-patterns.js';
+import { findBarrelReExports, normalizeExportPath } from './export-patterns.js';
 
-/**
- * State object for tracking multiline export parsing.
- */
-interface IMultilineState {
-  buffer: string[];
-  inMultiline: boolean;
-}
+const BLOCK_COMMENT_END = '*/';
+const BLOCK_COMMENT_START = '/*';
 
 /**
  * Result of content sanitization.
@@ -69,107 +59,65 @@ export class BarrelContentSanitizer {
     existingContent: string,
     newContentPaths: Readonly<Set<string>>,
   ): ISanitizationResult {
-    const lines = existingContent.trim().split('\n');
-    const state: IMultilineState = { buffer: [], inMultiline: false };
-    const preservedLines: string[] = [];
-
-    for (const line of lines) {
-      const result = this.processLineForPreservation(line, state, newContentPaths);
-      preservedLines.push(...result);
+    const ranges = findBarrelReExports(existingContent)
+      .filter((declaration) => !this.shouldPreserveReExport(declaration.path, newContentPaths))
+      .map((declaration) => ({
+        end: this.includeAttachedTrailingComment(existingContent, declaration.end),
+        start: declaration.start,
+      }));
+    let cursor = 0;
+    const fragments: string[] = [];
+    for (const range of ranges) {
+      fragments.push(existingContent.slice(cursor, range.start));
+      cursor = range.end;
     }
+    fragments.push(existingContent.slice(cursor));
 
-    // If we ended mid-multiline (malformed), preserve what we have
-    preservedLines.push(...state.buffer);
-
+    const preservedLines = fragments
+      .join('')
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0);
     return { preservedLines };
   }
 
   /**
-   * Processes a single line during barrel content preservation.
-   * Manages multiline export state and returns lines to preserve.
-   * @param line TODO: describe parameter
-   * @param state TODO: describe parameter
-   * @param newContentPaths TODO: describe parameter
-   * @returns TODO: describe return value
+   * Includes a comment trailing a removed re-export on the same line. Standalone comments before
+   * a declaration remain untouched, while comments attached to a generated line do not become
+   * misleading orphaned markup.
+   * @param content Complete source text.
+   * @param declarationEnd End offset of the export declaration.
+   * @returns End offset including an attached trailing comment when present.
    */
-  private processLineForPreservation(
-    line: string,
-    state: IMultilineState,
-    newContentPaths: Readonly<Set<string>>,
-  ): string[] {
-    const trimmedLine = line.trim();
-    if (state.inMultiline) {
-      return this.processInMultilineLine(line, trimmedLine, state, newContentPaths);
+  private includeAttachedTrailingComment(content: string, declarationEnd: number): number {
+    const lineEndIndex = content.indexOf('\n', declarationEnd);
+    const lineEnd = lineEndIndex === -1 ? content.length : lineEndIndex;
+    const suffix = content.slice(declarationEnd, lineEnd);
+    const trimmedSuffix = suffix.trimStart();
+    if (trimmedSuffix.length === 0) {
+      return lineEnd;
     }
-    if (isMultilineExportStart(trimmedLine)) {
-      state.inMultiline = true;
-      state.buffer = [line];
-      return [];
+    if (trimmedSuffix.startsWith('//')) {
+      return lineEnd;
     }
-    return this.processSingleLine(line, trimmedLine, newContentPaths);
+    if (!trimmedSuffix.startsWith(BLOCK_COMMENT_START)) {
+      return declarationEnd;
+    }
+    return this.findBlockCommentEnd(content, declarationEnd);
   }
 
   /**
-   * Processes a line received while in multiline export state.
-   * @param line - The raw line.
-   * @param trimmedLine - The trimmed line.
-   * @param state - Current multiline state.
-   * @param newContentPaths - Set of paths that will be regenerated.
-   * @returns Lines to preserve.
+   * Finds the end of an attached block comment.
+   * @param content Complete source text.
+   * @param searchStart Offset at which to start searching.
+   * @returns Offset after the block comment, or the content end for an unterminated comment.
    */
-  private processInMultilineLine(
-    line: string,
-    trimmedLine: string,
-    state: IMultilineState,
-    newContentPaths: Readonly<Set<string>>,
-  ): string[] {
-    state.buffer.push(line);
-    if (isMultilineExportEnd(trimmedLine)) {
-      const result = this.processMultilineBlock(state.buffer, newContentPaths);
-      state.buffer = [];
-      state.inMultiline = false;
-      return result;
-    }
-    return [];
-  }
-
-  /**
-   * Processes a completed multiline export block and determines if it should be preserved.
-   * @returns Lines to preserve (empty array if should be stripped).
-   * @param buffer TODO: describe parameter
-   * @param newContentPaths TODO: describe parameter
-   */
-  private processMultilineBlock(
-    buffer: readonly string[],
-    newContentPaths: Readonly<Set<string>>,
-  ): string[] {
-    const fullBlock = buffer.join('\n');
-    const exportPath = extractExportPath(fullBlock);
-    if (!exportPath) {
-      // Failed to parse as export, preserve the lines
-      return [...buffer];
-    }
-    return this.shouldPreserveReExport(exportPath, newContentPaths) ? [...buffer] : [];
-  }
-
-  /**
-   * Processes a single line for preservation in barrel content.
-   * @returns Lines to preserve (empty array if should be stripped).
-   * @param line TODO: describe parameter
-   * @param trimmedLine TODO: describe parameter
-   * @param newContentPaths TODO: describe parameter
-   */
-  private processSingleLine(
-    line: string,
-    trimmedLine: string,
-    newContentPaths: Readonly<Set<string>>,
-  ): string[] {
-    const exportPath = extractExportPath(trimmedLine);
-    if (exportPath) {
-      return this.shouldPreserveReExport(exportPath, newContentPaths) ? [line] : [];
-    }
-    // Non-export line: preserve if not empty
-    return trimmedLine.length > 0 ? [line] : [];
+  private findBlockCommentEnd(content: string, searchStart: number): number {
+    const commentStart = content.indexOf(BLOCK_COMMENT_START, searchStart);
+    const commentEnd = content.indexOf(
+      BLOCK_COMMENT_END,
+      commentStart + BLOCK_COMMENT_START.length,
+    );
+    return commentEnd === -1 ? content.length : commentEnd + BLOCK_COMMENT_END.length;
   }
 
   /**
@@ -184,7 +132,7 @@ export class BarrelContentSanitizer {
     exportPath: string,
     normalizedNewPaths: Readonly<Set<string>>,
   ): boolean {
-    const isExternal = exportPath.startsWith('..');
+    const isExternal = /^(?:\.\.(?:[\\/]|$))/.test(exportPath);
     const normalizedPath = normalizeExportPath(exportPath);
     const willBeRegenerated = normalizedNewPaths.has(normalizedPath);
     const shouldPreserve = !isExternal && !willBeRegenerated;

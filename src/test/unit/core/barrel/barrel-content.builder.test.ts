@@ -141,6 +141,87 @@ describe('BarrelContentBuilder', () => {
       );
     });
 
+    it('should deterministically remove duplicate named and default exports', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'bravo.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Value, name: 'Shared' },
+              { kind: BarrelExportKind.Default },
+            ],
+          },
+        ],
+        [
+          'alpha.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Type, name: 'Shared' },
+              { kind: BarrelExportKind.Value, name: 'Shared' },
+              { kind: BarrelExportKind.Default },
+            ],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.strictEqual(result.match(/\bShared\b/g)?.length, 1);
+      assert.strictEqual(result.match(/\{ default \}/g)?.length, 1);
+      assert.ok(result.includes("from './alpha'"));
+      assert.ok(!result.includes("from './bravo'"));
+    });
+
+    it('should map module-specific TypeScript extensions to runtime extensions', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'module.mts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'esmValue' }],
+          },
+        ],
+        [
+          'module.cts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'cjsValue' }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '', '.js');
+
+      assert.ok(result.includes("from './module.mjs'"));
+      assert.ok(result.includes("from './module.cjs'"));
+    });
+
+    it('should forward wildcard exports without conflating independent modules', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'types.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Star, typeOnly: true }],
+          },
+        ],
+        [
+          'values.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Star, typeOnly: false }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.ok(result.includes("export type * from './types';"));
+      assert.ok(result.includes("export * from './values';"));
+    });
+
     const parentDirectoryCases: Array<Map<string, BarrelEntry>> = [
       new Map<string, BarrelEntry>([['../outside', { kind: BarrelEntryKind.Directory }]]),
       new Map<string, BarrelEntry>([

@@ -23,7 +23,8 @@ This file documents automation, scripts, CI checks, and packaging conventions us
 - Test commands:
   - `npm test` - compile tests, compile extension, lint, then run tests
   - `npm run test:unit` - compile tests, compile extension, then run tests (no lint)
-  - `npm run test:vscode` - compile tests, run VS Code integration harness
+  - `npm run test:vscode` - compile tests, run the VS Code integration harness from
+    `dist/src/test/runTest.js`
 
 ## Packaging and release
 
@@ -50,7 +51,11 @@ Verify with `npx @vscode/vsce ls` before publishing.
 
 ## CI
 
-CI runs dependency checks and tests. See:
+CI runs dependency checks, architectural dependency validation, TypeScript-aware circular/orphan
+analysis, duplication checks, and tests. The canonical aggregate quality command is
+`npm run quality`; `npm run lint:deps` invokes dependency-cruiser directly.
+
+See:
 
 - `.github/workflows/ci.yml`
 - `.github/workflows/release.yml`

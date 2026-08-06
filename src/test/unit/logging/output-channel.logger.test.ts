@@ -18,8 +18,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
-import type { OutputChannel } from 'vscode';
-
 import { LogLevel, OutputChannelLogger } from '../../../logging/output-channel.logger.js';
 
 describe('OutputChannelLogger', () => {
@@ -62,7 +60,7 @@ describe('OutputChannelLogger', () => {
       appendLine(line: string) {
         outputLines.push(line);
       },
-    } as OutputChannel);
+    });
   });
 
   afterEach(() => {

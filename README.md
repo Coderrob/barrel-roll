@@ -107,6 +107,9 @@ npm run deps:check
 npm run quality
 ```
 
+The quality command checks formatting and lint rules, unused and architectural dependencies,
+duplicate code, and TypeScript circular/orphan modules.
+
 ### Testing notes
 
 - `npm test` runs compile, lint, dependency check, then the Node test suite via `scripts/run-tests.cjs`.

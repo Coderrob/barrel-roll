@@ -25,9 +25,13 @@ import {
   BarrelExportKind,
   DEFAULT_EXPORT_NAME,
   PARENT_DIRECTORY_SEGMENT,
+  STAR_EXPORT_NAME,
 } from '../../types/index.js';
 import { sortAlphabetically } from '../../utils/string.js';
 import { FileSystemService } from '../io/file-system.service.js';
+
+const COMMONJS_TYPESCRIPT_EXTENSION = '.cts';
+const ES_MODULE_TYPESCRIPT_EXTENSION = '.mts';
 
 /**
  * Converts a legacy export name string to a BarrelExport object.
@@ -37,6 +41,9 @@ import { FileSystemService } from '../io/file-system.service.js';
 function legacyExportFromName(name: string): BarrelExport {
   if (name === DEFAULT_EXPORT_NAME) {
     return { kind: BarrelExportKind.Default };
+  }
+  if (name === STAR_EXPORT_NAME) {
+    return { kind: BarrelExportKind.Star, typeOnly: false };
   }
   return { kind: BarrelExportKind.Value, name };
 }
@@ -112,13 +119,89 @@ export class BarrelContentBuilder {
     directoryPath: string,
   ): Promise<string[]> {
     const sortedPaths = sortAlphabetically(normalizedEntries.keys());
+    const emittedNames = new Set<string>();
     const promises = sortedPaths.flatMap((relativePath) => {
       const entry = normalizedEntries.get(relativePath);
       if (!entry) return [];
-      return [this.createLinesForEntry(relativePath, entry, exportExtension, directoryPath)];
+      const uniqueEntry = this.reserveUniqueExports(entry, emittedNames);
+      return [this.createLinesForEntry(relativePath, uniqueEntry, exportExtension, directoryPath)];
     });
     const lineGroups = await Promise.all(promises);
     return lineGroups.flat();
+  }
+
+  /**
+   * Removes duplicate symbol exports within and across file entries. Paths are processed in sorted
+   * order, so the first module deterministically owns an ambiguous symbol and generated barrels
+   * never contain duplicate named or default exports.
+   * @param entry Entry to filter.
+   * @param emittedNames Names already emitted by earlier file entries.
+   * @returns The entry with only unique exports.
+   */
+  private reserveUniqueExports(
+    entry: Readonly<BarrelEntry>,
+    emittedNames: Set<string>,
+  ): BarrelEntry {
+    if (entry.kind === BarrelEntryKind.Directory) {
+      return entry;
+    }
+
+    const exportsByName = this.deduplicateEntryExports(entry.exports);
+    const exports = Array.from(exportsByName).flatMap(([name, barrelExport]) =>
+      this.reserveExport(name, barrelExport, emittedNames),
+    );
+    return { exports, kind: BarrelEntryKind.File };
+  }
+
+  /**
+   * Deduplicates the exports declared by one file, preferring values over type-only exports.
+   * @param exports TODO: describe parameter
+   * @returns TODO: describe return value
+   */
+  private deduplicateEntryExports(exports: readonly BarrelExport[]): Map<string, BarrelExport> {
+    const exportsByName = new Map<string, BarrelExport>();
+    for (const barrelExport of exports) {
+      const name = this.getExportIdentity(barrelExport);
+      const existing = exportsByName.get(name);
+      if (!existing || existing.kind === BarrelExportKind.Type) {
+        exportsByName.set(name, barrelExport);
+      }
+    }
+    return exportsByName;
+  }
+
+  /**
+   * Returns the public symbol identity used for duplicate detection.
+   * @param barrelExport Export metadata to identify.
+   * @returns The exported public name.
+   */
+  private getExportIdentity(barrelExport: Readonly<BarrelExport>): string {
+    if (barrelExport.kind === BarrelExportKind.Default) {
+      return DEFAULT_EXPORT_NAME;
+    }
+    return barrelExport.kind === BarrelExportKind.Star ? STAR_EXPORT_NAME : barrelExport.name;
+  }
+
+  /**
+   * Reserves one public name unless an earlier file already owns it.
+   * @param name Public export name.
+   * @param barrelExport Export metadata.
+   * @param emittedNames Names owned by earlier files.
+   * @returns The export when it should be emitted, otherwise an empty array.
+   */
+  private reserveExport(
+    name: string,
+    barrelExport: Readonly<BarrelExport>,
+    emittedNames: Set<string>,
+  ): BarrelExport[] {
+    if (barrelExport.kind === BarrelExportKind.Star) {
+      return [barrelExport];
+    }
+    if (emittedNames.has(name)) {
+      return [];
+    }
+    emittedNames.add(name);
+    return [barrelExport];
   }
 
   /**
@@ -191,7 +274,7 @@ export class BarrelContentBuilder {
    * @returns True if the export should be kept.
    */
   private isRelevantExport(exp: Readonly<BarrelExport>): boolean {
-    return exp.kind === BarrelExportKind.Default
+    return exp.kind === BarrelExportKind.Default || exp.kind === BarrelExportKind.Star
       ? true
       : !exp.name.includes(PARENT_DIRECTORY_SEGMENT);
   }
@@ -240,10 +323,14 @@ export class BarrelContentBuilder {
     const valueNames = this.getExportNames(exports, BarrelExportKind.Value);
     const typeNames = this.getExportNames(exports, BarrelExportKind.Type);
     const namedLine = this.buildNamedExportLine(modulePath, valueNames, typeNames);
+    const starLine = exports.find((barrelExport) => barrelExport.kind === BarrelExportKind.Star);
     const defaultLine = exports.some(this.isDefaultKindExport.bind(this))
       ? [`export { default } from './${modulePath}';`]
       : [];
-    return [...(namedLine ? [namedLine] : []), ...defaultLine];
+    const starLines = starLine
+      ? [`export${starLine.typeOnly ? ' type' : ''} * from './${modulePath}';`]
+      : [];
+    return [...starLines, ...(namedLine ? [namedLine] : []), ...defaultLine];
   }
 
   /**
@@ -336,8 +423,15 @@ export class BarrelContentBuilder {
       return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
     }
 
-    // For files, remove .ts/.tsx extension and replace with the desired export extension
-    const modulePath = filePath.replace(/\.tsx?$/, '') + exportExtension;
+    // For files, remove the TypeScript extension and replace it with the runtime extension.
+    const sourceExtension = path.extname(filePath).toLowerCase();
+    const runtimeExtension =
+      sourceExtension === ES_MODULE_TYPESCRIPT_EXTENSION
+        ? '.mjs'
+        : sourceExtension === COMMONJS_TYPESCRIPT_EXTENSION
+          ? '.cjs'
+          : exportExtension;
+    const modulePath = filePath.replace(/\.(?:ts|tsx|mts|cts)$/i, '') + runtimeExtension;
     // Normalize path separators for cross-platform compatibility
     return modulePath.replaceAll(/\\/g, '/');
   }
@@ -351,7 +445,7 @@ export class BarrelContentBuilder {
   private async isDirectory(filePath: string, directoryPath: string): Promise<boolean> {
     // For test compatibility, if directoryPath is empty, assume directories based on file extension
     if (!directoryPath) {
-      return !/\.tsx?$/.test(filePath);
+      return !/\.(?:ts|tsx|mts|cts)$/i.test(filePath);
     }
 
     // Resolve the full path to check if it's a directory

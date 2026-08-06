@@ -25,7 +25,7 @@ import {
   type Statement,
 } from 'ts-morph';
 
-import { DEFAULT_EXPORT_NAME, type IParsedExport } from '../../types/index.js';
+import { DEFAULT_EXPORT_NAME, type IParsedExport, STAR_EXPORT_NAME } from '../../types/index.js';
 
 // Script kind mapping for file extensions
 const SCRIPT_KIND_MAP: Record<string, ScriptKind> = {
@@ -47,7 +47,6 @@ interface IRecordExportOptions {
  * Options describing the specifier and type-only status of a named export declaration.
  */
 interface INamedExportOptions {
-  hasModuleSpecifier: boolean;
   isTypeOnly: boolean;
 }
 
@@ -156,9 +155,20 @@ export class ExportParser {
   ): void {
     const hasModuleSpecifier = Boolean(exportDecl.getModuleSpecifier());
     const isTypeOnly = exportDecl.isTypeOnly();
+    const namespaceExport = exportDecl.getNamespaceExport();
+
+    if (namespaceExport) {
+      this.recordExport(exportMap, namespaceExport.getName(), { typeOnly: isTypeOnly });
+      return;
+    }
+
+    if (hasModuleSpecifier && !exportDecl.compilerNode.exportClause) {
+      this.recordExport(exportMap, STAR_EXPORT_NAME, { typeOnly: isTypeOnly });
+      return;
+    }
 
     for (const namedExport of exportDecl.getNamedExports()) {
-      this.processNamedExport(namedExport, { hasModuleSpecifier, isTypeOnly }, exportMap);
+      this.processNamedExport(namedExport, { isTypeOnly }, exportMap);
     }
   }
 
@@ -175,27 +185,9 @@ export class ExportParser {
   ): void {
     const alias = namedExport.getAliasNode()?.getText();
 
-    // Skip re-exports without aliases (export { foo } from './module')
-    if (this.isUnaliasedReExport(options, alias)) {
-      return;
-    }
-
     const name = alias ?? namedExport.getName();
     const typeOnly = options.isTypeOnly || namedExport.isTypeOnly();
     this.recordExport(exportMap, name, { typeOnly });
-  }
-
-  /**
-   * Determines whether a named export is an unaliased re-export (export { foo } from ...).
-   * @param options TODO: describe parameter
-   * @param alias TODO: describe parameter
-   * @returns TODO: describe return value
-   */
-  private isUnaliasedReExport(
-    options: Readonly<INamedExportOptions>,
-    alias: string | undefined,
-  ): boolean {
-    return options.hasModuleSpecifier && !alias;
   }
 
   /**
@@ -212,6 +204,8 @@ export class ExportParser {
       this.processClassDeclaration(statement, exportMap);
       this.processFunctionDeclaration(statement, exportMap);
       this.processEnumDeclaration(statement, exportMap);
+      this.processImportEqualsDeclaration(statement, exportMap);
+      this.processModuleDeclaration(statement, exportMap);
       this.processVariableStatement(statement, exportMap);
     }
   }
@@ -290,7 +284,62 @@ export class ExportParser {
       return;
     }
     for (const decl of stmt.getDeclarations()) {
-      this.recordExport(map, decl.getName(), { typeOnly: false });
+      this.recordBindingNames(decl.getNameNode(), map);
+    }
+  }
+
+  /**
+   * Records every identifier introduced by a variable binding pattern.
+   * @param node Identifier or nested binding pattern.
+   * @param map Export map to update.
+   */
+  private recordBindingNames(node: Node, map: Readonly<Map<string, IParsedExport>>): void {
+    if (Node.isIdentifier(node)) {
+      this.recordExport(map, node.getText(), { typeOnly: false });
+      return;
+    }
+    for (const element of this.getBindingElements(node)) {
+      this.recordBindingNames(element.getNameNode(), map);
+    }
+  }
+
+  /**
+   * Gets binding elements from an object or array binding pattern.
+   * @param node Possible binding pattern.
+   * @returns Its binding elements, excluding array holes.
+   */
+  private getBindingElements(node: Node) {
+    if (!Node.isObjectBindingPattern(node) && !Node.isArrayBindingPattern(node)) {
+      return [];
+    }
+    return node.getElements().filter(Node.isBindingElement);
+  }
+
+  /**
+   * Records an exported `import name =` declaration.
+   * @param stmt Statement to inspect.
+   * @param map Export map to update.
+   */
+  private processImportEqualsDeclaration(
+    stmt: Statement,
+    map: Readonly<Map<string, IParsedExport>>,
+  ): void {
+    if (Node.isImportEqualsDeclaration(stmt) && stmt.isExported()) {
+      this.recordExport(map, stmt.getName(), { typeOnly: false });
+    }
+  }
+
+  /**
+   * Records an exported namespace or module declaration.
+   * @param stmt Statement to inspect.
+   * @param map Export map to update.
+   */
+  private processModuleDeclaration(
+    stmt: Statement,
+    map: Readonly<Map<string, IParsedExport>>,
+  ): void {
+    if (Node.isModuleDeclaration(stmt) && stmt.isExported()) {
+      this.recordExport(map, stmt.getName(), { typeOnly: false });
     }
   }
 

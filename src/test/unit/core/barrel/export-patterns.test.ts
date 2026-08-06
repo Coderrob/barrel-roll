@@ -23,6 +23,7 @@ import {
   extractAllExportPaths,
   extractExtensionFromLine,
   extractExportPath,
+  normalizeExportPath,
 } from '../../../../core/barrel/export-patterns.js';
 
 describe('Export Path Utils', () => {
@@ -50,6 +51,29 @@ describe('Export Path Utils', () => {
     assert.strictEqual(paths.has('./alpha'), true);
     assert.strictEqual(paths.has('./beta'), true);
     assert.strictEqual(paths.size, 2);
+    assert.strictEqual(normalizeExportPath(String.raw`.\utilities\index.cjs`), './utilities');
+  });
+
+  it('should collect multiline exports without treating comments or strings as exports', () => {
+    const content = `// export { Fake } from './commented';
+const example = "export { Fake } from './string';";
+export {
+  alpha, // } from './fake-comment'
+  beta,
+} from './real/index.js';`;
+
+    assert.deepStrictEqual([...extractAllExportPaths(content)], ['./real']);
+  });
+
+  it('should parse export attributes and namespace aliases using TypeScript syntax', () => {
+    assert.strictEqual(
+      extractExportPath("export { data } from './data.json' with { type: 'json' };"),
+      './data.json',
+    );
+    assert.strictEqual(
+      extractExportPath("export * as utilities from './utilities';"),
+      './utilities',
+    );
   });
 
   it('should detect extension patterns from barrel content', () => {
@@ -63,6 +87,9 @@ describe('Export Path Utils', () => {
 
     const noExtContent = "export { alpha } from './alpha';";
     assert.strictEqual(detectExtensionFromBarrelContent(noExtContent), '');
+
+    assert.strictEqual(detectExtensionFromBarrelContent("export * from './alpha.cjs';"), '.cjs');
+    assert.strictEqual(detectExtensionFromBarrelContent("export * from './folder.js/alpha';"), '');
   });
 
   it('should return null for extension checks on non-export lines', () => {

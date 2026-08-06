@@ -15,159 +15,187 @@
  *
  */
 
-/**
- * Regex pattern for extracting export paths from barrel export lines.
- * Uses non-greedy matching to handle comments containing closing braces.
- * Matches: export * from 'path', export { ... } from 'path', export type { ... } from 'path'
- * Handles comments between export parts and trailing line/block comments.
- * Supports exports with or without spaces (export{ or export {).
- */
-const EXPORT_PATH_PATTERN =
-  /^export(?:\s+type)?\s*(?:\*|\{[\s\S]*?\})[\s\S]*?from\s*["']([^"']+)["']\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/;
+import { type ExportDeclaration, Node, Project, ScriptKind, type SourceFile } from 'ts-morph';
+
+const FIRST_SEMANTIC_DIAGNOSTIC_CODE = 2000;
+
+/** Location and module path of a re-export declaration in barrel content. */
+export interface IBarrelReExport {
+  end: number;
+  path: string;
+  start: number;
+}
 
 /**
- * Regex pattern for multiline export statements.
- * Uses non-greedy matching to handle comments containing closing braces.
- * Captures: export { ... } from 'path' or export type { ... } from 'path' spanning multiple lines.
- * Supports exports with or without spaces (export{ or export {).
- */
-const MULTILINE_EXPORT_PATTERN =
-  /^export(?:\s+type)?\s*\{[\s\S]*?\}[\s\S]*?from\s*["']([^"']+)["']\s*;?\s*(?:\/\/.*|\/\*[\s\S]*?\*\/)?$/s;
-
-/**
- * Extracts the export path from a barrel export line or multiline block.
- * @param text The text to parse (can be single line or multiline).
- * @returns The export path if found, otherwise null.
+ * Detects the module extension convention used by the first re-export in barrel content.
+ * @param content Barrel source text.
+ * @returns The explicit JavaScript extension, an empty string, or null when no re-export exists.
  */
 export function detectExtensionFromBarrelContent(content: string): string | null {
-  const lines = content.trim().split('\n');
-
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (!isExportLine(trimmedLine)) {
-      continue;
-    }
-
-    const extension = extractExtensionFromLine(trimmedLine);
-    if (extension !== null) {
-      return extension;
-    }
-  }
-
-  return null;
+  const firstPath = findBarrelReExports(content)[0]?.path;
+  return firstPath === undefined ? null : extractExtensionFromPath(firstPath);
 }
 
 /**
- * Normalizes an export path for comparison by stripping file extensions
- * and /index suffixes. This ensures that './foo', './foo.js', './foo/index',
- * and './foo/index.js' are all treated as equivalent paths during deduplication.
- * @param exportPath The path to normalize.
- * @returns The normalized path without extension or /index suffix.
+ * Extracts all normalized re-export module paths from complete barrel content.
+ * @param content Barrel source text.
+ * @returns Normalized paths found in re-export declarations.
  */
 export function extractAllExportPaths(content: string): Set<string> {
-  const paths = new Set<string>();
-  const lines = content.trim().split('\n');
-
-  for (const line of lines) {
-    const exportPath = extractExportPath(line.trim());
-    if (!exportPath) {
-      continue;
-    }
-
-    // Pre-normalize paths for efficient comparison
-    paths.add(normalizeExportPath(exportPath));
-  }
-
-  return paths;
+  return new Set(
+    findBarrelReExports(content).map((declaration) => normalizeExportPath(declaration.path)),
+  );
 }
 
 /**
- * Extracts all export paths from barrel content and returns them normalized.
- * Paths are normalized by stripping extensions (e.g., ./foo.js → ./foo) and
- * removing /index suffixes (e.g., ./utils/index → ./utils) for consistent
- * comparison during deduplication.
- * @param content The barrel file content.
- * @returns Set of normalized module paths found in export statements.
+ * Extracts a module path when the supplied text consists of one re-export declaration.
+ * @param text Source text containing a possible re-export.
+ * @returns The module path, or null when the text is not exactly one re-export declaration.
  */
 export function extractExportPath(text: string): string | null {
-  const normalized = text.trim();
-  // Try single-line pattern first (faster for common case)
-  const singleLineMatch = EXPORT_PATH_PATTERN.exec(normalized);
-  if (singleLineMatch) {
-    return singleLineMatch[1];
+  const project = new Project({ skipAddingFilesFromTsConfig: true, useInMemoryFileSystem: true });
+  const sourceFile = project.createSourceFile('export.ts', text, {
+    overwrite: true,
+    scriptKind: ScriptKind.TS,
+  });
+
+  try {
+    return extractSingleReExportPath(sourceFile);
+  } finally {
+    project.removeSourceFile(sourceFile);
   }
-  // Try multiline pattern (handles newlines within braces)
-  const multilineMatch = MULTILINE_EXPORT_PATTERN.exec(normalized);
-  return multilineMatch ? multilineMatch[1] : null;
 }
 
 /**
- * Checks if a line is an export statement using AST parsing.
- * @param line The line to check.
- * @returns True if the line is an export statement.
+ * Extracts the module extension convention from a re-export declaration.
+ * @param line Source text containing a possible re-export.
+ * @returns The explicit JavaScript extension, an empty string, or null for non-re-exports.
  */
 export function extractExtensionFromLine(line: string): string | null {
   const exportPath = extractExportPath(line);
-  if (!exportPath) {
-    return null;
-  }
-
-  if (exportPath.includes('.js')) {
-    return '.js';
-  }
-
-  if (exportPath.includes('.mjs')) {
-    return '.mjs';
-  }
-
-  // Export without extension
-  return '';
+  return exportPath === null ? null : extractExtensionFromPath(exportPath);
 }
 
 /**
- * Extracts the extension pattern from an export line.
- * @param line The export line.
- * @returns The extension pattern, or null if none found.
+ * Returns the explicit runtime extension of a module path.
+ * @param exportPath Module path to inspect.
+ * @returns Its explicit JavaScript extension or an empty string.
+ */
+function extractExtensionFromPath(exportPath: string): string {
+  const match = /\.(cjs|mjs|js)$/.exec(exportPath);
+  return match ? `.${match[1]}` : '';
+}
+
+/**
+ * Extracts a path from a syntax-valid source file containing exactly one re-export.
+ * @param sourceFile Parsed source file.
+ * @returns Its re-export path or null.
+ */
+function extractSingleReExportPath(sourceFile: Readonly<SourceFile>): string | null {
+  const declaration = getOnlyExportDeclaration(sourceFile);
+  if (!declaration) return null;
+  const moduleSpecifier = declaration.getModuleSpecifier();
+  if (!moduleSpecifier) return null;
+  if (!Node.isStringLiteral(moduleSpecifier)) return null;
+  return moduleSpecifier.getLiteralValue();
+}
+
+/**
+ * Parses barrel content with the TypeScript parser. Regex-based parsing is unsafe here because
+ * braces and `from` clauses may occur inside comments and because export attributes evolve with
+ * the language grammar.
+ * @param content Source text to parse.
+ * @returns Re-export declarations in source order.
+ */
+export function findBarrelReExports(content: string): IBarrelReExport[] {
+  const project = new Project({ skipAddingFilesFromTsConfig: true, useInMemoryFileSystem: true });
+  const sourceFile = project.createSourceFile('barrel.ts', content, {
+    overwrite: true,
+    scriptKind: ScriptKind.TS,
+  });
+
+  try {
+    return sourceFile.getExportDeclarations().flatMap((declaration) => {
+      const moduleSpecifier = declaration.getModuleSpecifier();
+      if (!moduleSpecifier || !Node.isStringLiteral(moduleSpecifier)) {
+        return [];
+      }
+      return [
+        {
+          end: declaration.getEnd(),
+          path: moduleSpecifier.getLiteralValue(),
+          start: declaration.getStart(),
+        },
+      ];
+    });
+  } finally {
+    project.removeSourceFile(sourceFile);
+  }
+}
+
+/**
+ * Gets the only statement when it is a syntax-valid export declaration.
+ * @param sourceFile Parsed source file.
+ * @returns Its sole export declaration or null.
+ */
+function getOnlyExportDeclaration(sourceFile: Readonly<SourceFile>): ExportDeclaration | null {
+  if (hasSyntaxErrors(sourceFile)) return null;
+  const statements = sourceFile.getStatements();
+  if (statements.length !== 1) return null;
+  const statement = statements[0];
+  if (!statement) return null;
+  return Node.isExportDeclaration(statement) ? statement : null;
+}
+
+/**
+ * Returns whether TypeScript reported a parsing diagnostic for a source file.
+ * @param sourceFile Parsed source file.
+ * @returns True when parsing failed.
+ */
+function hasSyntaxErrors(sourceFile: Readonly<SourceFile>): boolean {
+  return sourceFile
+    .getPreEmitDiagnostics()
+    .some((diagnostic) => diagnostic.getCode() < FIRST_SEMANTIC_DIAGNOSTIC_CODE);
+}
+
+/**
+ * Checks whether text consists of one re-export declaration.
+ * @param line Text to inspect.
+ * @returns True for a re-export declaration.
  */
 export function isExportLine(line: string): boolean {
-  const path = extractExportPath(line);
-  return path !== null;
+  return extractExportPath(line) !== null;
 }
 
 /**
- * Detects the file extension pattern used in existing barrel content.
- * @param content The barrel file content.
- * @returns The extension pattern used, or null if none detected.
+ * Compatibility helper for callers that stream export text line-by-line.
+ * @param line A possible closing line of a multiline named re-export.
+ * @returns True when the line contains a closing brace followed by a module clause.
  */
 export function isMultilineExportEnd(line: string): boolean {
-  // Quick heuristic: line contains } followed by from and a quote
   return /\}\s*from\s*['"]/.test(line);
 }
 
 /**
- * Checks if a line closes a multiline export statement.
- * Simple heuristic check for performance since this is called per-line.
- * @param line The line to check.
- * @returns True if the line ends a multiline export.
+ * Compatibility helper for callers that stream export text line-by-line.
+ * Whole-content consumers should use {@link findBarrelReExports}.
+ * @param line A possible opening line of a multiline named re-export.
+ * @returns True when the line begins a named re-export that is not complete on that line.
  */
 export function isMultilineExportStart(line: string): boolean {
   const trimmed = line.trim();
-
-  // Must start with export and contain opening brace
-  if (!/^export(?:\s+type)?\s*\{/.test(trimmed)) {
-    return false;
-  }
-
-  // If it already ends on the same line, it's not a multiline start
-  return !isMultilineExportEnd(trimmed);
+  return /^export(?:\s+type)?\s*\{/.test(trimmed) && !isExportLine(trimmed);
 }
 
 /**
- * Checks if a line starts a multiline export (opens but doesn't close on same line).
- * Simple heuristic check for performance since this is called per-line.
- * @param line The line to check.
- * @returns True if the line starts a multiline export.
+ * Normalizes an export path for comparison by stripping JavaScript/TypeScript extensions and a
+ * trailing `/index` segment.
+ * @param exportPath Module path to normalize.
+ * @returns Comparable module path.
  */
 export function normalizeExportPath(exportPath: string): string {
-  return exportPath.replace(/\.(js|mjs|ts|tsx|mts|cts)$/, '').replace(/\/index$/, '');
+  return exportPath
+    .replace(/\\/g, '/')
+    .replace(/\.(?:[cm]?[jt]sx?)$/, '')
+    .replace(/\/index$/, '');
 }

@@ -31,6 +31,7 @@ import {
   INDEX_FILENAME,
   type IParsedExport,
   type NormalizedBarrelGenerationOptions,
+  STAR_EXPORT_NAME,
 } from '../../types/index.js';
 import { processConcurrently } from '../../utils/semaphore.js';
 import { FileSystemService } from '../io/file-system.service.js';
@@ -452,6 +453,9 @@ export class BarrelFileGenerator {
     return exports.map((exp) => {
       if (exp.name === DEFAULT_EXPORT_NAME) {
         return { kind: BarrelExportKind.Default };
+      }
+      if (exp.name === STAR_EXPORT_NAME) {
+        return { kind: BarrelExportKind.Star, typeOnly: exp.typeOnly };
       }
 
       const entry: BarrelExport = exp.typeOnly

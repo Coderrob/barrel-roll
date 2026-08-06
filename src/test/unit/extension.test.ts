@@ -208,7 +208,7 @@ describe('Extension', () => {
     // vscode.ExtensionContext, but at runtime our mock module provides it
     const ext = await import('../../extension.js');
     activate = ext.activate as unknown as ActivateFn;
-    deactivate = ext.deactivate as DeactivateFn;
+    deactivate = ext.deactivate;
   });
 
   /**

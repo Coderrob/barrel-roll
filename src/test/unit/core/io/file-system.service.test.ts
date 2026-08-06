@@ -141,7 +141,7 @@ describe('FileSystemService', () => {
         createFileEntry('component.test.tsx'),
         createDirectoryEntry('nested'),
       ];
-      mockFs.readdir.mockResolvedValueOnce(mockEntries as never);
+      mockFs.readdir.mockResolvedValueOnce(mockEntries);
 
       const result = await service.getTypeScriptFiles(directoryPath);
 
@@ -155,10 +155,16 @@ describe('FileSystemService', () => {
     const typeScriptEntryCases: Array<{ entry: Dirent; shouldInclude: boolean }> = [
       { entry: createFileEntry('alpha.ts'), shouldInclude: true },
       { entry: createFileEntry('component.tsx'), shouldInclude: true },
+      { entry: createFileEntry('module.mts'), shouldInclude: true },
+      { entry: createFileEntry('module.cts'), shouldInclude: true },
       { entry: createFileEntry(INDEX_FILENAME), shouldInclude: false },
       { entry: createFileEntry('types.d.ts'), shouldInclude: false },
+      { entry: createFileEntry('types.d.mts'), shouldInclude: false },
+      { entry: createFileEntry('types.d.cts'), shouldInclude: false },
       { entry: createFileEntry('file.spec.ts'), shouldInclude: false },
       { entry: createFileEntry('file.test.ts'), shouldInclude: false },
+      { entry: createFileEntry('file.spec.mts'), shouldInclude: false },
+      { entry: createFileEntry('file.test.cts'), shouldInclude: false },
       { entry: createFileEntry('component.spec.tsx'), shouldInclude: false },
       { entry: createFileEntry('component.test.tsx'), shouldInclude: false },
       { entry: createFileEntry('main.js'), shouldInclude: false },
@@ -201,7 +207,7 @@ describe('FileSystemService', () => {
         createDirectoryEntry('.hidden'),
         createFileEntry('file.ts'),
       ];
-      mockFs.readdir.mockResolvedValueOnce(mockEntries as never);
+      mockFs.readdir.mockResolvedValueOnce(mockEntries);
 
       const result = await service.getSubdirectories(directoryPath);
 
@@ -285,7 +291,7 @@ describe('FileSystemService', () => {
 
   describe('writeFile', () => {
     it('should write file content successfully', async () => {
-      mockFs.writeFile.mockResolvedValueOnce(undefined as never);
+      mockFs.writeFile.mockResolvedValueOnce(undefined);
 
       await service.writeFile('/path/to/file.ts', 'content');
 
@@ -315,7 +321,7 @@ describe('FileSystemService', () => {
 
   describe('ensureDirectory', () => {
     it('should create directory recursively', async () => {
-      mockFs.mkdir.mockResolvedValueOnce(undefined as never);
+      mockFs.mkdir.mockResolvedValueOnce(undefined);
 
       await service.ensureDirectory('/path/to/dir');
 
@@ -343,7 +349,7 @@ describe('FileSystemService', () => {
 
   describe('removePath', () => {
     it('should remove path recursively', async () => {
-      mockFs.rm.mockResolvedValueOnce(undefined as never);
+      mockFs.rm.mockResolvedValueOnce(undefined);
 
       await service.removePath('/path/to/remove');
 
@@ -373,7 +379,7 @@ describe('FileSystemService', () => {
 
   describe('createTempDirectory', () => {
     it('should create temp directory with prefix', async () => {
-      mockFs.mkdtemp.mockResolvedValueOnce('/tmp/foo123' as never);
+      mockFs.mkdtemp.mockResolvedValueOnce('/tmp/foo123');
 
       const result = await service.createTempDirectory('/tmp/foo-');
 
@@ -407,7 +413,7 @@ describe('FileSystemService', () => {
       it(`should evaluate file existence ${index}`, async () => {
         const filePath = expected ? '/path/to/file.ts' : '/invalid/path';
         if (expected) {
-          mockFs.access.mockResolvedValueOnce(undefined as never);
+          mockFs.access.mockResolvedValueOnce(undefined);
         } else {
           mockFs.access.mockRejectedValueOnce(new Error('Access error'));
         }
@@ -428,7 +434,7 @@ describe('FileSystemService', () => {
         const filePath = expected ? '/path/to/directory' : '/path/to/file.ts';
         mockFs.stat.mockResolvedValueOnce({
           isDirectory: () => expected,
-        } as never);
+        });
 
         const result = await service.isDirectory(filePath);
 

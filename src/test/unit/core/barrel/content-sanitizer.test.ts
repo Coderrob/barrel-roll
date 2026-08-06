@@ -180,6 +180,40 @@ describe('BarrelContentSanitizer', () => {
     assert.ok(preserved.includes('export enum Status'));
   });
 
+  it('should ignore fake terminators in comments and preserve standalone markup', () => {
+    const preserved = runSanitize(
+      [
+        '// Public API from the source module',
+        'export {',
+        "  alpha, // } from './fake-comment';",
+        '  beta,',
+        "} from './source'; // generated export",
+        'export const local = true;',
+      ],
+      ['./source'],
+    );
+
+    assert.ok(preserved.includes('// Public API from the source module'));
+    assert.ok(!preserved.includes('fake-comment'));
+    assert.ok(!preserved.includes('generated export'));
+    assert.ok(preserved.includes('export const local = true;'));
+  });
+
+  it('should sanitize export attributes and preserve malformed source safely', () => {
+    const preserved = runSanitize(
+      [
+        "export { data } from './data.json' with { type: 'json' };",
+        "export { incomplete from './broken';",
+        'export const local = true;',
+      ],
+      ['./data.json'],
+    );
+
+    assert.ok(!preserved.includes("from './data.json'"));
+    assert.ok(preserved.includes("export { incomplete from './broken';"));
+    assert.ok(preserved.includes('export const local = true;'));
+  });
+
   it('should handle empty lines and whitespace correctly', () => {
     const preserved = runSanitize(
       [

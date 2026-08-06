@@ -26,6 +26,7 @@ import {
   INDEX_FILENAME,
   NEWLINE,
   PARENT_DIRECTORY_SEGMENT,
+  STAR_EXPORT_NAME,
   type BarrelEntry,
   type BarrelExport,
   type IBarrelGenerationOptions,
@@ -48,18 +49,20 @@ import {
 describe('Contract Validation', () => {
   describe('Enum Contracts', () => {
     describe('BarrelExportKind', () => {
-      it('should have exactly three values', () => {
+      it('should have exactly four values', () => {
         const values = Object.values(BarrelExportKind) as string[];
-        assert.strictEqual(values.length, 3);
+        assert.strictEqual(values.length, 4);
         assert.ok(values.includes(BarrelExportKind.Value));
         assert.ok(values.includes(BarrelExportKind.Type));
         assert.ok(values.includes(BarrelExportKind.Default));
+        assert.ok(values.includes(BarrelExportKind.Star));
       });
 
       it('should have string values matching enum names', () => {
         assert.strictEqual(BarrelExportKind.Value, 'value');
         assert.strictEqual(BarrelExportKind.Type, 'type');
         assert.strictEqual(BarrelExportKind.Default, 'default');
+        assert.strictEqual(BarrelExportKind.Star, 'star');
       });
     });
 
@@ -98,6 +101,7 @@ describe('Contract Validation', () => {
       assert.strictEqual(INDEX_FILENAME, 'index.ts');
       assert.strictEqual(NEWLINE, '\n');
       assert.strictEqual(PARENT_DIRECTORY_SEGMENT, '..');
+      assert.strictEqual(STAR_EXPORT_NAME, '*');
     });
 
     it('should have non-empty string constants', () => {
@@ -105,6 +109,7 @@ describe('Contract Validation', () => {
       assert.ok(INDEX_FILENAME.length > 0);
       assert.ok(NEWLINE.length > 0);
       assert.ok(PARENT_DIRECTORY_SEGMENT.length > 0);
+      assert.ok(STAR_EXPORT_NAME.length > 0);
     });
   });
 
@@ -164,6 +169,15 @@ describe('Contract Validation', () => {
         };
         assert.strictEqual(defaultExport.kind, BarrelExportKind.Default);
         assert.ok(!('name' in defaultExport));
+      });
+
+      it('should accept wildcard exports', () => {
+        const starExport: BarrelExport = {
+          kind: BarrelExportKind.Star,
+          typeOnly: true,
+        };
+        assert.strictEqual(starExport.kind, BarrelExportKind.Star);
+        assert.strictEqual(starExport.typeOnly, true);
       });
 
       it('should reject invalid export kinds', () => {
@@ -262,6 +276,8 @@ describe('Contract Validation', () => {
               return 'type';
             case BarrelExportKind.Default:
               return 'default';
+            case BarrelExportKind.Star:
+              return 'star';
             default:
               throw new Error(`Unexpected BarrelExportKind: ${kind}`);
           }
@@ -270,6 +286,7 @@ describe('Contract Validation', () => {
         assert.strictEqual(testAllKinds(BarrelExportKind.Value), 'value');
         assert.strictEqual(testAllKinds(BarrelExportKind.Type), 'type');
         assert.strictEqual(testAllKinds(BarrelExportKind.Default), 'default');
+        assert.strictEqual(testAllKinds(BarrelExportKind.Star), 'star');
       });
 
       it('should handle all BarrelEntryKind values in switch', () => {

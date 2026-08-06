@@ -151,7 +151,7 @@ export class FileSystemService {
     const normalized = normalizeCase(filename);
     return (
       normalized === normalizeCase(INDEX_FILENAME) ||
-      normalized.endsWith('.d.ts') ||
+      /\.d\.(?:ts|mts|cts)$/.test(normalized) ||
       this.isTestFile(normalized)
     );
   }
@@ -163,7 +163,7 @@ export class FileSystemService {
    */
   private isTypeScriptExtension(filename: string): boolean {
     const normalized = normalizeCase(filename);
-    return normalized.endsWith('.ts') || normalized.endsWith('.tsx');
+    return /\.(?:ts|tsx|mts|cts)$/.test(normalized);
   }
 
   /**
@@ -173,12 +173,7 @@ export class FileSystemService {
    */
   private isTestFile(filename: string): boolean {
     const normalized = normalizeCase(filename);
-    return (
-      normalized.endsWith('.spec.ts') ||
-      normalized.endsWith('.test.ts') ||
-      normalized.endsWith('.spec.tsx') ||
-      normalized.endsWith('.test.tsx')
-    );
+    return /\.(?:spec|test)\.(?:ts|tsx|mts|cts)$/.test(normalized);
   }
 
   /**

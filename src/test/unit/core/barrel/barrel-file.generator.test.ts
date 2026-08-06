@@ -683,5 +683,27 @@ export { formatError } from './errors.js';
         'Helper function should be preserved',
       );
     });
+
+    it('should preserve wildcard APIs and emit duplicate public names only once', async () => {
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'aggregator.ts'),
+        "export * from './implementation';",
+      );
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'alpha.ts'),
+        'export const shared = 1; export const { nested } = source;',
+      );
+      await fileSystem.writeFile(path.join(tmpDir, 'bravo.ts'), 'export const shared = 2;');
+
+      await generator.generateBarrelFile(rootUri);
+
+      const barrel = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+      assert.ok(barrel.includes("export * from './aggregator.js';"));
+      assert.ok(barrel.includes("export { nested, shared } from './alpha.js';"));
+      assert.strictEqual(barrel.match(/\bshared\b/g)?.length, 1);
+      assert.ok(!barrel.includes("from './bravo.js'"));
+    });
   });
 });
