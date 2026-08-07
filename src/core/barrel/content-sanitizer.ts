@@ -57,7 +57,7 @@ export class BarrelContentSanitizer {
    */
   preserveDefinitionsAndSanitizeExports(
     existingContent: string,
-    newContentPaths: Readonly<Set<string>>,
+    newContentPaths: ReadonlySet<string>,
   ): ISanitizationResult {
     const ranges = findBarrelReExports(existingContent)
       .filter((declaration) => !this.shouldPreserveReExport(declaration.path, newContentPaths))
@@ -130,7 +130,7 @@ export class BarrelContentSanitizer {
    */
   private shouldPreserveReExport(
     exportPath: string,
-    normalizedNewPaths: Readonly<Set<string>>,
+    normalizedNewPaths: ReadonlySet<string>,
   ): boolean {
     const isExternal = /^(?:\.\.(?:[\\/]|$))/.test(exportPath);
     const normalizedPath = normalizeExportPath(exportPath);
@@ -143,9 +143,9 @@ export class BarrelContentSanitizer {
 
   /**
    * Logs debug information about re-export preservation decisions.
-   * @param exportPath TODO: describe parameter
-   * @param normalizedPath TODO: describe parameter
-   * @param decision TODO: describe parameter
+   * @param exportPath Module path as written in the barrel.
+   * @param normalizedPath Canonical path used for duplicate comparison.
+   * @param decision Reason the re-export is preserved or removed.
    */
   private logPreservationDecision(
     exportPath: string,
@@ -158,22 +158,22 @@ export class BarrelContentSanitizer {
     this.logger.debug(
       `[SANITIZER] Checking: ${exportPath} → ${normalizedPath} isExternal: ${decision.isExternal} willBeRegenerated: ${decision.willBeRegenerated}`,
     );
-    this.logPreservationAction(exportPath, normalizedPath, decision);
+    this.logPreservationAction(this.logger, exportPath, normalizedPath, decision);
   }
 
   /**
    * Logs the preservation action for a re-export.
+   * @param logger Logger receiving the decision.
    * @param exportPath - The export path.
    * @param normalizedPath - The normalized path.
    * @param decision - The preservation decision.
    */
   private logPreservationAction(
+    logger: Readonly<ILoggerInstance>,
     exportPath: string,
     normalizedPath: string,
     decision: Readonly<IPreservationDecision>,
   ): void {
-    const { logger } = this;
-    if (!logger) return;
     if (decision.isExternal) {
       logger.debug(`Stripping external re-export: ${exportPath}`);
     } else if (decision.willBeRegenerated) {

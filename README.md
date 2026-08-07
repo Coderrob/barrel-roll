@@ -90,8 +90,8 @@ export type { UserData } from './user.js';
 
 ### Prerequisites
 
-- Node.js 18+
-- npm 8+
+- Node.js 22.13+
+- npm 10+
 
 ### Common commands
 
@@ -102,6 +102,8 @@ npm run compile-tests
 npm run test
 npm run test:unit
 npm run test:vscode
+npm run coverage:verify
+npm run memory:check
 npm run lint
 npm run deps:check
 npm run quality
@@ -114,8 +116,15 @@ duplicate code, and TypeScript circular/orphan modules.
 
 - `npm test` runs compile, lint, dependency check, then the Node test suite via `scripts/run-tests.cjs`.
 - `npm run test:unit` runs a faster compile + test path without lint.
+- `npm run coverage:verify` requires every executable production file to exceed 95% statements, branches,
+  functions, and lines.
+- Test compilation clears stale TypeScript output before coverage so removed files cannot silently
+  remain in the measured `dist/src` tree.
+- `npm run memory:check` runs the bounded cache/parser heap-retention probe with forced garbage
+  collection; it is intentionally separate from the fast unit suite.
 - Unit and integration tests live under `src/test/`.
-- Unit test names must start with `should`.
+- Unit test names must start with `should` and follow FAST: fast, autonomous, self-validating, and
+  timely.
 
 ### Dependency checking
 

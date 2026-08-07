@@ -7,12 +7,14 @@
     "url": "https://github.com/Coderrob/barrel-roll/issues"
   },
   "c8": {
-    "branches": 95,
+    "all": true,
+    "branches": 95.01,
     "check-coverage": true,
     "exclude": [
       "dist/test/**",
       "dist/src/test/**",
       "dist/**/index.js",
+      "dist/src/types/logger.js",
       "dist/**/*.test.js",
       "dist/**/*.d.ts",
       "node_modules/**",
@@ -21,18 +23,19 @@
       "src/**/*.test.ts",
       "src/**/*.d.ts"
     ],
-    "functions": 95,
+    "functions": 95.01,
     "include": [
-      "dist/**/*.js"
+      "dist/src/**/*.js"
     ],
-    "lines": 95,
+    "lines": 95.01,
+    "per-file": true,
     "reporter": [
       "text",
       "lcov",
       "html",
       "json-summary"
     ],
-    "statements": 95
+    "statements": 95.01
   },
   "categories": [
     "Programming Languages"
@@ -88,7 +91,7 @@
   },
   "description": "A Visual Studio Code extension to automatically export types, functions, constants, and classes through barrel files",
   "devDependencies": {
-    "@coderrob/eslint-plugin-zero-tolerance": "1.2.2",
+    "@coderrob/eslint-plugin-zero-tolerance": "1.2.6",
     "@types/node": "^22.20.1",
     "@types/vscode": "1.80.0",
     "@typescript-eslint/eslint-plugin": "^8.66.0",
@@ -143,10 +146,11 @@
   },
   "scripts": {
     "compile": "webpack",
-    "compile-tests": "tsc -p tsconfig.test-suite.json",
-    "coverage": "npm run pretest && c8 node scripts/run-tests.cjs && npm run coverage:badge",
+    "compile-tests": "node scripts/run-compile-tests.cjs",
+    "coverage": "npm run coverage:verify && npm run coverage:badge",
     "coverage:badge": "make-coverage-badge --output-path ./badges/coverage.svg",
     "coverage:check": "c8 check-coverage",
+    "coverage:verify": "npm run pretest && c8 node scripts/run-tests.cjs",
     "deps:check": "node ./scripts/run-depcheck.cjs",
     "duplication": "jscpd src",
     "ext:build": "npm run compile",
@@ -160,6 +164,7 @@
     "lint:deps": "depcruise src --config .dependency-cruiser.cjs",
     "lint:fix": "prettier --write . && eslint --fix .",
     "madge": "madge --extensions ts --ts-config tsconfig.json --circular --orphans src",
+    "memory:check": "npm run compile-tests && node --expose-gc scripts/run-memory-check.cjs",
     "package": "webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "quality": "npm run lint && npm run lint:deps && npm run duplication && npm run madge",

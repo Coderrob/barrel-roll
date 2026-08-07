@@ -30,21 +30,26 @@ describe('BarrelContentBuilder', () => {
 
   describe('buildContent', () => {
     it('should build export statements for files and nested directories', async () => {
-      const entries = new Map<string, BarrelEntry>();
-
-      entries
-        .set('alpha.ts', {
-          kind: BarrelEntryKind.File,
-          exports: [{ kind: BarrelExportKind.Value, name: 'Alpha' }],
-        })
-        .set('beta.ts', {
-          kind: BarrelEntryKind.File,
-          exports: [
-            { kind: BarrelExportKind.Type, name: 'Bravo' },
-            { kind: BarrelExportKind.Default },
-          ],
-        })
-        .set('nested', { kind: BarrelEntryKind.Directory });
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'alpha.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'Alpha' }],
+          },
+        ],
+        [
+          'beta.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Type, name: 'Bravo' },
+              { kind: BarrelExportKind.Default },
+            ],
+          },
+        ],
+        ['nested', { kind: BarrelEntryKind.Directory }],
+      ]);
 
       const source = await builder.buildContent(entries, '');
 
@@ -108,12 +113,16 @@ describe('BarrelContentBuilder', () => {
     });
 
     it('should ignore undefined entries produced by legacy callers', async () => {
-      const entries = new Map<string, BarrelEntry>();
-      entries.set('ghost.ts', undefined as unknown as BarrelEntry);
-      entries.set('echo.ts', {
-        kind: BarrelEntryKind.File,
-        exports: [{ kind: BarrelExportKind.Value, name: 'Echo' }],
-      });
+      const entries = new Map<string, BarrelEntry>([
+        ['ghost.ts', undefined as unknown as BarrelEntry],
+        [
+          'echo.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'Echo' }],
+          },
+        ],
+      ]);
 
       const result = await builder.buildContent(entries, '');
 
@@ -121,16 +130,20 @@ describe('BarrelContentBuilder', () => {
     });
 
     it('should combine value and type exports using mixed export syntax', async () => {
-      const entries = new Map<string, BarrelEntry>();
-      entries.set('mixed.ts', {
-        kind: BarrelEntryKind.File,
-        exports: [
-          { kind: BarrelExportKind.Value, name: 'Something' },
-          { kind: BarrelExportKind.Type, name: 'OtherThing' },
-          { kind: BarrelExportKind.Value, name: 'AnotherValue' },
-          { kind: BarrelExportKind.Type, name: 'AnotherType' },
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'mixed.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Value, name: 'Something' },
+              { kind: BarrelExportKind.Type, name: 'OtherThing' },
+              { kind: BarrelExportKind.Value, name: 'AnotherValue' },
+              { kind: BarrelExportKind.Type, name: 'AnotherType' },
+            ],
+          },
         ],
-      });
+      ]);
 
       const result = await builder.buildContent(entries, '');
 
@@ -172,6 +185,29 @@ describe('BarrelContentBuilder', () => {
       assert.strictEqual(result.match(/\{ default \}/g)?.length, 1);
       assert.ok(result.includes("from './alpha'"));
       assert.ok(!result.includes("from './bravo'"));
+    });
+
+    it('should prefer a runtime export when an earlier file has a type-only collision', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'alpha.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Type, name: 'Shared' }],
+          },
+        ],
+        [
+          'bravo.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'Shared' }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.strictEqual(result, "export { Shared } from './bravo';\n");
     });
 
     it('should map module-specific TypeScript extensions to runtime extensions', async () => {

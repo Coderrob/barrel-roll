@@ -14,5 +14,4 @@
  * limitations under the License.
  *
  */
-// Placeholder for VS Code integration tests. Keep this file so the VS Code test
-// runner has a stable entry point.
+// VS Code integration test entry point. Keep this file so the test runner has a stable target.

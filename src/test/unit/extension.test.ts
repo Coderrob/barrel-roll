@@ -43,7 +43,7 @@ describe('Extension', () => {
     options: ProgressOptions;
   };
 
-  const commandHandlers = new Map<string, CommandHandler>();
+  const commandHandlers: Array<readonly [string, CommandHandler]> = [];
   let createOutputChannelCalls: string[];
   let createdOutputChannels: Array<{ appendLine: (value: string) => void }>;
   let outputChannelMessages: string[];
@@ -99,10 +99,11 @@ describe('Extension', () => {
 
   const commandsApi: TestCommandsApi = {
     registerCommand(command: string, handler: CommandHandler): { dispose(): void } {
-      commandHandlers.set(command, handler);
+      commandHandlers.push([command, handler]);
       return {
         dispose() {
-          commandHandlers.delete(command);
+          const handlerIndex = commandHandlers.findIndex(([registered]) => registered === command);
+          if (handlerIndex >= 0) commandHandlers.splice(handlerIndex, 1);
         },
       };
     },
@@ -187,7 +188,7 @@ describe('Extension', () => {
    *
    */
   function resetState(): void {
-    commandHandlers.clear();
+    commandHandlers.length = 0;
     createOutputChannelCalls = [];
     createdOutputChannels = [];
     outputChannelMessages = [];
@@ -215,7 +216,7 @@ describe('Extension', () => {
    *
    */
   function getCommand(id: string): CommandHandler {
-    const handler = commandHandlers.get(id);
+    const handler = commandHandlers.find(([command]) => command === id)?.[1];
     assert.ok(handler, `Command ${id} was not registered`);
     return handler;
   }
@@ -242,10 +243,10 @@ describe('Extension', () => {
       assert.deepStrictEqual(createOutputChannelCalls, ['Barrel Roll']);
       assert.strictEqual(configuredOutputChannel, createdOutputChannels[0]);
       assert.deepStrictEqual(outputChannelMessages, ['Barrel Roll: logging initialized']);
-      assert.deepStrictEqual(Array.from(commandHandlers.keys()), [
-        'barrel-roll.generateBarrel',
-        'barrel-roll.generateBarrelRecursive',
-      ]);
+      assert.deepStrictEqual(
+        commandHandlers.map(([command]) => command),
+        ['barrel-roll.generateBarrel', 'barrel-roll.generateBarrelRecursive'],
+      );
       assert.strictEqual(context.subscriptions.length, 3);
       assert.strictEqual(context.subscriptions[0], createdOutputChannels[0]);
 

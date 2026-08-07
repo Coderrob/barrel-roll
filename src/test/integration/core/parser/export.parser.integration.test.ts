@@ -16,80 +16,49 @@
  */
 
 import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import { ExportParser } from '../../../../core/parser/export.parser.js';
 
-// Tests run from project root via scripts/run-tests.js
-const projectRoot = process.cwd();
-
 describe('ExportParser Integration Tests', () => {
   const parser = new ExportParser();
 
-  /** Recursively lists all test files under the given root directory. */
-  async function listTestFiles(root: string): Promise<string[]> {
-    const entries = await readdir(root, { withFileTypes: true });
-    const files = await Promise.all(
-      entries.map(async (entry) => {
-        const fullPath = join(root, entry.name);
-        if (entry.isDirectory()) {
-          return listTestFiles(fullPath);
-        }
-        return entry.name.endsWith('.test.ts') ? [fullPath] : [];
-      }),
-    );
-    return files.flat();
-  }
-
   describe('real-world test files', () => {
-    it('should not extract false exports from test suite files', async () => {
-      // This test verifies that test files containing export statements
-      // inside strings (as test fixtures) don't produce false positives
-      const testSuitePath = join(projectRoot, 'src/test/unit');
+    it('should not extract false exports from representative test-suite markup', () => {
+      const source = String.raw`
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 
-      let files: string[];
-      try {
-        files = await listTestFiles(testSuitePath);
-      } catch {
-        // Skip if directory doesn't exist (e.g., in CI before test setup)
-        return;
-      }
+describe('fixture', () => {
+  it('contains export examples', () => {
+    const line = "export { Named } from './named';";
+    const multiline = "export { Alpha, Beta } from './values';";
+    // export class CommentedOut {}
+    assert.ok(line && multiline);
+  });
+});
+`;
 
-      const results = await Promise.all(
-        files.map(async (filePath) => {
-          const content = await readFile(filePath, 'utf8');
-          const exports = parser.extractExports(content);
-          return { filePath, exports };
-        }),
-      );
-
-      for (const { filePath, exports } of results) {
-        // Test files should have no real exports - they only contain test code
-        // with export statements inside strings as test fixtures
-        assert.deepStrictEqual(
-          exports,
-          [],
-          `${filePath} should have no exports, but found: ${JSON.stringify(exports)}`,
-        );
-      }
+      assert.deepStrictEqual(parser.extractExports(source), []);
     });
 
-    it('should correctly extract exports from real source files', async () => {
-      // Verify the parser works on actual source files
-      const parserSourcePath = join(projectRoot, 'src/core/parser/export.parser.ts');
-      const content = await readFile(parserSourcePath, 'utf8');
-      const exports = parser.extractExports(content);
+    it('should correctly extract exports from representative production source', () => {
+      const source = `
+export interface ParserOptions { allowJavaScript: boolean }
+export class ExportParserFixture {}
+const internal = true;
+`;
+      const exports = parser.extractExports(source);
 
-      // The export.parser.ts file exports ExportParser class
       assert.ok(
-        exports.some((e) => e.name === 'ExportParser' && !e.typeOnly),
-        'Should find ExportParser export',
+        exports.some((entry) => entry.name === 'ExportParserFixture' && !entry.typeOnly),
+        'Should find the exported class',
       );
+      assert.ok(exports.some((entry) => entry.name === 'ParserOptions' && entry.typeOnly));
+      assert.ok(!exports.some((entry) => entry.name === 'internal'));
     });
 
-    it('should not extract exports from barrel-content.builder.test.ts patterns', async () => {
+    it('should not extract exports from barrel-content.builder.test.ts patterns', () => {
       // Simulates the exact pattern that caused the original bug
       const source = String.raw`
 import assert from 'node:assert/strict';

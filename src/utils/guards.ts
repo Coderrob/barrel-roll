@@ -38,7 +38,7 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 /**
  * Returns true if the value looks like an Error (has a message string or is an Error instance).
  * @param value The value to check
- * @returns TODO: describe return value
+ * @returns True only when the value is a primitive string.
  */
 export function isString(value: unknown): value is string {
   return typeof value === 'string';

@@ -33,6 +33,21 @@ import { FileSystemService } from '../io/file-system.service.js';
 const COMMONJS_TYPESCRIPT_EXTENSION = '.cts';
 const ES_MODULE_TYPESCRIPT_EXTENSION = '.mts';
 
+interface IEntryReservation {
+  emittedNames: ReadonlySet<string>;
+  entry: BarrelEntry;
+}
+
+interface IExportReservation {
+  emittedNames: ReadonlySet<string>;
+  barrelExport?: BarrelExport;
+}
+
+interface IReservedExports {
+  emittedNames: ReadonlySet<string>;
+  exports: BarrelExport[];
+}
+
 /**
  * Converts a legacy export name string to a BarrelExport object.
  * @param name The export name to convert.
@@ -46,6 +61,22 @@ function legacyExportFromName(name: string): BarrelExport {
     return { kind: BarrelExportKind.Star, typeOnly: false };
   }
   return { kind: BarrelExportKind.Value, name };
+}
+
+/**
+ * Returns a Map copy containing one updated key-value pair.
+ * @param source Source map.
+ * @param key Key to update.
+ * @param value Value to store.
+ * @returns Updated Map copy.
+ */
+function withMapEntry<Key, Value>(
+  source: ReadonlyMap<Key, Value>,
+  key: Key,
+  value: Value,
+): Map<Key, Value> {
+  const entry: readonly [Key, Value] = [key, value];
+  return new Map([...source, entry]);
 }
 
 /**
@@ -69,7 +100,7 @@ export class BarrelContentBuilder {
    * @returns The barrel file content as a string.
    */
   buildContent(
-    entries: Map<string, string[]>,
+    entries: ReadonlyMap<string, string[]>,
     directoryPath: string,
     exportExtension?: string,
   ): Promise<string>;
@@ -81,7 +112,7 @@ export class BarrelContentBuilder {
    * @returns The barrel file content as a string.
    */
   buildContent(
-    entries: Map<string, BarrelEntry>,
+    entries: ReadonlyMap<string, BarrelEntry>,
     directoryPath: string,
     exportExtension?: string,
   ): Promise<string>;
@@ -93,7 +124,7 @@ export class BarrelContentBuilder {
    * @returns The barrel file content as a string.
    */
   async buildContent(
-    entries: Readonly<Map<string, BarrelEntry | string[]>>,
+    entries: ReadonlyMap<string, BarrelEntry | string[]>,
     directoryPath: string,
     exportExtension = '',
   ): Promise<string> {
@@ -114,17 +145,21 @@ export class BarrelContentBuilder {
    * @returns Flattened array of all export lines.
    */
   private async collectAllExportLines(
-    normalizedEntries: Readonly<Map<string, BarrelEntry>>,
+    normalizedEntries: ReadonlyMap<string, BarrelEntry>,
     exportExtension: string,
     directoryPath: string,
   ): Promise<string[]> {
     const sortedPaths = sortAlphabetically(normalizedEntries.keys());
-    const emittedNames = new Set<string>();
+    let emittedNames: ReadonlySet<string> = new Set<string>();
+    const runtimeExportNames = this.collectRuntimeExportNames(normalizedEntries);
     const promises = sortedPaths.flatMap((relativePath) => {
       const entry = normalizedEntries.get(relativePath);
       if (!entry) return [];
-      const uniqueEntry = this.reserveUniqueExports(entry, emittedNames);
-      return [this.createLinesForEntry(relativePath, uniqueEntry, exportExtension, directoryPath)];
+      const reservation = this.reserveUniqueExports(entry, emittedNames, runtimeExportNames);
+      emittedNames = reservation.emittedNames;
+      return [
+        this.createLinesForEntry(relativePath, reservation.entry, exportExtension, directoryPath),
+      ];
     });
     const lineGroups = await Promise.all(promises);
     return lineGroups.flat();
@@ -136,38 +171,99 @@ export class BarrelContentBuilder {
    * never contain duplicate named or default exports.
    * @param entry Entry to filter.
    * @param emittedNames Names already emitted by earlier file entries.
+   * @param runtimeExportNames Names that have a runtime export in any file entry.
    * @returns The entry with only unique exports.
    */
   private reserveUniqueExports(
     entry: Readonly<BarrelEntry>,
-    emittedNames: Set<string>,
-  ): BarrelEntry {
+    emittedNames: ReadonlySet<string>,
+    runtimeExportNames: ReadonlySet<string>,
+  ): IEntryReservation {
     if (entry.kind === BarrelEntryKind.Directory) {
-      return entry;
+      return { emittedNames, entry };
     }
 
     const exportsByName = this.deduplicateEntryExports(entry.exports);
-    const exports = Array.from(exportsByName).flatMap(([name, barrelExport]) =>
-      this.reserveExport(name, barrelExport, emittedNames),
+    const initial: IReservedExports = { emittedNames, exports: [] };
+    const reservation = Array.from(exportsByName).reduce(
+      (state, [name, barrelExport]) =>
+        this.appendReservedExport(state, name, barrelExport, runtimeExportNames),
+      initial,
     );
-    return { exports, kind: BarrelEntryKind.File };
+    return {
+      emittedNames: reservation.emittedNames,
+      entry: { exports: reservation.exports, kind: BarrelEntryKind.File },
+    };
+  }
+
+  /**
+   * Appends an export reservation to immutable accumulator state.
+   * @param state Current reservation state.
+   * @param name Public export name.
+   * @param barrelExport Export metadata.
+   * @param runtimeExportNames Names that have runtime exports.
+   * @returns Updated immutable reservation state.
+   */
+  private appendReservedExport(
+    state: Readonly<IReservedExports>,
+    name: string,
+    barrelExport: Readonly<BarrelExport>,
+    runtimeExportNames: ReadonlySet<string>,
+  ): IReservedExports {
+    const reservation = this.reserveExport(
+      name,
+      barrelExport,
+      state.emittedNames,
+      runtimeExportNames,
+    );
+    return {
+      emittedNames: reservation.emittedNames,
+      exports: reservation.barrelExport
+        ? [...state.exports, reservation.barrelExport]
+        : state.exports,
+    };
+  }
+
+  /**
+   * Collects public names that are available as runtime values in any file entry.
+   * This prevents an alphabetically earlier type-only declaration from hiding a later value.
+   * @param entries Entries to inspect.
+   * @returns Names with at least one runtime value export.
+   */
+  private collectRuntimeExportNames(
+    entries: ReadonlyMap<string, BarrelEntry>,
+  ): ReadonlySet<string> {
+    const runtimeExportNames = Array.from(entries.values()).flatMap((entry) =>
+      this.getRuntimeExportNames(entry),
+    );
+    return new Set(runtimeExportNames);
+  }
+
+  /**
+   * Gets the runtime value names from one file entry.
+   * @param entry Entry to inspect.
+   * @returns Runtime value names declared by the entry.
+   */
+  private getRuntimeExportNames(entry: Readonly<BarrelEntry> | undefined): string[] {
+    if (!entry || entry.kind !== BarrelEntryKind.File) return [];
+    return entry.exports.flatMap((barrelExport) =>
+      barrelExport.kind === BarrelExportKind.Value ? [barrelExport.name] : [],
+    );
   }
 
   /**
    * Deduplicates the exports declared by one file, preferring values over type-only exports.
-   * @param exports TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param exports Exports declared by a single source file.
+   * @returns Exports keyed by public identity, with runtime values preferred over type-only entries.
    */
   private deduplicateEntryExports(exports: readonly BarrelExport[]): Map<string, BarrelExport> {
-    const exportsByName = new Map<string, BarrelExport>();
-    for (const barrelExport of exports) {
+    return exports.reduce((exportsByName, barrelExport) => {
       const name = this.getExportIdentity(barrelExport);
       const existing = exportsByName.get(name);
-      if (!existing || existing.kind === BarrelExportKind.Type) {
-        exportsByName.set(name, barrelExport);
-      }
-    }
-    return exportsByName;
+      return !existing || existing.kind === BarrelExportKind.Type
+        ? withMapEntry(exportsByName, name, barrelExport)
+        : exportsByName;
+    }, new Map<string, BarrelExport>());
   }
 
   /**
@@ -187,21 +283,25 @@ export class BarrelContentBuilder {
    * @param name Public export name.
    * @param barrelExport Export metadata.
    * @param emittedNames Names owned by earlier files.
-   * @returns The export when it should be emitted, otherwise an empty array.
+   * @param runtimeExportNames Names that have a runtime export in any file entry.
+   * @returns Updated reservation state and the export to emit, when one remains eligible.
    */
   private reserveExport(
     name: string,
     barrelExport: Readonly<BarrelExport>,
-    emittedNames: Set<string>,
-  ): BarrelExport[] {
+    emittedNames: ReadonlySet<string>,
+    runtimeExportNames: ReadonlySet<string>,
+  ): IExportReservation {
     if (barrelExport.kind === BarrelExportKind.Star) {
-      return [barrelExport];
+      return { barrelExport, emittedNames };
+    }
+    if (barrelExport.kind === BarrelExportKind.Type && runtimeExportNames.has(name)) {
+      return { emittedNames };
     }
     if (emittedNames.has(name)) {
-      return [];
+      return { emittedNames };
     }
-    emittedNames.add(name);
-    return [barrelExport];
+    return { barrelExport, emittedNames: new Set([...emittedNames, name]) };
   }
 
   /**
@@ -210,22 +310,17 @@ export class BarrelContentBuilder {
    * @returns Map of BarrelEntry
    */
   private normalizeEntries(
-    entries: Readonly<Map<string, BarrelEntry | string[]>>,
+    entries: ReadonlyMap<string, BarrelEntry | string[]>,
   ): Map<string, BarrelEntry> {
-    const normalized = new Map<string, BarrelEntry>();
-
-    for (const [relativePath, entry] of entries) {
-      if (Array.isArray(entry)) {
-        normalized.set(relativePath, {
-          kind: BarrelEntryKind.File,
-          exports: entry.map(legacyExportFromName),
-        });
-      } else {
-        normalized.set(relativePath, entry);
-      }
-    }
-
-    return normalized;
+    const normalizedEntries = Array.from(entries).flatMap(([relativePath, entry]) => {
+      if (!entry) return [];
+      const normalizedEntry: BarrelEntry = Array.isArray(entry)
+        ? { kind: BarrelEntryKind.File, exports: entry.map(legacyExportFromName) }
+        : entry;
+      const normalizedPair: readonly [string, BarrelEntry] = [relativePath, normalizedEntry];
+      return [normalizedPair];
+    });
+    return new Map(normalizedEntries);
   }
 
   /**
@@ -381,9 +476,9 @@ export class BarrelContentBuilder {
 
   /**
    * Extracts and sorts export names of a specific kind.
-   * @param exports TODO: describe parameter
-   * @param kind TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param exports Candidate exports from one module.
+   * @param kind Named export kind to select.
+   * @returns Selected public names in deterministic alphabetical order.
    */
   private getExportNames(
     exports: readonly BarrelExport[],

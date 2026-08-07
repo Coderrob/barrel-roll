@@ -16,6 +16,7 @@
  */
 
 import {
+  type BindingName,
   type ExportDeclaration,
   type ExportSpecifier,
   Node,
@@ -57,26 +58,26 @@ interface INamedExportOptions {
  * or regex literals.
  */
 export class ExportParser {
+  private readonly project = this.createProject();
+
   /**
    * Extracts all export statements from TypeScript code using AST parsing.
-   * @param content TODO: describe parameter
-   * @param fileName TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param content Source text to inspect.
+   * @param fileName File name used to select the correct TypeScript or JavaScript parser mode.
+   * @returns Unique public exports in source order, including a synthesized default entry when needed.
    */
   extractExports(content: string, fileName = 'temp.ts'): IParsedExport[] {
-    const project = this.createProject();
-    const exportMap = new Map<string, IParsedExport>();
-    const sourceFile = project.createSourceFile(fileName, content, {
+    const sourceFile = this.project.createSourceFile(fileName, content, {
       overwrite: true,
       scriptKind: this.getScriptKind(fileName),
     });
 
     try {
-      this.collectExportDeclarations(sourceFile, exportMap);
-      this.collectExportedStatements(sourceFile, exportMap);
+      const declaredExports = this.collectExportDeclarations(sourceFile);
+      const exportMap = this.collectExportedStatements(sourceFile, declaredExports);
       return this.buildResult(sourceFile, exportMap);
     } finally {
-      project.removeSourceFile(sourceFile);
+      this.project.removeSourceFile(sourceFile);
     }
   }
 
@@ -93,8 +94,8 @@ export class ExportParser {
 
   /**
    * Determines the script kind for a file based on its extension.
-   * @param fileName TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param fileName File name whose extension determines the parser mode.
+   * @returns The matching ts-morph script kind, defaulting to TypeScript.
    */
   private getScriptKind(fileName: string): ScriptKind {
     /**
@@ -109,13 +110,13 @@ export class ExportParser {
 
   /**
    * Builds the final export list and ensures default exports are included.
-   * @param sourceFile TODO: describe parameter
-   * @param exportMap TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param sourceFile Parsed source used to detect default exports.
+   * @param exportMap Named exports collected from declarations and statements.
+   * @returns Collected exports with one default entry added when the source defines one.
    */
   private buildResult(
     sourceFile: Readonly<SourceFile>,
-    exportMap: Readonly<Map<string, IParsedExport>>,
+    exportMap: ReadonlyMap<string, IParsedExport>,
   ): IParsedExport[] {
     const result = Array.from(exportMap.values());
     /**
@@ -132,221 +133,240 @@ export class ExportParser {
 
   /**
    * Collects export declarations (export { ... } from ...) from the source file.
-   * @param sourceFile TODO: describe parameter
-   * @param exportMap TODO: describe parameter
+   * @param sourceFile Parsed source containing re-export declarations.
+   * @returns Exports collected from every re-export declaration.
    */
   private collectExportDeclarations(
     sourceFile: Readonly<SourceFile>,
-    exportMap: Readonly<Map<string, IParsedExport>>,
-  ): void {
-    for (const exportDecl of sourceFile.getExportDeclarations()) {
-      this.processExportDeclaration(exportDecl, exportMap);
-    }
+  ): ReadonlyMap<string, IParsedExport> {
+    const noExports: ReadonlyMap<string, IParsedExport> = new Map<string, IParsedExport>();
+    return sourceFile
+      .getExportDeclarations()
+      .reduce<ReadonlyMap<string, IParsedExport>>(
+        (exportMap, exportDeclaration) =>
+          this.processExportDeclaration(exportDeclaration, exportMap),
+        noExports,
+      );
   }
 
   /**
    * Processes a single export declaration and records its named exports.
-   * @param exportDecl TODO: describe parameter
-   * @param exportMap TODO: describe parameter
+   * @param exportDecl Declaration to classify as named, namespace, or wildcard.
+   * @param exportMap Export accumulator to update.
+   * @returns A new accumulator containing exports from the declaration.
    */
   private processExportDeclaration(
     exportDecl: Readonly<ExportDeclaration>,
-    exportMap: Readonly<Map<string, IParsedExport>>,
-  ): void {
+    exportMap: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     const hasModuleSpecifier = Boolean(exportDecl.getModuleSpecifier());
     const isTypeOnly = exportDecl.isTypeOnly();
     const namespaceExport = exportDecl.getNamespaceExport();
 
     if (namespaceExport) {
-      this.recordExport(exportMap, namespaceExport.getName(), { typeOnly: isTypeOnly });
-      return;
+      return this.recordExport(exportMap, namespaceExport.getName(), { typeOnly: isTypeOnly });
     }
 
     if (hasModuleSpecifier && !exportDecl.compilerNode.exportClause) {
-      this.recordExport(exportMap, STAR_EXPORT_NAME, { typeOnly: isTypeOnly });
-      return;
+      return this.recordExport(exportMap, STAR_EXPORT_NAME, { typeOnly: isTypeOnly });
     }
 
-    for (const namedExport of exportDecl.getNamedExports()) {
-      this.processNamedExport(namedExport, { isTypeOnly }, exportMap);
-    }
+    return exportDecl
+      .getNamedExports()
+      .reduce(
+        (namedExports, namedExport) =>
+          this.processNamedExport(namedExport, { isTypeOnly }, namedExports),
+        exportMap,
+      );
   }
 
   /**
    * Records an individual named export, accounting for aliasing and type-only flags.
-   * @param namedExport TODO: describe parameter
-   * @param options TODO: describe parameter
-   * @param exportMap TODO: describe parameter
+   * @param namedExport Export specifier whose public alias is recorded.
+   * @param options Type-only state inherited from the containing declaration.
+   * @param exportMap Export accumulator to update.
+   * @returns A new accumulator containing the named export.
    */
   private processNamedExport(
     namedExport: Readonly<ExportSpecifier>,
     options: Readonly<INamedExportOptions>,
-    exportMap: Readonly<Map<string, IParsedExport>>,
-  ): void {
+    exportMap: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     const alias = namedExport.getAliasNode()?.getText();
 
     const name = alias ?? namedExport.getName();
     const typeOnly = options.isTypeOnly || namedExport.isTypeOnly();
-    this.recordExport(exportMap, name, { typeOnly });
+    return this.recordExport(exportMap, name, { typeOnly });
   }
 
   /**
    * Collects exported statements such as types, classes, functions, enums, and variables.
-   * @param sourceFile TODO: describe parameter
-   * @param exportMap TODO: describe parameter
+   * @param sourceFile Parsed source containing directly exported statements.
+   * @param exportMap Export accumulator to update.
+   * @returns A new accumulator containing all directly exported statements.
    */
   private collectExportedStatements(
     sourceFile: Readonly<SourceFile>,
-    exportMap: Readonly<Map<string, IParsedExport>>,
-  ): void {
-    for (const statement of sourceFile.getStatements()) {
-      this.processTypeDeclaration(statement, exportMap);
-      this.processClassDeclaration(statement, exportMap);
-      this.processFunctionDeclaration(statement, exportMap);
-      this.processEnumDeclaration(statement, exportMap);
-      this.processImportEqualsDeclaration(statement, exportMap);
-      this.processModuleDeclaration(statement, exportMap);
-      this.processVariableStatement(statement, exportMap);
-    }
+    exportMap: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
+    return sourceFile.getStatements().reduce((collectedExports, statement) => {
+      const withTypes = this.processTypeDeclaration(statement, collectedExports);
+      const withClasses = this.processClassDeclaration(statement, withTypes);
+      const withFunctions = this.processFunctionDeclaration(statement, withClasses);
+      const withEnums = this.processEnumDeclaration(statement, withFunctions);
+      const withImports = this.processImportEqualsDeclaration(statement, withEnums);
+      const withModules = this.processModuleDeclaration(statement, withImports);
+      return this.processVariableStatement(statement, withModules);
+    }, exportMap);
   }
 
   /**
    * Records exported interfaces and type aliases.
-   * @param stmt TODO: describe parameter
-   * @param map TODO: describe parameter
+   * @param stmt Statement to inspect for an exported interface or type alias.
+   * @param map Export accumulator to update.
+   * @returns A new accumulator when an exported type is found; otherwise the input accumulator.
    */
-  private processTypeDeclaration(stmt: Statement, map: Readonly<Map<string, IParsedExport>>): void {
+  private processTypeDeclaration(
+    stmt: Statement,
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     if (Node.isInterfaceDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), { typeOnly: true });
+      return this.recordExport(map, stmt.getName(), { typeOnly: true });
     }
     if (Node.isTypeAliasDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), { typeOnly: true });
+      return this.recordExport(map, stmt.getName(), { typeOnly: true });
     }
+    return map;
   }
 
   /**
    * Records exported class declarations (excluding default exports).
-   * @param stmt TODO: describe parameter
-   * @param map TODO: describe parameter
+   * @param stmt Statement to inspect for a named, non-default class export.
+   * @param map Export accumulator to update.
+   * @returns A new accumulator when a class export is found; otherwise the input accumulator.
    */
   private processClassDeclaration(
     stmt: Statement,
-    map: Readonly<Map<string, IParsedExport>>,
-  ): void {
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     if (!Node.isClassDeclaration(stmt) || !stmt.isExported() || stmt.isDefaultExport()) {
-      return;
+      return map;
     }
     const name = stmt.getName();
-    if (name) {
-      this.recordExport(map, name, { typeOnly: false });
-    }
+    return name ? this.recordExport(map, name, { typeOnly: false }) : map;
   }
 
   /**
    * Records exported function declarations (excluding default exports).
-   * @param stmt TODO: describe parameter
-   * @param map TODO: describe parameter
+   * @param stmt Statement to inspect for a named, non-default function export.
+   * @param map Export accumulator to update.
+   * @returns A new accumulator when a function export is found; otherwise the input accumulator.
    */
   private processFunctionDeclaration(
     stmt: Statement,
-    map: Readonly<Map<string, IParsedExport>>,
-  ): void {
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     if (!Node.isFunctionDeclaration(stmt) || !stmt.isExported() || stmt.isDefaultExport()) {
-      return;
+      return map;
     }
     const name = stmt.getName();
-    if (name) {
-      this.recordExport(map, name, { typeOnly: false });
-    }
+    return name ? this.recordExport(map, name, { typeOnly: false }) : map;
   }
 
   /**
    * Records exported enum declarations.
-   * @param stmt TODO: describe parameter
-   * @param map TODO: describe parameter
+   * @param stmt Statement to inspect for an exported enum.
+   * @param map Export accumulator to update.
+   * @returns A new accumulator when an enum export is found; otherwise the input accumulator.
    */
-  private processEnumDeclaration(stmt: Statement, map: Readonly<Map<string, IParsedExport>>): void {
-    if (Node.isEnumDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), { typeOnly: false });
-    }
+  private processEnumDeclaration(
+    stmt: Statement,
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
+    return Node.isEnumDeclaration(stmt) && stmt.isExported()
+      ? this.recordExport(map, stmt.getName(), { typeOnly: false })
+      : map;
   }
 
   /**
    * Records exported variable declarations.
-   * @param stmt TODO: describe parameter
-   * @param map TODO: describe parameter
+   * @param stmt Statement to inspect for exported variable bindings.
+   * @param map Export accumulator to update.
+   * @returns An accumulator containing every exported variable binding.
    */
   private processVariableStatement(
     stmt: Statement,
-    map: Readonly<Map<string, IParsedExport>>,
-  ): void {
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     if (!Node.isVariableStatement(stmt) || !stmt.isExported()) {
-      return;
+      return map;
     }
-    for (const decl of stmt.getDeclarations()) {
-      this.recordBindingNames(decl.getNameNode(), map);
-    }
+    return stmt
+      .getDeclarations()
+      .reduce(
+        (collectedExports, declaration) =>
+          this.recordBindingNames(declaration.getNameNode(), collectedExports),
+        map,
+      );
   }
 
   /**
    * Records every identifier introduced by a variable binding pattern.
    * @param node Identifier or nested binding pattern.
    * @param map Export map to update.
+   * @returns An accumulator containing each identifier in the binding pattern.
    */
-  private recordBindingNames(node: Node, map: Readonly<Map<string, IParsedExport>>): void {
+  private recordBindingNames(
+    node: BindingName,
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
     if (Node.isIdentifier(node)) {
-      this.recordExport(map, node.getText(), { typeOnly: false });
-      return;
+      return this.recordExport(map, node.getText(), { typeOnly: false });
     }
-    for (const element of this.getBindingElements(node)) {
-      this.recordBindingNames(element.getNameNode(), map);
-    }
-  }
-
-  /**
-   * Gets binding elements from an object or array binding pattern.
-   * @param node Possible binding pattern.
-   * @returns Its binding elements, excluding array holes.
-   */
-  private getBindingElements(node: Node) {
-    if (!Node.isObjectBindingPattern(node) && !Node.isArrayBindingPattern(node)) {
-      return [];
-    }
-    return node.getElements().filter(Node.isBindingElement);
+    const elements = Node.isArrayBindingPattern(node)
+      ? node.getElements().filter(Node.isBindingElement)
+      : node.getElements();
+    return elements.reduce(
+      (collectedExports, element) =>
+        this.recordBindingNames(element.getNameNode(), collectedExports),
+      map,
+    );
   }
 
   /**
    * Records an exported `import name =` declaration.
    * @param stmt Statement to inspect.
    * @param map Export map to update.
+   * @returns A new accumulator when an exported import alias is found; otherwise the input map.
    */
   private processImportEqualsDeclaration(
     stmt: Statement,
-    map: Readonly<Map<string, IParsedExport>>,
-  ): void {
-    if (Node.isImportEqualsDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), { typeOnly: false });
-    }
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
+    return Node.isImportEqualsDeclaration(stmt) && stmt.isExported()
+      ? this.recordExport(map, stmt.getName(), { typeOnly: false })
+      : map;
   }
 
   /**
    * Records an exported namespace or module declaration.
    * @param stmt Statement to inspect.
    * @param map Export map to update.
+   * @returns A new accumulator when an exported namespace is found; otherwise the input map.
    */
   private processModuleDeclaration(
     stmt: Statement,
-    map: Readonly<Map<string, IParsedExport>>,
-  ): void {
-    if (Node.isModuleDeclaration(stmt) && stmt.isExported()) {
-      this.recordExport(map, stmt.getName(), { typeOnly: false });
-    }
+    map: ReadonlyMap<string, IParsedExport>,
+  ): ReadonlyMap<string, IParsedExport> {
+    return Node.isModuleDeclaration(stmt) && stmt.isExported()
+      ? this.recordExport(map, stmt.getName(), { typeOnly: false })
+      : map;
   }
 
   /**
    * Checks whether the source file has any form of default export.
-   * @param sourceFile TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param sourceFile Parsed source to inspect.
+   * @returns True when the source exposes a default export by symbol, alias, or statement.
    */
   private hasDefaultExport(sourceFile: Readonly<SourceFile>): boolean {
     if (sourceFile.getDefaultExportSymbol()) {
@@ -357,8 +377,8 @@ export class ExportParser {
 
   /**
    * Detects aliased default exports (export { foo as default }).
-   * @param sourceFile TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param sourceFile Parsed source containing local export declarations.
+   * @returns True when a local export aliases a symbol to `default`.
    */
   private hasAliasedDefault(sourceFile: Readonly<SourceFile>): boolean {
     for (const exportDecl of sourceFile.getExportDeclarations()) {
@@ -386,8 +406,8 @@ export class ExportParser {
 
   /**
    * Detects default export statements (class/function/export assignment).
-   * @param sourceFile TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param sourceFile Parsed source containing candidate default-export statements.
+   * @returns True when a statement defines a default class, function, or assignment export.
    */
   private hasDefaultStatement(sourceFile: Readonly<SourceFile>): boolean {
     return sourceFile.getStatements().some(this.isDefaultExportStatement.bind(this));
@@ -395,8 +415,8 @@ export class ExportParser {
 
   /**
    * Determines whether a statement represents a default export.
-   * @param stmt TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param stmt Statement to classify.
+   * @returns True for a default export assignment, class, or function; false for `export =`.
    */
   private isDefaultExportStatement(stmt: Statement): boolean {
     if (Node.isExportAssignment(stmt)) {
@@ -413,17 +433,18 @@ export class ExportParser {
 
   /**
    * Inserts or merges an export entry, preserving type-only status.
-   * @param map TODO: describe parameter
-   * @param name TODO: describe parameter
-   * @param options TODO: describe parameter
+   * @param map Export accumulator to update.
+   * @param name Public export name used as the deduplication key.
+   * @param options Type-only state for the newly observed export.
+   * @returns A new accumulator with runtime exports preferred over type-only duplicates.
    */
   private recordExport(
-    map: Readonly<Map<string, IParsedExport>>,
+    map: ReadonlyMap<string, IParsedExport>,
     name: string,
     options: Readonly<IRecordExportOptions>,
-  ): void {
+  ): ReadonlyMap<string, IParsedExport> {
     const existing = map.get(name);
     const merged = existing ? existing.typeOnly && options.typeOnly : options.typeOnly;
-    map.set(name, { name, typeOnly: merged });
+    return new Map([...map, [name, { name, typeOnly: merged }]]);
   }
 }

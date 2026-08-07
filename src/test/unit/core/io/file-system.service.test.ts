@@ -17,15 +17,33 @@
 
 import assert from 'node:assert/strict';
 import { Dirent } from 'node:fs';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
 
 import { FileSystemService } from '../../../../core/io/file-system.service.js';
 import { INDEX_FILENAME } from '../../../../types/index.js';
 
+type MockAsyncFunction = ((...args: unknown[]) => Promise<unknown>) & {
+  mock: { calls: unknown[][] };
+  mockRejectedValueOnce(error: unknown): MockAsyncFunction;
+  mockResolvedValueOnce(value: unknown): MockAsyncFunction;
+};
+
+type MockFileSystem = {
+  access: MockAsyncFunction;
+  mkdir: MockAsyncFunction;
+  mkdtemp: MockAsyncFunction;
+  readFile: MockAsyncFunction;
+  readdir: MockAsyncFunction;
+  rm: MockAsyncFunction;
+  stat: MockAsyncFunction;
+  writeFile: MockAsyncFunction;
+};
+
 describe('FileSystemService', () => {
   let service: FileSystemService;
-  let mockFs: any;
+  let mockFs: MockFileSystem;
 
   const createFileEntry = (name: string): Dirent =>
     ({
@@ -68,26 +86,26 @@ describe('FileSystemService', () => {
   }
 
   beforeEach(() => {
-    const createMockFunction = () => {
-      const calls: any[][] = [];
-      let resolvedValue: any = undefined;
-      let rejectedValue: any = undefined;
+    const createMockFunction = (): MockAsyncFunction => {
+      const calls: unknown[][] = [];
+      let resolvedValue: unknown = undefined;
+      let rejectedValue: unknown = undefined;
 
-      const mockFn = ((...args: any[]) => {
+      const mockFn = ((...args: unknown[]) => {
         calls.push(args);
         if (rejectedValue !== undefined) {
           return Promise.reject(rejectedValue);
         }
         return Promise.resolve(resolvedValue);
-      }) as any;
+      }) as MockAsyncFunction;
 
       mockFn.mock = { calls };
-      mockFn.mockResolvedValueOnce = (value: any) => {
+      mockFn.mockResolvedValueOnce = (value: unknown) => {
         resolvedValue = value;
         rejectedValue = undefined;
         return mockFn;
       };
-      mockFn.mockRejectedValueOnce = (error: any) => {
+      mockFn.mockRejectedValueOnce = (error: unknown) => {
         rejectedValue = error;
         resolvedValue = undefined;
         return mockFn;
@@ -116,7 +134,7 @@ describe('FileSystemService', () => {
     mockFs.access.mockResolvedValueOnce(undefined);
     mockFs.readdir.mockResolvedValueOnce([]);
 
-    service = new FileSystemService(mockFs);
+    service = new FileSystemService(mockFs as unknown as typeof fs);
   });
 
   it('should use default fs when no argument provided', () => {

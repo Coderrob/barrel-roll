@@ -21,6 +21,15 @@ import { describe, it } from 'node:test';
 import { Semaphore } from '../../../utils/semaphore.js';
 
 describe('Semaphore', () => {
+  it('should reject capacities that cannot make progress', () => {
+    for (const permits of [0, -1, 1.5]) {
+      assert.throws(
+        () => new Semaphore(permits),
+        new RangeError('Semaphore permits must be a positive integer'),
+      );
+    }
+  });
+
   it('should queue waiters and release permits in order', async () => {
     const semaphore = new Semaphore(1);
     const events: string[] = [];

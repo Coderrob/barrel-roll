@@ -47,6 +47,13 @@ describe('error utils', () => {
       assert.equal(formatErrorForLog(err), 'STACK');
     });
 
+    it('should use an error message when no stack is available', () => {
+      const err = new Error('message only');
+      err.stack = undefined;
+
+      assert.equal(formatErrorForLog(err), 'message only');
+    });
+
     it('should stringify object via safeStringify', () => {
       const obj = { a: 1 };
       assert.ok(formatErrorForLog(obj).includes('a'));

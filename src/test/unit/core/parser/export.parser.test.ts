@@ -207,6 +207,27 @@ describe('ExportParser', () => {
       ]);
     });
 
+    it('should parse JavaScript-family files and exported import aliases', () => {
+      assert.deepStrictEqual(parser.extractExports('export const value = 1;', 'value.js'), [
+        { name: 'value', typeOnly: false },
+      ]);
+      assert.deepStrictEqual(parser.extractExports("export import Path = require('node:path');"), [
+        { name: 'Path', typeOnly: false },
+      ]);
+      assert.deepStrictEqual(parser.extractExports("import Path = require('node:path');"), []);
+    });
+
+    it('should detect local default aliases and export assignments', () => {
+      assert.deepStrictEqual(
+        parser.extractExports('const value = 1; export { value as default };'),
+        [{ name: 'default', typeOnly: false }],
+      );
+      assert.deepStrictEqual(parser.extractExports('const value = 1; export default value;'), [
+        { name: 'default', typeOnly: false },
+      ]);
+      assert.deepStrictEqual(parser.extractExports('const value = 1; export = value;'), []);
+    });
+
     it('should ignore export statements inside single-quoted strings', () => {
       const source = `
         const example = 'export class FakeClass {}';

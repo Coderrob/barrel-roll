@@ -15,15 +15,23 @@
  *
  */
 
-import { type ExportDeclaration, Node, Project, ScriptKind, type SourceFile } from 'ts-morph';
-
-const FIRST_SEMANTIC_DIAGNOSTIC_CODE = 2000;
+import ts from 'typescript';
 
 /** Location and module path of a re-export declaration in barrel content. */
 export interface IBarrelReExport {
   end: number;
   path: string;
   start: number;
+}
+
+/**
+ * Parses source text without constructing a compiler project or touching the file system.
+ * @param fileName Virtual file name used to select TypeScript syntax.
+ * @param content Source text to parse.
+ * @returns Parsed TypeScript source file.
+ */
+function createSourceFile(fileName: string, content: string): ts.SourceFile {
+  return ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
 /**
@@ -53,17 +61,8 @@ export function extractAllExportPaths(content: string): Set<string> {
  * @returns The module path, or null when the text is not exactly one re-export declaration.
  */
 export function extractExportPath(text: string): string | null {
-  const project = new Project({ skipAddingFilesFromTsConfig: true, useInMemoryFileSystem: true });
-  const sourceFile = project.createSourceFile('export.ts', text, {
-    overwrite: true,
-    scriptKind: ScriptKind.TS,
-  });
-
-  try {
-    return extractSingleReExportPath(sourceFile);
-  } finally {
-    project.removeSourceFile(sourceFile);
-  }
+  const sourceFile = createSourceFile('export.ts', text);
+  return hasSyntaxErrors(text) ? null : extractSingleReExportPath(sourceFile);
 }
 
 /**
@@ -91,13 +90,13 @@ function extractExtensionFromPath(exportPath: string): string {
  * @param sourceFile Parsed source file.
  * @returns Its re-export path or null.
  */
-function extractSingleReExportPath(sourceFile: Readonly<SourceFile>): string | null {
+function extractSingleReExportPath(sourceFile: Readonly<ts.SourceFile>): string | null {
   const declaration = getOnlyExportDeclaration(sourceFile);
   if (!declaration) return null;
-  const moduleSpecifier = declaration.getModuleSpecifier();
+  const { moduleSpecifier } = declaration;
   if (!moduleSpecifier) return null;
-  if (!Node.isStringLiteral(moduleSpecifier)) return null;
-  return moduleSpecifier.getLiteralValue();
+  if (!ts.isStringLiteral(moduleSpecifier)) return null;
+  return moduleSpecifier.text;
 }
 
 /**
@@ -108,29 +107,23 @@ function extractSingleReExportPath(sourceFile: Readonly<SourceFile>): string | n
  * @returns Re-export declarations in source order.
  */
 export function findBarrelReExports(content: string): IBarrelReExport[] {
-  const project = new Project({ skipAddingFilesFromTsConfig: true, useInMemoryFileSystem: true });
-  const sourceFile = project.createSourceFile('barrel.ts', content, {
-    overwrite: true,
-    scriptKind: ScriptKind.TS,
+  const sourceFile = createSourceFile('barrel.ts', content);
+  return sourceFile.statements.flatMap((declaration) => {
+    if (!ts.isExportDeclaration(declaration)) {
+      return [];
+    }
+    const { moduleSpecifier } = declaration;
+    if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier)) {
+      return [];
+    }
+    return [
+      {
+        end: declaration.end,
+        path: moduleSpecifier.text,
+        start: declaration.getStart(sourceFile),
+      },
+    ];
   });
-
-  try {
-    return sourceFile.getExportDeclarations().flatMap((declaration) => {
-      const moduleSpecifier = declaration.getModuleSpecifier();
-      if (!moduleSpecifier || !Node.isStringLiteral(moduleSpecifier)) {
-        return [];
-      }
-      return [
-        {
-          end: declaration.getEnd(),
-          path: moduleSpecifier.getLiteralValue(),
-          start: declaration.getStart(),
-        },
-      ];
-    });
-  } finally {
-    project.removeSourceFile(sourceFile);
-  }
 }
 
 /**
@@ -138,24 +131,31 @@ export function findBarrelReExports(content: string): IBarrelReExport[] {
  * @param sourceFile Parsed source file.
  * @returns Its sole export declaration or null.
  */
-function getOnlyExportDeclaration(sourceFile: Readonly<SourceFile>): ExportDeclaration | null {
-  if (hasSyntaxErrors(sourceFile)) return null;
-  const statements = sourceFile.getStatements();
+function getOnlyExportDeclaration(
+  sourceFile: Readonly<ts.SourceFile>,
+): ts.ExportDeclaration | null {
+  const { statements } = sourceFile;
   if (statements.length !== 1) return null;
   const statement = statements[0];
   if (!statement) return null;
-  return Node.isExportDeclaration(statement) ? statement : null;
+  return ts.isExportDeclaration(statement) ? statement : null;
 }
 
 /**
- * Returns whether TypeScript reported a parsing diagnostic for a source file.
- * @param sourceFile Parsed source file.
+ * Returns whether TypeScript reports a syntactic error for source text.
+ * @param content Source text to validate.
  * @returns True when parsing failed.
  */
-function hasSyntaxErrors(sourceFile: Readonly<SourceFile>): boolean {
-  return sourceFile
-    .getPreEmitDiagnostics()
-    .some((diagnostic) => diagnostic.getCode() < FIRST_SEMANTIC_DIAGNOSTIC_CODE);
+function hasSyntaxErrors(content: string): boolean {
+  return Boolean(
+    ts
+      .transpileModule(content, {
+        compilerOptions: { noEmit: true },
+        fileName: 'export.ts',
+        reportDiagnostics: true,
+      })
+      .diagnostics?.some((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error),
+  );
 }
 
 /**

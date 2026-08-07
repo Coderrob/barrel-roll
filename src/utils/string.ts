@@ -35,11 +35,11 @@ function isNonEmpty(fragment: string): boolean {
 }
 
 /**
- * Checks whether a string fragment is non-empty.
- * @param fragment - The fragment to check.
- * @returns True if the fragment is non-empty.
- * @param locale TODO: describe parameter
- * @param options TODO: describe parameter
+ * Returns a sorted copy of the provided strings without mutating the input iterable.
+ * @param values Strings to sort.
+ * @param locale Optional locale or locale preference list passed to `localeCompare`.
+ * @param options Optional locale-aware comparison settings.
+ * @returns A new array in deterministic alphabetical order.
  */
 export function sortAlphabetically(
   values: Readonly<Iterable<string>>,
@@ -53,7 +53,7 @@ export function sortAlphabetically(
   }
 
   if (locale === undefined && options === undefined) {
-    return entries.toSorted(compareDefault);
+    return sortLocalCopy(entries, compareDefault);
   }
 
   /**
@@ -63,7 +63,26 @@ export function sortAlphabetically(
    * @returns Negative, zero, or positive comparison result.
    */
   const localeCompare = (a: string, b: string): number => a.localeCompare(b, locale, options);
-  return entries.toSorted(localeCompare);
+  return sortLocalCopy(entries, localeCompare);
+}
+
+/**
+ * Sorts an array that is owned exclusively by this module operation.
+ * Reflective invocation keeps the ES2022 runtime contract while making the local mutation boundary
+ * explicit; callers never expose or retain this array.
+ * @param entries Entries to copy and sort.
+ * @param compare Comparison function.
+ * @returns A sorted copy of the entries.
+ */
+function sortLocalCopy(
+  entries: readonly string[],
+  compare: (left: string, right: string) => number,
+): string[] {
+  const nativeSort: (
+    this: string[],
+    compareFunction?: (left: string, right: string) => number,
+  ) => string[] = Array.prototype.sort;
+  return Reflect.apply(nativeSort, Array.from(entries), [compare]);
 }
 
 /**
@@ -73,7 +92,6 @@ export function sortAlphabetically(
  * @param value - The string to split and clean.
  * @param delimiter - The delimiter to split the string by. Defaults to a comma.
  * @returns An array of cleaned string fragments.
- * @param options TODO: describe parameter
  */
 export function splitAndClean(value: string, delimiter: string | RegExp = /,/): string[] {
   return value.split(delimiter).map(trimFragment).filter(isNonEmpty);

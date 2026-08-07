@@ -23,6 +23,10 @@ import {
   extractAllExportPaths,
   extractExtensionFromLine,
   extractExportPath,
+  findBarrelReExports,
+  isExportLine,
+  isMultilineExportEnd,
+  isMultilineExportStart,
   normalizeExportPath,
 } from '../../../../core/barrel/export-patterns.js';
 
@@ -94,6 +98,32 @@ export {
 
   it('should return null for extension checks on non-export lines', () => {
     assert.strictEqual(extractExtensionFromLine('const alpha = 1;'), null);
+    assert.strictEqual(extractExtensionFromLine("export * from './alpha.js';"), '.js');
+  });
+
+  it('should distinguish complete, partial, and non-module exports', () => {
+    assert.strictEqual(isExportLine("export { alpha } from './alpha';"), true);
+    assert.strictEqual(isExportLine('export { alpha };'), false);
+    assert.strictEqual(isMultilineExportStart('export {'), true);
+    assert.strictEqual(isMultilineExportStart("export { alpha } from './alpha';"), false);
+    assert.strictEqual(isMultilineExportStart('const alpha = {'), false);
+    assert.strictEqual(isMultilineExportEnd("} from './alpha';"), true);
+    assert.strictEqual(isMultilineExportEnd('alpha, beta'), false);
+  });
+
+  it('should ignore local exports while locating re-exports', () => {
+    const content = [
+      'const alpha = 1;',
+      'export { alpha };',
+      "export { beta } from './beta';",
+    ].join('\n');
+
+    assert.deepStrictEqual(
+      findBarrelReExports(content).map(({ path }) => path),
+      ['./beta'],
+    );
+    assert.strictEqual(extractExportPath('export { alpha };'), null);
+    assert.strictEqual(extractExportPath("export * from './alpha'; const beta = 1;"), null);
   });
 
   it('should extract export paths from exports containing comments', () => {

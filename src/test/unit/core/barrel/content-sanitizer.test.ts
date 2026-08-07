@@ -19,6 +19,42 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { BarrelContentSanitizer } from '../../../../core/barrel/content-sanitizer.js';
+import type { ILoggerInstance } from '../../../../types/index.js';
+
+/** Records sanitizer debug messages without external I/O. */
+class RecordingLogger implements ILoggerInstance {
+  readonly messages: string[] = [];
+
+  /** Returns whether logging is available. */
+  isLoggerAvailable(): boolean {
+    return true;
+  }
+
+  /** Records an informational message. */
+  info(message: string): void {
+    this.messages.push(message);
+  }
+
+  /** Records a debug message. */
+  debug(message: string): void {
+    this.messages.push(message);
+  }
+
+  /** Records a warning message. */
+  warn(message: string): void {
+    this.messages.push(message);
+  }
+
+  /** Records an error message. */
+  error(message: string): void {
+    this.messages.push(message);
+  }
+
+  /** Records a fatal message. */
+  fatal(message: string): void {
+    this.messages.push(message);
+  }
+}
 
 /**
  * Helper function to run sanitizer with given lines and paths.
@@ -277,5 +313,38 @@ describe('BarrelContentSanitizer', () => {
 
     // Should preserve local definition
     assert.ok(preserved.includes('export const LOCAL = true'));
+  });
+
+  it('should preserve unexpected suffixes and remove unterminated attached comments safely', () => {
+    const suffix = runSanitize(["export * from './alpha'; trailing-markup"], ['./alpha']);
+    const unterminated = runSanitize(
+      ["export * from './alpha'; /* generated comment without an end"],
+      ['./alpha'],
+    );
+
+    assert.strictEqual(suffix, ' trailing-markup');
+    assert.strictEqual(unterminated, '');
+  });
+
+  it('should log each preservation decision through an in-memory logger', () => {
+    const logger = new RecordingLogger();
+    const sanitizer = new BarrelContentSanitizer(logger);
+
+    sanitizer.preserveDefinitionsAndSanitizeExports(
+      [
+        "export * from './keep';",
+        "export * from './regenerated';",
+        "export * from '../external';",
+      ].join('\n'),
+      new Set(['./regenerated']),
+    );
+
+    assert.ok(logger.messages.some((message) => message.includes('Preserving re-export: ./keep')));
+    assert.ok(
+      logger.messages.some((message) => message.includes('will be regenerated: ./regenerated')),
+    );
+    assert.ok(
+      logger.messages.some((message) => message.includes('external re-export: ../external')),
+    );
   });
 });

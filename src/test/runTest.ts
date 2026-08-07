@@ -18,7 +18,9 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { runTests } from '@vscode/test-electron';
+import { runTests, type TestOptions } from '@vscode/test-electron';
+
+import { IS_CONTINUOUS_INTEGRATION } from './test.env.js';
 
 /**
  * Main entry point for running VS Code extension tests.
@@ -41,7 +43,7 @@ async function main(): Promise<void> {
     const extensionTestsPath = path.resolve(__dirname, './integration/index.js');
 
     // Download VS Code, unzip it and run the integration test
-    const options: Parameters<typeof runTests>[0] = {
+    const options: TestOptions = {
       extensionDevelopmentPath,
       extensionTestsPath,
       launchArgs: [
@@ -64,10 +66,10 @@ async function main(): Promise<void> {
 
 /**
  * Determines whether to skip VS Code integration tests based on environment conditions.
- * @returns TODO: describe return value
+ * @returns True when the integration harness cannot run reliably in this environment.
  */
 function shouldSkipVscodeTests(): boolean {
-  return Boolean(process.env.CI) || !process.stdout.isTTY || process.platform === 'linux';
+  return IS_CONTINUOUS_INTEGRATION || !process.stdout.isTTY || process.platform === 'linux';
 }
 
 main();

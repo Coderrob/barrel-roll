@@ -25,8 +25,13 @@ export class Semaphore {
   /**
    * Creates a new semaphore with the specified number of permits.
    * @param permits The number of permits to initialize the semaphore with.
+   * @throws {RangeError} When permits is not a positive integer.
    */
-  constructor(private permits: number) {}
+  constructor(private permits: number) {
+    if (!Number.isInteger(permits) || permits <= 0) {
+      throw new RangeError('Semaphore permits must be a positive integer');
+    }
+  }
 
   /**
    * Enqueues a resolve callback for later execution when a permit becomes available.

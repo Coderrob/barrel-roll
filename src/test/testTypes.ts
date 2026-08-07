@@ -69,3 +69,7 @@ export type DeactivateFn = () => void;
 
 // Minimal runtime shape for the OutputChannelLogger class used in tests
 export type { ILoggerConstructor, ILoggerInstance } from '../types/index.js';
+
+export interface CommonJsModuleLoader {
+  _load(request: string, ...loadContext: [parent: unknown, isMain: boolean]): unknown;
+}

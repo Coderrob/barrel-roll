@@ -140,7 +140,7 @@ export class BarrelFileGenerator {
    */
   private async writeBarrelIfNeeded(
     directoryPath: string,
-    entries: Readonly<Map<string, BarrelEntry>>,
+    entries: ReadonlyMap<string, BarrelEntry>,
     barrelFilePath: string,
     options: Readonly<NormalizedGenerationOptions>,
   ): Promise<void> {
@@ -166,7 +166,7 @@ export class BarrelFileGenerator {
    */
   private async buildBarrelContent(
     directoryPath: string,
-    entries: Readonly<Map<string, BarrelEntry>>,
+    entries: ReadonlyMap<string, BarrelEntry>,
     barrelFilePath: string,
     buildOptions: Readonly<IBarrelBuildOptions>,
   ): Promise<string> {
@@ -232,8 +232,8 @@ export class BarrelFileGenerator {
 
   /**
    * Reads directory info for TypeScript files and subdirectories.
-   * @param directoryPath TODO: describe parameter
-   * @returns TODO: describe return value
+   * @param directoryPath Absolute directory path to scan.
+   * @returns TypeScript files and immediate subdirectories discovered by the shared file-system service.
    */
   private async readDirectoryInfo(directoryPath: string): Promise<IDirectoryInfo> {
     const [tsFiles, subdirectories] = await Promise.all([
@@ -310,41 +310,34 @@ export class BarrelFileGenerator {
     tsFiles: readonly string[],
     subdirectories: readonly string[],
   ): Promise<Map<string, BarrelEntry>> {
-    const entries = new Map<string, BarrelEntry>();
-
-    await this.addFileEntries(directoryPath, tsFiles, entries);
-    await this.addSubdirectoryEntries(directoryPath, subdirectories, entries);
-
-    return entries;
+    const fileEntries = await this.collectFileEntries(directoryPath, tsFiles);
+    const subdirectoryEntries = await this.collectSubdirectoryEntries(
+      directoryPath,
+      subdirectories,
+    );
+    return new Map([...fileEntries, ...subdirectoryEntries]);
   }
 
   /**
-   * Adds export entries for TypeScript files to the entries map.
+   * Collects export entries for TypeScript files.
    * @param directoryPath The directory path containing the files.
    * @param tsFiles Array of TypeScript file paths.
-   * @param entries The map to add entries to.
-   * @returns Promise that resolves when all file entries have been added.
+   * @returns Relative file paths mapped to their non-empty export entries.
    */
-  private async addFileEntries(
+  private async collectFileEntries(
     directoryPath: string,
     tsFiles: readonly string[],
-    entries: Readonly<Map<string, BarrelEntry>>,
-  ): Promise<void> {
+  ): Promise<Map<string, BarrelEntry>> {
     const concurrencyLimit = 10;
-    const batchSize = 50;
-    const batches = Array.from({ length: Math.ceil(tsFiles.length / batchSize) }, (_, i) =>
-      tsFiles.slice(i * batchSize, (i + 1) * batchSize),
+    const results = await processConcurrently(tsFiles, concurrencyLimit, (filePath) =>
+      this.resolveFileEntry(directoryPath, filePath),
     );
-    const batchResults = await Promise.all(
-      batches.map((batch) =>
-        processConcurrently(batch, concurrencyLimit, (filePath) =>
-          this.resolveFileEntry(directoryPath, filePath),
-        ),
-      ),
-    );
-    for (const result of batchResults.flat()) {
-      if (result) entries.set(result.relativePath, result.entry);
-    }
+    const entries: Array<readonly [string, BarrelEntry]> = results.flatMap((result) => {
+      if (!result) return [];
+      const entry: readonly [string, BarrelEntry] = [result.relativePath, result.entry];
+      return [entry];
+    });
+    return new Map(entries);
   }
 
   /**
@@ -370,17 +363,15 @@ export class BarrelFileGenerator {
   }
 
   /**
-   * Adds export entries for subdirectories that have index files to the entries map.
+   * Collects export entries for subdirectories that already expose an index file.
    * @param directoryPath The directory path containing the subdirectories.
    * @param subdirectories Array of subdirectory paths.
-   * @param entries The map to add entries to.
-   * @returns Promise that resolves when all subdirectory entries have been added.
+   * @returns Relative directory paths mapped to directory export entries.
    */
-  private async addSubdirectoryEntries(
+  private async collectSubdirectoryEntries(
     directoryPath: string,
     subdirectories: readonly string[],
-    entries: Readonly<Map<string, BarrelEntry>>,
-  ): Promise<void> {
+  ): Promise<Map<string, BarrelEntry>> {
     const results = await Promise.all(
       subdirectories.map(async (subdirectoryPath) => {
         const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
@@ -388,11 +379,16 @@ export class BarrelFileGenerator {
         return hasBarrel ? subdirectoryPath : null;
       }),
     );
-    for (const subdirectoryPath of results.filter((p): p is string => p !== null)) {
-      entries.set(path.relative(directoryPath, subdirectoryPath), {
-        kind: BarrelEntryKind.Directory,
-      });
-    }
+    const entries: Array<readonly [string, BarrelEntry]> = results.flatMap((subdirectoryPath) => {
+      if (!subdirectoryPath) return [];
+      const entry: BarrelEntry = { kind: BarrelEntryKind.Directory };
+      const relativeEntry: readonly [string, BarrelEntry] = [
+        path.relative(directoryPath, subdirectoryPath),
+        entry,
+      ];
+      return [relativeEntry];
+    });
+    return new Map(entries);
   }
 
   /**
@@ -403,7 +399,7 @@ export class BarrelFileGenerator {
    * @returns True if the barrel file should be written; otherwise false.
    */
   private shouldWriteBarrel(
-    entries: Readonly<Map<string, BarrelEntry>>,
+    entries: ReadonlyMap<string, BarrelEntry>,
     options: Readonly<NormalizedGenerationOptions>,
     buildOptions: Readonly<IBarrelBuildOptions>,
   ): boolean {

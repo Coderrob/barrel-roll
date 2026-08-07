@@ -64,15 +64,19 @@ describe('BarrelContentBuilder Test Suite', () => {
   });
 
   it('should handle default, type, and named exports together', async () => {
-    const entries = new Map<string, BarrelEntry>();
-    entries.set('myFile.ts', {
-      kind: BarrelEntryKind.File,
-      exports: [
-        { kind: BarrelExportKind.Default },
-        { kind: BarrelExportKind.Type, name: 'MyInterface' },
-        { kind: BarrelExportKind.Value, name: 'MyClass' },
+    const entries = new Map<string, BarrelEntry>([
+      [
+        'myFile.ts',
+        {
+          kind: BarrelEntryKind.File,
+          exports: [
+            { kind: BarrelExportKind.Default },
+            { kind: BarrelExportKind.Type, name: 'MyInterface' },
+            { kind: BarrelExportKind.Value, name: 'MyClass' },
+          ],
+        },
       ],
-    });
+    ]);
 
     const content = await builder.buildContent(entries, '/some/path');
 

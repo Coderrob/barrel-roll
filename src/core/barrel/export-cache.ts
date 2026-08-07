@@ -48,15 +48,94 @@ export interface IExportCacheOptions {
   maxSize?: number;
 }
 
+interface ICacheOperations {
+  clear(): void;
+  resolve(filePath: string): Promise<IParsedExport[]>;
+  size(): number;
+}
+
 const DEFAULT_MAX_CACHE_SIZE = 1000;
+
+/**
+ * Creates immutable cache operations backed by closure-local state.
+ * @param fileSystemService File system used to inspect and read source files.
+ * @param exportParser Parser used to extract exports.
+ * @param maxSize Maximum number of cached files.
+ * @returns Operations over the closure-owned cache.
+ */
+function createCacheOperations(
+  fileSystemService: Readonly<IExportCacheFileSystem>,
+  exportParser: Readonly<IExportCacheParser>,
+  maxSize: number,
+): ICacheOperations {
+  let cache: ReadonlyMap<string, ICachedExport> = new Map();
+  /** Clears all closure-owned cache entries. */
+  const clear = (): void => {
+    cache = new Map();
+  };
+  /**
+   * Resolves and caches the exports for one source file.
+   * @param filePath Source file path.
+   * @returns Parsed exports for the source file.
+   */
+  const resolve = async (filePath: string): Promise<IParsedExport[]> => {
+    const stats = await fileSystemService.getFileStats(filePath);
+    const currentMtime = stats.mtime.getTime();
+    const cached = cache.get(filePath);
+    if (cached?.mtime === currentMtime) return cached.exports;
+    const content = await fileSystemService.readFile(filePath);
+    const exports = exportParser.extractExports(content);
+    cache = upsertCache(cache, filePath, { exports, mtime: currentMtime }, maxSize);
+    return exports;
+  };
+  /**
+   * Returns the number of closure-owned cache entries.
+   * @returns Current cache size.
+   */
+  const size = (): number => cache.size;
+  return { clear, resolve, size };
+}
+
+/**
+ * Evicts the oldest entry when a cache exceeds its configured size.
+ * @param cache Cache to inspect.
+ * @param maxSize Maximum permitted size.
+ * @returns The original cache or an evicted copy.
+ */
+function evictOldest(
+  cache: Readonly<ReadonlyMap<string, ICachedExport>>,
+  maxSize: number,
+): ReadonlyMap<string, ICachedExport> {
+  if (cache.size <= maxSize) return cache;
+  const firstKey = cache.keys().next().value;
+  if (firstKey === undefined) return cache;
+  return new Map(Array.from(cache).filter(([key]) => key !== firstKey));
+}
+
+/**
+ * Returns a cache copy containing an updated entry and applies bounded eviction.
+ * @param cache Existing cache.
+ * @param filePath File path to update.
+ * @param cachedExport Cached export metadata.
+ * @param maxSize Maximum permitted size.
+ * @returns Updated bounded cache.
+ */
+function upsertCache(
+  cache: Readonly<ReadonlyMap<string, ICachedExport>>,
+  filePath: string,
+  cachedExport: Readonly<ICachedExport>,
+  maxSize: number,
+): ReadonlyMap<string, ICachedExport> {
+  const entry: readonly [string, ICachedExport] = [filePath, cachedExport];
+  return evictOldest(new Map([...cache, entry]), maxSize);
+}
 
 /**
  * Cache for parsed exports to avoid re-parsing unchanged files.
  * Uses file modification time to invalidate stale entries.
  */
 export class ExportCache {
-  private readonly cache = new Map<string, ICachedExport>();
-  private readonly maxSize: number;
+  private readonly cacheOperations: ICacheOperations;
 
   /**
    * Creates a new ExportCache instance.
@@ -65,11 +144,15 @@ export class ExportCache {
    * @param options Cache configuration options.
    */
   constructor(
-    private readonly fileSystemService: Readonly<IExportCacheFileSystem>,
-    private readonly exportParser: Readonly<IExportCacheParser>,
+    fileSystemService: Readonly<IExportCacheFileSystem>,
+    exportParser: Readonly<IExportCacheParser>,
     options?: Readonly<IExportCacheOptions>,
   ) {
-    this.maxSize = options?.maxSize ?? DEFAULT_MAX_CACHE_SIZE;
+    this.cacheOperations = createCacheOperations(
+      fileSystemService,
+      exportParser,
+      options?.maxSize ?? DEFAULT_MAX_CACHE_SIZE,
+    );
   }
 
   /**
@@ -78,60 +161,21 @@ export class ExportCache {
    * @returns Promise that resolves to the parsed exports.
    */
   async resolveExports(filePath: string): Promise<IParsedExport[]> {
-    const stats = await this.fileSystemService.getFileStats(filePath);
-    const currentMtime = stats.mtime.getTime();
-    const cached = this.cache.get(filePath);
-    if (cached?.mtime === currentMtime) {
-      return cached.exports;
-    }
-    return this.fetchAndCacheExports(filePath, currentMtime);
-  }
-
-  /**
-   * Fetches, parses, and caches exports for a file that has changed.
-   * @param filePath - The file path to fetch exports for.
-   * @param currentMtime - The current modification time.
-   * @returns Promise resolving to the parsed exports.
-   */
-  private async fetchAndCacheExports(
-    filePath: string,
-    currentMtime: number,
-  ): Promise<IParsedExport[]> {
-    const content = await this.fileSystemService.readFile(filePath);
-    const exports = this.exportParser.extractExports(content);
-    this.cache.set(filePath, { exports, mtime: currentMtime });
-    this.evictIfNeeded();
-    return exports;
+    return this.cacheOperations.resolve(filePath);
   }
 
   /**
    * Clears all cached entries.
    */
   clear(): void {
-    this.cache.clear();
+    this.cacheOperations.clear();
   }
 
   /**
    * Returns the current number of cached entries.
-   * @returns TODO: describe return value
+   * @returns Number of file entries currently retained by the bounded cache.
    */
   get size(): number {
-    return this.cache.size;
-  }
-
-  /**
-   * Evicts the oldest entry if cache exceeds max size.
-   */
-  private evictIfNeeded(): void {
-    if (this.cache.size <= this.maxSize) {
-      return;
-    }
-
-    const firstKey = this.cache.keys().next().value;
-    if (!firstKey) {
-      return;
-    }
-
-    this.cache.delete(firstKey);
+    return this.cacheOperations.size();
   }
 }

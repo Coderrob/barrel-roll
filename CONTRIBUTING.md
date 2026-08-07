@@ -43,7 +43,8 @@ Use full validation before submitting:
 ```bash
 npm run lint
 npm run deps:check
-npm run test
+npm run coverage:verify
+npm run memory:check
 ```
 
 ## Code style and quality
@@ -63,8 +64,15 @@ dependency-cruiser validation, duplicate-code detection, and TypeScript-aware Ma
 - Test execution uses Node's built-in test runner via `scripts/run-tests.cjs`.
 - `npm run test:vscode` compiles and launches the VS Code-hosted integration harness.
 - Unit test titles must begin with `should`.
+- Keep unit tests FAST: fast, autonomous, self-validating, and timely. Do not put network calls,
+  subprocesses, real-time waits, or heap stress loops in unit tests.
 - Add tests for both success and failure paths.
 - Prefer focused unit tests; add integration tests for behavior crossing module boundaries.
+- Run `npm run coverage:verify`; every executable production file must exceed 95% for statements, branches,
+  functions, and lines.
+- The test compiler clears stale `dist/src` and `dist/test` output before compiling; do not bypass it
+  when validating coverage.
+- Run `npm run memory:check` for bounded, offline heap-retention and async-resource validation.
 
 ## Error handling conventions
 
@@ -91,7 +99,8 @@ npm run fix:instanceof-error
 
 - [ ] `npm run lint` passes
 - [ ] `npm run deps:check` passes
-- [ ] `npm test` passes
+- [ ] `npm run coverage:verify` passes
+- [ ] `npm run memory:check` passes
 - [ ] docs updated for command/script/behavior changes
 - [ ] changelog updated for user-facing changes
 

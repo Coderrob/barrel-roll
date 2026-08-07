@@ -12,15 +12,14 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [20.x, 22.x]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22.x
           cache: 'npm'
 
       - name: Install dependencies
@@ -47,8 +46,11 @@ jobs:
       - name: Compile tests
         run: npm run compile-tests
 
-      - name: Run unit tests
-        run: npm test
+      - name: Run unit tests with per-file coverage
+        run: npm run coverage:verify
+
+      - name: Check for memory retention
+        run: npm run memory:check
 
       - name: Package extension
         run: npm run package

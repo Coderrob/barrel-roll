@@ -32,8 +32,8 @@ export function formatErrorForLog(error: unknown): string {
 /**
  * Formats an error for logging. If an Error instance, uses stack or message.
  * If an object, uses JSON safe stringification. Otherwise, falls back to getErrorMessage.
- * @param value TODO: describe parameter
- * @returns TODO: describe return value
+ * @param value Error-like value to normalize.
+ * @returns Its message when error-like, otherwise its string representation.
  */
 export function getErrorMessage(value: unknown): string {
   return isError(value) ? value.message : String(value);
