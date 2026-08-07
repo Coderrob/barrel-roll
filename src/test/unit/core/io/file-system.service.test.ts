@@ -471,4 +471,25 @@ describe('FileSystemService', () => {
       assert.deepStrictEqual(mockFs.stat.mock.calls, [[filePath]]);
     });
   });
+
+  describe('getFileStats', () => {
+    it('should return file statistics', async () => {
+      const stats = { mtime: new Date('2026-01-01T00:00:00Z'), size: 128 };
+      mockFs.stat.mockResolvedValueOnce(stats);
+
+      const result = await service.getFileStats('/path/to/file.ts');
+
+      assert.strictEqual(result, stats);
+      assert.deepStrictEqual(mockFs.stat.mock.calls, [['/path/to/file.ts']]);
+    });
+
+    it('should wrap file-stat failures with path context', async () => {
+      mockFs.stat.mockRejectedValueOnce(new Error('Stat unavailable'));
+
+      await assert.rejects(
+        service.getFileStats('/path/to/file.ts'),
+        /Failed to get stats for \/path\/to\/file\.ts: Stat unavailable/,
+      );
+    });
+  });
 });

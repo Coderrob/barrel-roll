@@ -51,6 +51,25 @@ function createMockLogger(): ILoggerInstance & { calls: { level: string; message
 }
 
 /**
+ * Runs an operation while capturing warning arguments, restoring the console even on failure.
+ * @param operation Operation expected to emit warnings.
+ * @returns Warning argument lists in emission order.
+ */
+async function runWithCapturedConsoleWarnings(
+  operation: () => Promise<void>,
+): Promise<unknown[][]> {
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    await operation();
+    return warnings;
+  } finally {
+    console.warn = originalWarn;
+  }
+}
+
+/**
  * Yields one turn so concurrently scheduled reads overlap during the test.
  * @returns A promise resolved on the next event-loop turn.
  */
@@ -116,6 +135,54 @@ class StaticExportParser extends ExportParser {
   }
 }
 
+/** File-system double that exposes an indefinitely deep directory chain. */
+class DeepDirectoryFileSystemService extends FileSystemService {
+  /** @inheritdoc */
+  override async getTypeScriptFiles(): Promise<string[]> {
+    return [];
+  }
+
+  /** @inheritdoc */
+  override async getSubdirectories(directoryPath: string): Promise<string[]> {
+    return [path.join(directoryPath, 'nested')];
+  }
+
+  /** @inheritdoc */
+  override async hasFile(): Promise<boolean> {
+    return false;
+  }
+}
+
+/** File-system double that fails while resolving an otherwise discoverable source file. */
+class UnreadableSourceFileSystemService extends FileSystemService {
+  public writes = 0;
+
+  /** @inheritdoc */
+  override async getTypeScriptFiles(directoryPath: string): Promise<string[]> {
+    return [path.join(directoryPath, 'unreadable.ts')];
+  }
+
+  /** @inheritdoc */
+  override async getSubdirectories(): Promise<string[]> {
+    return [];
+  }
+
+  /** @inheritdoc */
+  override async getFileStats(): Promise<Stats> {
+    throw new Error('Source unavailable');
+  }
+
+  /** @inheritdoc */
+  override async hasFile(): Promise<boolean> {
+    return false;
+  }
+
+  /** @inheritdoc */
+  override async writeFile(): Promise<void> {
+    this.writes += 1;
+  }
+}
+
 describe('BarrelFileGenerator', () => {
   let tmpDir: string;
   let fileSystem: FileSystemService;
@@ -156,6 +223,30 @@ describe('BarrelFileGenerator', () => {
         trackingFileSystem.maxConcurrentSourceReads <= EXPECTED_MAX_CONCURRENT_READS,
         `Expected at most ${EXPECTED_MAX_CONCURRENT_READS} concurrent reads across the traversal, received ${trackingFileSystem.maxConcurrentSourceReads}`,
       );
+    });
+
+    it('should stop recursive traversal at the maximum depth', async () => {
+      const deepFileSystem = new DeepDirectoryFileSystemService();
+      const generator = new BarrelFileGenerator(deepFileSystem);
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+      const warnings = await runWithCapturedConsoleWarnings(() =>
+        generator.generateBarrelFile(rootUri, { recursive: true }),
+      );
+
+      assert.match(String(warnings[0]?.[0]), /Maximum recursion depth \(20\) reached/);
+    });
+
+    it('should isolate unreadable source files without writing an empty barrel', async () => {
+      const unreadableFileSystem = new UnreadableSourceFileSystemService();
+      const generator = new BarrelFileGenerator(unreadableFileSystem);
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+      const warnings = await runWithCapturedConsoleWarnings(() =>
+        generator.generateBarrelFile(rootUri, { recursive: true }),
+      );
+
+      assert.strictEqual(unreadableFileSystem.writes, 0);
+      assert.match(String(warnings[0]?.[0]), /Failed to process file .*unreadable\.ts/);
+      assert.match(String(warnings[0]?.[1]), /Source unavailable/);
     });
 
     it('should ignore source files without public exports', async () => {

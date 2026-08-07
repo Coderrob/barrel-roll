@@ -63,10 +63,7 @@ export class Semaphore {
     if (this.waiting.length === 0) {
       return;
     }
-    const resolve = this.waiting.shift();
-    if (!resolve) {
-      return;
-    }
+    const [resolve] = this.waiting.splice(0, 1);
     this.permits--;
     resolve();
   }

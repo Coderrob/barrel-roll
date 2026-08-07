@@ -12,7 +12,11 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 - Strict per-file coverage enforcement above 95%, bounded memory-retention checks, architectural
   dependency validation, and the zero-tolerance ESLint ruleset.
 - Regression coverage for comment markup, malformed exports, duplicate public names, recursive
-  traversal, cache eviction, and module-specific runtime extensions.
+  traversal, cache eviction, module-specific runtime extensions, legacy wildcard entries,
+  maximum-depth termination, unreadable source isolation, and file-stat error context.
+- Increased verified coverage to 99.86% for statements and lines, 98.22% for branches, and 100% for
+  functions; barrel generation, file-system operations, and semaphore behavior now have complete
+  statement, branch, function, and line coverage.
 
 ### Changed
 
@@ -23,6 +27,8 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
   cannot grow with the complete input set.
 - Made barrel content construction a pure transformation using `BarrelEntry.kind`, eliminating
   redundant and unbounded file-system probes.
+- Simplified semaphore release handling around its non-empty queue invariant, removing an
+  unreachable fallback branch.
 - Updated development dependencies and `@coderrob/eslint-plugin-zero-tolerance` to `1.2.6`.
 - Consolidated current automation, testing, coverage, memory, and release guidance in `AGENTS.md`,
   `README.md`, and `CONTRIBUTING.md`.

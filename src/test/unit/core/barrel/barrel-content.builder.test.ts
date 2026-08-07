@@ -112,6 +112,14 @@ describe('BarrelContentBuilder', () => {
       );
     });
 
+    it('should preserve wildcard exports from legacy entry arrays', async () => {
+      const entries = new Map<string, string[]>([['legacy.ts', ['*']]]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.strictEqual(result, "export * from './legacy';\n");
+    });
+
     it('should ignore undefined entries produced by legacy callers', async () => {
       const entries = new Map<string, BarrelEntry>([
         ['ghost.ts', undefined as unknown as BarrelEntry],
