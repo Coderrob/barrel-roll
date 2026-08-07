@@ -27,10 +27,11 @@ import {
   BarrelGenerationMode,
   DEFAULT_EXPORT_NAME,
   type IBarrelGenerationOptions,
+  type ILoggerInstance,
   INDEX_FILENAME,
   type IParsedExport,
-  type LoggerInstance,
   type NormalizedBarrelGenerationOptions,
+  STAR_EXPORT_NAME,
 } from '../../types/index.js';
 import { processConcurrently } from '../../utils/semaphore.js';
 import { FileSystemService } from '../io/file-system.service.js';
@@ -42,12 +43,31 @@ import { detectExtensionFromBarrelContent, extractAllExportPaths } from './expor
 
 type NormalizedGenerationOptions = NormalizedBarrelGenerationOptions;
 
+const FILE_SYSTEM_CONCURRENCY_LIMIT = 10;
+const DIRECTORY_TRAVERSAL_CONCURRENCY_LIMIT = 1;
+
 /**
  * Information about TypeScript files and subdirectories in a directory.
  */
-interface DirectoryInfo {
+interface IDirectoryInfo {
   tsFiles: string[];
   subdirectories: string[];
+}
+
+/**
+ * Options for building barrel file content.
+ */
+interface IBarrelBuildOptions {
+  hasExistingIndex: boolean;
+}
+
+/**
+ * Checks whether a string line contains any non-whitespace content.
+ * @param line - The line to check.
+ * @returns True if the line is non-empty after trimming.
+ */
+function isNonEmptyTrimmedLine(line: string): boolean {
+  return line.trim().length > 0;
 }
 
 /**
@@ -70,7 +90,7 @@ export class BarrelFileGenerator {
     fileSystemService?: FileSystemService,
     exportParser?: ExportParser,
     barrelContentBuilder?: BarrelContentBuilder,
-    logger?: LoggerInstance,
+    logger?: Readonly<ILoggerInstance>,
   ) {
     this.barrelContentBuilder = barrelContentBuilder || new BarrelContentBuilder();
     this.fileSystemService = fileSystemService || new FileSystemService();
@@ -84,7 +104,10 @@ export class BarrelFileGenerator {
    * @param options Behavioral options for generation.
    * @returns Promise that resolves when barrel files have been created/updated.
    */
-  async generateBarrelFile(directoryUri: Uri, options?: IBarrelGenerationOptions): Promise<void> {
+  async generateBarrelFile(
+    directoryUri: Readonly<Uri>,
+    options?: Readonly<IBarrelGenerationOptions>,
+  ): Promise<void> {
     const normalizedOptions = this.normalizeOptions(options);
     await this.generateBarrelFileFromPath(directoryUri.fsPath, normalizedOptions);
   }
@@ -98,28 +121,40 @@ export class BarrelFileGenerator {
    */
   private async generateBarrelFileFromPath(
     directoryPath: string,
-    options: NormalizedGenerationOptions,
+    options: Readonly<NormalizedGenerationOptions>,
     depth = 0,
   ): Promise<void> {
     const barrelFilePath = path.join(directoryPath, INDEX_FILENAME);
     const { tsFiles, subdirectories } = await this.readDirectoryInfo(directoryPath);
-
     if (options.recursive) {
       await this.processChildDirectories(subdirectories, options, depth);
     }
-
     const entries = await this.collectEntries(directoryPath, tsFiles, subdirectories);
+    await this.writeBarrelIfNeeded(directoryPath, entries, barrelFilePath, options);
+  }
 
-    const hasExistingIndex = await this.fileSystemService.fileExists(barrelFilePath);
-    if (!this.shouldWriteBarrel(entries, options, hasExistingIndex)) {
-      return;
-    }
-
+  /**
+   * Writes the barrel file if content generation conditions are met.
+   * @param directoryPath The directory path.
+   * @param entries The collected entries.
+   * @param barrelFilePath The barrel file path.
+   * @param options Normalized generation options.
+   * @returns Promise that resolves when done.
+   */
+  private async writeBarrelIfNeeded(
+    directoryPath: string,
+    entries: ReadonlyMap<string, BarrelEntry>,
+    barrelFilePath: string,
+    options: Readonly<NormalizedGenerationOptions>,
+  ): Promise<void> {
+    const hasExistingIndex = await this.fileSystemService.hasFile(barrelFilePath);
+    const buildOptions: IBarrelBuildOptions = { hasExistingIndex };
+    if (!this.shouldWriteBarrel(entries, options, buildOptions)) return;
     const barrelContent = await this.buildBarrelContent(
       directoryPath,
       entries,
       barrelFilePath,
-      hasExistingIndex,
+      buildOptions,
     );
     await this.fileSystemService.writeFile(barrelFilePath, barrelContent);
   }
@@ -134,11 +169,11 @@ export class BarrelFileGenerator {
    */
   private async buildBarrelContent(
     directoryPath: string,
-    entries: Map<string, BarrelEntry>,
+    entries: ReadonlyMap<string, BarrelEntry>,
     barrelFilePath: string,
-    hasExistingIndex: boolean,
+    buildOptions: Readonly<IBarrelBuildOptions>,
   ): Promise<string> {
-    const exportExtension = await this.determineExportExtension(barrelFilePath, hasExistingIndex);
+    const exportExtension = await this.determineExportExtension(barrelFilePath, buildOptions);
 
     const newContent = await this.barrelContentBuilder.buildContent(
       entries,
@@ -146,7 +181,7 @@ export class BarrelFileGenerator {
       exportExtension,
     );
 
-    if (!hasExistingIndex) {
+    if (!buildOptions.hasExistingIndex) {
       return newContent;
     }
 
@@ -174,7 +209,7 @@ export class BarrelFileGenerator {
 
     const newContentLines = newContent.trim() ? newContent.trim().split('\n') : [];
     const allLines = [...preservedLines, ...newContentLines];
-    const filteredLines = allLines.filter((line) => line.trim().length > 0);
+    const filteredLines = allLines.filter(isNonEmptyTrimmedLine);
 
     return filteredLines.length > 0 ? filteredLines.join('\n') + '\n' : '\n';
   }
@@ -187,9 +222,9 @@ export class BarrelFileGenerator {
    */
   private async determineExportExtension(
     barrelFilePath: string,
-    hasExistingIndex: boolean,
+    buildOptions: Readonly<IBarrelBuildOptions>,
   ): Promise<string> {
-    if (!hasExistingIndex) {
+    if (!buildOptions.hasExistingIndex) {
       return '.js';
     }
 
@@ -200,8 +235,10 @@ export class BarrelFileGenerator {
 
   /**
    * Reads directory info for TypeScript files and subdirectories.
+   * @param directoryPath Absolute directory path to scan.
+   * @returns TypeScript files and immediate subdirectories discovered by the shared file-system service.
    */
-  private async readDirectoryInfo(directoryPath: string): Promise<DirectoryInfo> {
+  private async readDirectoryInfo(directoryPath: string): Promise<IDirectoryInfo> {
     const [tsFiles, subdirectories] = await Promise.all([
       this.fileSystemService.getTypeScriptFiles(directoryPath),
       this.fileSystemService.getSubdirectories(directoryPath),
@@ -217,34 +254,72 @@ export class BarrelFileGenerator {
    * @returns Promise that resolves when all child directories have been processed.
    */
   private async processChildDirectories(
-    subdirectories: string[],
-    options: NormalizedGenerationOptions,
+    subdirectories: readonly string[],
+    options: Readonly<NormalizedGenerationOptions>,
     depth: number,
   ): Promise<void> {
     const maxDepth = 20;
-
     if (depth >= maxDepth) {
       console.warn(
         `Maximum recursion depth (${maxDepth}) reached at depth ${depth}. Skipping deeper directories.`,
       );
       return;
     }
-
-    for (const subdirectoryPath of subdirectories) {
-      if (options.mode !== BarrelGenerationMode.UpdateExisting) {
-        await this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1);
-        continue;
-      }
-
-      const hasIndex = await this.fileSystemService.fileExists(
-        path.join(subdirectoryPath, INDEX_FILENAME),
-      );
-      if (!hasIndex) {
-        continue;
-      }
-
-      await this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1);
+    if (options.mode !== BarrelGenerationMode.UpdateExisting) {
+      await this.processDirectoriesSequentially(subdirectories, options, depth);
+      return;
     }
+    await this.processUpdateExistingDirectories(subdirectories, options, depth);
+  }
+
+  /**
+   * Processes subdirectories in UpdateExisting mode, only recurse into those with an index file.
+   * @param subdirectories Array of subdirectory paths.
+   * @param options Normalized generation options.
+   * @param depth Current recursion depth.
+   * @returns Promise that resolves when processing is complete.
+   */
+  private async processUpdateExistingDirectories(
+    subdirectories: readonly string[],
+    options: Readonly<NormalizedGenerationOptions>,
+    depth: number,
+  ): Promise<void> {
+    const filtered = await processConcurrently(
+      subdirectories,
+      FILE_SYSTEM_CONCURRENCY_LIMIT,
+      async (subdirectoryPath) => {
+        const hasIndex = await this.fileSystemService.hasFile(
+          path.join(subdirectoryPath, INDEX_FILENAME),
+        );
+        return hasIndex ? subdirectoryPath : null;
+      },
+    );
+    await this.processDirectoriesSequentially(
+      filtered.filter((p): p is string => p !== null),
+      options,
+      depth,
+    );
+  }
+
+  /**
+   * Processes sibling directories in a deterministic sequence so each directory's bounded workers
+   * share one effective traversal-wide concurrency ceiling.
+   * @param subdirectories Array of subdirectory paths.
+   * @param options Normalized generation options.
+   * @param depth Current recursion depth.
+   * @returns Promise that resolves after every directory has been processed.
+   */
+  private async processDirectoriesSequentially(
+    subdirectories: readonly string[],
+    options: Readonly<NormalizedGenerationOptions>,
+    depth: number,
+  ): Promise<void> {
+    await processConcurrently(
+      subdirectories,
+      DIRECTORY_TRAVERSAL_CONCURRENCY_LIMIT,
+      async (subdirectoryPath) =>
+        this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1),
+    );
   }
 
   /**
@@ -256,82 +331,89 @@ export class BarrelFileGenerator {
    */
   private async collectEntries(
     directoryPath: string,
-    tsFiles: string[],
-    subdirectories: string[],
+    tsFiles: readonly string[],
+    subdirectories: readonly string[],
   ): Promise<Map<string, BarrelEntry>> {
-    const entries = new Map<string, BarrelEntry>();
-
-    await this.addFileEntries(directoryPath, tsFiles, entries);
-    await this.addSubdirectoryEntries(directoryPath, subdirectories, entries);
-
-    return entries;
+    const fileEntries = await this.collectFileEntries(directoryPath, tsFiles);
+    const subdirectoryEntries = await this.collectSubdirectoryEntries(
+      directoryPath,
+      subdirectories,
+    );
+    return new Map([...fileEntries, ...subdirectoryEntries]);
   }
 
   /**
-   * Adds export entries for TypeScript files to the entries map.
+   * Collects export entries for TypeScript files.
    * @param directoryPath The directory path containing the files.
    * @param tsFiles Array of TypeScript file paths.
-   * @param entries The map to add entries to.
-   * @returns Promise that resolves when all file entries have been added.
+   * @returns Relative file paths mapped to their non-empty export entries.
    */
-  private async addFileEntries(
+  private async collectFileEntries(
     directoryPath: string,
-    tsFiles: string[],
-    entries: Map<string, BarrelEntry>,
-  ): Promise<void> {
-    const concurrencyLimit = 10;
-    const batchSize = 50;
+    tsFiles: readonly string[],
+  ): Promise<Map<string, BarrelEntry>> {
+    const results = await processConcurrently(tsFiles, FILE_SYSTEM_CONCURRENCY_LIMIT, (filePath) =>
+      this.resolveFileEntry(directoryPath, filePath),
+    );
+    const entries: Array<readonly [string, BarrelEntry]> = results.flatMap((result) => {
+      if (!result) return [];
+      const entry: readonly [string, BarrelEntry] = [result.relativePath, result.entry];
+      return [entry];
+    });
+    return new Map(entries);
+  }
 
-    for (let i = 0; i < tsFiles.length; i += batchSize) {
-      const batch = tsFiles.slice(i, i + batchSize);
-      const results = await processConcurrently(batch, concurrencyLimit, async (filePath) => {
-        try {
-          const parsedExports = await this.exportCache.getExports(filePath);
-          const exports = this.normalizeParsedExports(parsedExports);
-
-          if (exports.length === 0) {
-            return null;
-          }
-
-          const relativePath = path.relative(directoryPath, filePath);
-          return { relativePath, entry: { kind: BarrelEntryKind.File, exports } };
-        } catch (error) {
-          console.warn(`Failed to process file ${filePath}:`, error);
-          return null;
-        }
-      });
-
-      for (const result of results) {
-        if (!result) {
-          continue;
-        }
-
-        entries.set(result.relativePath, result.entry);
-      }
+  /**
+   * Resolves the barrel entry for a single TypeScript file.
+   * @param directoryPath The directory containing the file.
+   * @param filePath The absolute path to the file.
+   * @returns Entry metadata or null if the file has no exports.
+   */
+  private async resolveFileEntry(
+    directoryPath: string,
+    filePath: string,
+  ): Promise<{ relativePath: string; entry: BarrelEntry } | null> {
+    try {
+      const parsedExports = await this.exportCache.resolveExports(filePath);
+      const exports = this.normalizeParsedExports(parsedExports);
+      if (exports.length === 0) return null;
+      const relativePath = path.relative(directoryPath, filePath);
+      return { relativePath, entry: { kind: BarrelEntryKind.File, exports } };
+    } catch (error) {
+      console.warn(`Failed to process file ${filePath}:`, error);
+      return null;
     }
   }
 
   /**
-   * Adds export entries for subdirectories that have index files to the entries map.
+   * Collects export entries for subdirectories that already expose an index file.
    * @param directoryPath The directory path containing the subdirectories.
    * @param subdirectories Array of subdirectory paths.
-   * @param entries The map to add entries to.
-   * @returns Promise that resolves when all subdirectory entries have been added.
+   * @returns Relative directory paths mapped to directory export entries.
    */
-  private async addSubdirectoryEntries(
+  private async collectSubdirectoryEntries(
     directoryPath: string,
-    subdirectories: string[],
-    entries: Map<string, BarrelEntry>,
-  ): Promise<void> {
-    for (const subdirectoryPath of subdirectories) {
-      const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
-      if (!(await this.fileSystemService.fileExists(barrelPath))) {
-        continue;
-      }
-
-      const relativePath = path.relative(directoryPath, subdirectoryPath);
-      entries.set(relativePath, { kind: BarrelEntryKind.Directory });
-    }
+    subdirectories: readonly string[],
+  ): Promise<Map<string, BarrelEntry>> {
+    const results = await processConcurrently(
+      subdirectories,
+      FILE_SYSTEM_CONCURRENCY_LIMIT,
+      async (subdirectoryPath) => {
+        const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
+        const hasBarrel = await this.fileSystemService.hasFile(barrelPath);
+        return hasBarrel ? subdirectoryPath : null;
+      },
+    );
+    const entries: Array<readonly [string, BarrelEntry]> = results.flatMap((subdirectoryPath) => {
+      if (!subdirectoryPath) return [];
+      const entry: BarrelEntry = { kind: BarrelEntryKind.Directory };
+      const relativeEntry: readonly [string, BarrelEntry] = [
+        path.relative(directoryPath, subdirectoryPath),
+        entry,
+      ];
+      return [relativeEntry];
+    });
+    return new Map(entries);
   }
 
   /**
@@ -342,9 +424,9 @@ export class BarrelFileGenerator {
    * @returns True if the barrel file should be written; otherwise false.
    */
   private shouldWriteBarrel(
-    entries: Map<string, BarrelEntry>,
-    options: NormalizedGenerationOptions,
-    hasExistingIndex: boolean,
+    entries: ReadonlyMap<string, BarrelEntry>,
+    options: Readonly<NormalizedGenerationOptions>,
+    buildOptions: Readonly<IBarrelBuildOptions>,
   ): boolean {
     if (entries.size > 0) {
       return true;
@@ -352,10 +434,10 @@ export class BarrelFileGenerator {
 
     if (options.mode !== BarrelGenerationMode.UpdateExisting) {
       this.throwIfNoFilesAndNotRecursive(options);
-      return hasExistingIndex;
+      return buildOptions.hasExistingIndex;
     }
 
-    return hasExistingIndex;
+    return buildOptions.hasExistingIndex;
   }
 
   /**
@@ -363,7 +445,7 @@ export class BarrelFileGenerator {
    * @param options Normalized generation options.
    * @throws Error if no TypeScript files are found in non-recursive mode.
    */
-  private throwIfNoFilesAndNotRecursive(options: NormalizedGenerationOptions): void {
+  private throwIfNoFilesAndNotRecursive(options: Readonly<NormalizedGenerationOptions>): void {
     if (!options.recursive) {
       throw new Error('No TypeScript files found in the selected directory');
     }
@@ -374,7 +456,9 @@ export class BarrelFileGenerator {
    * @param options Optional generation options.
    * @returns Normalized generation options with defaults applied.
    */
-  private normalizeOptions(options?: IBarrelGenerationOptions): NormalizedGenerationOptions {
+  private normalizeOptions(
+    options?: Readonly<IBarrelGenerationOptions>,
+  ): NormalizedGenerationOptions {
     return {
       recursive: options?.recursive ?? false,
       mode: options?.mode ?? BarrelGenerationMode.CreateOrUpdate,
@@ -386,10 +470,15 @@ export class BarrelFileGenerator {
    * @param exports Array of parsed exports.
    * @returns Array of normalized BarrelExport objects.
    */
-  private normalizeParsedExports(exports: IParsedExport[]): BarrelExport[] {
+  private normalizeParsedExports(exports: readonly IParsedExport[]): BarrelExport[] {
     return exports.map((exp) => {
       if (exp.name === DEFAULT_EXPORT_NAME) {
-        return { kind: BarrelExportKind.Default };
+        return exp.typeOnly
+          ? { kind: BarrelExportKind.Type, name: DEFAULT_EXPORT_NAME }
+          : { kind: BarrelExportKind.Default };
+      }
+      if (exp.name === STAR_EXPORT_NAME) {
+        return { kind: BarrelExportKind.Star, typeOnly: exp.typeOnly };
       }
 
       const entry: BarrelExport = exp.typeOnly

@@ -68,18 +68,25 @@ class BarrelCommandQueue {
     }
 
     this.isProcessing = true;
-
     while (this.queue.length > 0) {
-      const operation = this.queue.shift()!;
-      try {
-        await operation();
-      } catch (error) {
-        // Log error but continue processing queue
-        console.error('Barrel command failed:', error);
-      }
+      await this.runNextOperation();
     }
-
     this.isProcessing = false;
+  }
+
+  /**
+   * Dequeues and runs the next operation, logging any errors.
+   * @returns Promise that resolves when the operation completes.
+   */
+  private async runNextOperation(): Promise<void> {
+    const operation = this.queue.shift();
+    if (!operation) return;
+    try {
+      await operation();
+    } catch (error) {
+      // Log error but continue processing queue
+      console.error('Barrel command failed:', error);
+    }
   }
 }
 
@@ -89,7 +96,7 @@ const commandQueue = new BarrelCommandQueue();
  * Activates the Barrel Roll extension.
  * @param context The extension context provided by VS Code.
  */
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: Readonly<vscode.ExtensionContext>) {
   console.log('Barrel Roll extension is now active');
 
   const outputChannel = vscode.window.createOutputChannel('Barrel Roll');
@@ -99,7 +106,17 @@ export function activate(context: vscode.ExtensionContext) {
 
   const generator = new BarrelFileGenerator();
 
-  const descriptors: CommandDescriptor[] = [
+  for (const descriptor of createCommandDescriptors()) {
+    context.subscriptions.push(registerBarrelCommand(generator, descriptor));
+  }
+}
+
+/**
+ * Returns the list of barrel command descriptors for registration.
+ * @returns Array of command descriptors.
+ */
+function createCommandDescriptors(): CommandDescriptor[] {
+  return [
     {
       id: 'barrel-roll.generateBarrel',
       options: {
@@ -119,11 +136,6 @@ export function activate(context: vscode.ExtensionContext) {
       successMessage: 'Barrel Roll: index.ts files updated recursively.',
     },
   ];
-
-  for (const descriptor of descriptors) {
-    const disposable = registerBarrelCommand(generator, descriptor);
-    context.subscriptions.push(disposable);
-  }
 }
 
 /**
@@ -134,16 +146,59 @@ export function deactivate(): void {
 }
 
 /**
- * Registers a barrel generation command with VS Code.
- * @param generator The barrel file generator instance.
- * @param descriptor The command descriptor containing options and messages.
- * @returns A disposable for the registered command.
+ * Resolves an accessible resource URI to the directory that should receive a barrel file.
+ * Directory URIs are returned unchanged and file URIs resolve to their parent directory.
+ * @param uri Resource selected by the user or supplied by a command invocation.
+ * @returns The target directory URI. Unknown resource kinds are returned unchanged.
+ * @throws {Error} When VS Code cannot read metadata for the selected resource.
+ */
+async function ensureDirectoryUri(uri: Readonly<vscode.Uri>): Promise<vscode.Uri | undefined> {
+  try {
+    const stat = await vscode.workspace.fs.stat(uri);
+    if (stat.type === vscode.FileType.Directory) {
+      return uri;
+    }
+    if (stat.type === vscode.FileType.File) {
+      return vscode.Uri.file(path.dirname(uri.fsPath));
+    }
+  } catch (error) {
+    const message = getErrorMessage(error);
+    throw new Error(`Unable to access selected resource: ${message}`);
+  }
+
+  return uri;
+}
+
+/**
+ * Prompts the user to select a directory for barrel generation.
+ * @returns Promise that resolves to the target directory URI, or undefined if cancelled.
+ */
+async function promptForDirectory(): Promise<vscode.Uri | undefined> {
+  const selected = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    openLabel: 'Select folder to barrel',
+  });
+
+  if (!selected || selected.length === 0) {
+    return undefined;
+  }
+
+  return selected[0];
+}
+
+/**
+ * Registers one barrel-generation command with VS Code.
+ * @param generator Barrel generator invoked by the command handler.
+ * @param descriptor Command identifier, generation options, and user-facing messages.
+ * @returns Disposable command registration owned by the extension context.
  */
 function registerBarrelCommand(
-  generator: BarrelFileGenerator,
-  descriptor: CommandDescriptor,
+  generator: Readonly<BarrelFileGenerator>,
+  descriptor: Readonly<CommandDescriptor>,
 ): vscode.Disposable {
-  return vscode.commands.registerCommand(descriptor.id, async (uri?: vscode.Uri) => {
+  return vscode.commands.registerCommand(descriptor.id, async (uri?: Readonly<vscode.Uri>) => {
     try {
       const targetDirectory = await resolveTargetDirectory(uri);
       if (!targetDirectory) {
@@ -165,58 +220,18 @@ function registerBarrelCommand(
 }
 
 /**
- * Resolves the target directory for barrel generation from the provided URI or user prompt.
- * @param uri Optional URI from the command invocation.
- * @returns Promise that resolves to the target directory URI, or undefined if cancelled.
+ * Resolves the target directory from a command argument or the folder picker.
+ * @param uri Optional resource supplied by the command invocation.
+ * @returns The validated directory URI, or undefined when folder selection is cancelled.
+ * @throws {Error} When metadata for the selected resource cannot be read.
  */
-async function resolveTargetDirectory(uri?: vscode.Uri): Promise<vscode.Uri | undefined> {
+async function resolveTargetDirectory(uri?: Readonly<vscode.Uri>): Promise<vscode.Uri | undefined> {
   const initial = uri ?? (await promptForDirectory());
   if (!initial) {
     return undefined;
   }
 
   return ensureDirectoryUri(initial);
-}
-
-/**
- * Prompts the user to select a directory for barrel generation.
- * @returns Promise that resolves to the selected directory URI, or undefined if cancelled.
- */
-async function promptForDirectory(): Promise<vscode.Uri | undefined> {
-  const selected = await vscode.window.showOpenDialog({
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    openLabel: 'Select folder to barrel',
-  });
-
-  if (!selected || selected.length === 0) {
-    return undefined;
-  }
-
-  return selected[0];
-}
-
-/**
- * Ensures the provided URI points to a directory, converting file URIs to their parent directory.
- * @param uri The URI to validate and potentially convert.
- * @returns Promise that resolves to a directory URI, or undefined if validation fails.
- */
-async function ensureDirectoryUri(uri: vscode.Uri): Promise<vscode.Uri | undefined> {
-  try {
-    const stat = await vscode.workspace.fs.stat(uri);
-    if (stat.type === vscode.FileType.Directory) {
-      return uri;
-    }
-    if (stat.type === vscode.FileType.File) {
-      return vscode.Uri.file(path.dirname(uri.fsPath));
-    }
-  } catch (error) {
-    const message = getErrorMessage(error);
-    throw new Error(`Unable to access selected resource: ${message}`);
-  }
-
-  return uri;
 }
 
 /**

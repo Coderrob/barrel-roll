@@ -170,10 +170,62 @@ describe('ExportParser', () => {
       assert.deepStrictEqual(exports, [{ name: 'MyClass', typeOnly: false }]);
     });
 
-    it('should skip unaliased re-exports', () => {
+    it('should capture unaliased re-exports exposed by a module', () => {
       const source = "export { SomeClass } from './other-module';";
       const exports = parser.extractExports(source);
-      assert.deepStrictEqual(exports, []);
+      assert.deepStrictEqual(exports, [{ name: 'SomeClass', typeOnly: false }]);
+    });
+
+    it('should capture wildcard and namespace re-exports', () => {
+      const source = `
+        export * from './values';
+        export type * from './types';
+        export * as utilities from './utilities';
+        export {} from './empty';
+      `;
+
+      assert.deepStrictEqual(parser.extractExports(source), [
+        { name: '*', typeOnly: false },
+        { name: 'utilities', typeOnly: false },
+      ]);
+    });
+
+    it('should capture identifiers from destructured variables and namespaces', () => {
+      const source = `
+        export const { alpha, nested: { beta }, ...rest } = source;
+        export const [first, , third] = values;
+        export namespace Utilities {}
+      `;
+
+      assert.deepStrictEqual(parser.extractExports(source), [
+        { name: 'alpha', typeOnly: false },
+        { name: 'beta', typeOnly: false },
+        { name: 'rest', typeOnly: false },
+        { name: 'first', typeOnly: false },
+        { name: 'third', typeOnly: false },
+        { name: 'Utilities', typeOnly: false },
+      ]);
+    });
+
+    it('should parse JavaScript-family files and exported import aliases', () => {
+      assert.deepStrictEqual(parser.extractExports('export const value = 1;', 'value.js'), [
+        { name: 'value', typeOnly: false },
+      ]);
+      assert.deepStrictEqual(parser.extractExports("export import Path = require('node:path');"), [
+        { name: 'Path', typeOnly: false },
+      ]);
+      assert.deepStrictEqual(parser.extractExports("import Path = require('node:path');"), []);
+    });
+
+    it('should detect local default aliases and export assignments', () => {
+      assert.deepStrictEqual(
+        parser.extractExports('const value = 1; export { value as default };'),
+        [{ name: 'default', typeOnly: false }],
+      );
+      assert.deepStrictEqual(parser.extractExports('const value = 1; export default value;'), [
+        { name: 'default', typeOnly: false },
+      ]);
+      assert.deepStrictEqual(parser.extractExports('const value = 1; export = value;'), []);
     });
 
     it('should ignore export statements inside single-quoted strings', () => {

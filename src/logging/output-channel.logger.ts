@@ -15,8 +15,7 @@
  *
  */
 
-import type { OutputChannel } from 'vscode';
-
+import type { IOutputChannel } from '../types/logger.js';
 import { formatErrorForLog, isError, safeStringify } from '../utils/index.js';
 
 export type LogMetadata = Record<string, unknown>;
@@ -32,11 +31,30 @@ export enum LogLevel {
 /**
  * Configuration options for the OutputChannelLogger.
  */
-export interface LoggerOptions {
+export interface ILoggerOptions {
   /** Minimum log level to emit. Defaults to LogLevel.Info. */
   level?: LogLevel;
   /** Whether to also log to the console. Defaults to true. */
   console?: boolean;
+}
+
+const LOG_LEVEL_DEBUG = 0;
+const LOG_LEVEL_INFO = 1;
+const LOG_LEVEL_WARN = 2;
+const LOG_LEVEL_ERROR = 3;
+const LOG_LEVEL_FATAL = 4;
+
+/**
+ * Normalizes a single metadata entry by replacing Error values with their message.
+ * @param accumulator - The accumulating normalized record.
+ * @param entry - The key-value pair to normalize.
+ * @returns The updated accumulator.
+ */
+function normalizeMetadataEntry(
+  accumulator: Readonly<Record<string, unknown>>,
+  [key, value]: readonly [string, unknown],
+): Record<string, unknown> {
+  return { ...accumulator, [key]: isError(value) ? value.message : value };
 }
 
 /**
@@ -44,23 +62,23 @@ export interface LoggerOptions {
  * Provides structured logging with metadata support and optional console output.
  */
 export class OutputChannelLogger {
-  private static sharedOutputChannel?: OutputChannel;
-  private readonly options: Required<LoggerOptions>;
+  private static sharedOutputChannel?: IOutputChannel;
+  private readonly options: Required<ILoggerOptions>;
   private bindings: LogMetadata = {};
 
   private static readonly LOG_LEVELS: Record<LogLevel, number> = {
-    [LogLevel.Debug]: 0,
-    [LogLevel.Info]: 1,
-    [LogLevel.Warn]: 2,
-    [LogLevel.Error]: 3,
-    [LogLevel.Fatal]: 4,
+    [LogLevel.Debug]: LOG_LEVEL_DEBUG,
+    [LogLevel.Info]: LOG_LEVEL_INFO,
+    [LogLevel.Warn]: LOG_LEVEL_WARN,
+    [LogLevel.Error]: LOG_LEVEL_ERROR,
+    [LogLevel.Fatal]: LOG_LEVEL_FATAL,
   };
 
   /**
    * Creates a new OutputChannelLogger instance.
    * @param options - Optional configuration for the logger.
    */
-  constructor(options?: LoggerOptions) {
+  constructor(options?: Readonly<ILoggerOptions>) {
     this.options = {
       level: options?.level ?? LogLevel.Info,
       console: options?.console ?? true,
@@ -71,7 +89,7 @@ export class OutputChannelLogger {
    * Configure a shared VS Code output channel used by all logger instances.
    * @param channel - Output channel to use for log messages.
    */
-  static configureOutputChannel(channel: OutputChannel | undefined): void {
+  static configureOutputChannel(channel: IOutputChannel | undefined): void {
     OutputChannelLogger.sharedOutputChannel = channel;
   }
 
@@ -88,7 +106,7 @@ export class OutputChannelLogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  info(message: string, metadata?: LogMetadata): void {
+  info(message: string, metadata?: Readonly<LogMetadata>): void {
     this.log(LogLevel.Info, message, metadata);
   }
 
@@ -97,7 +115,7 @@ export class OutputChannelLogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  debug(message: string, metadata?: LogMetadata): void {
+  debug(message: string, metadata?: Readonly<LogMetadata>): void {
     this.log(LogLevel.Debug, message, metadata);
   }
 
@@ -106,7 +124,7 @@ export class OutputChannelLogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  warn(message: string, metadata?: LogMetadata): void {
+  warn(message: string, metadata?: Readonly<LogMetadata>): void {
     this.log(LogLevel.Warn, message, metadata);
   }
 
@@ -115,7 +133,7 @@ export class OutputChannelLogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include with the log.
    */
-  error(message: string, metadata?: LogMetadata): void {
+  error(message: string, metadata?: Readonly<LogMetadata>): void {
     this.log(LogLevel.Error, message, metadata);
   }
 
@@ -124,7 +142,7 @@ export class OutputChannelLogger {
    * @param message - The failure message.
    * @param metadata - Optional metadata to include with the failure.
    */
-  fatal(message: string, metadata?: LogMetadata): void {
+  fatal(message: string, metadata?: Readonly<LogMetadata>): void {
     this.log(LogLevel.Fatal, `Action failed: ${message}`, metadata);
   }
 
@@ -133,7 +151,7 @@ export class OutputChannelLogger {
    * @param bindings - Additional metadata to include with all logs from the child logger.
    * @returns A new logger instance with the bindings applied.
    */
-  child(bindings: LogMetadata): OutputChannelLogger {
+  child(bindings: Readonly<LogMetadata>): OutputChannelLogger {
     const childLogger = new OutputChannelLogger(this.options);
     childLogger.bindings = { ...this.bindings, ...bindings };
     return childLogger;
@@ -144,6 +162,7 @@ export class OutputChannelLogger {
    * @param name - The name of the group.
    * @param fn - The function to execute within the group.
    * @returns A promise that resolves when the group operation completes.
+   * @throws Re-throws the original rejection from `fn` after logging the group failure.
    */
   async group<T>(name: string, fn: () => Promise<T>): Promise<T> {
     const childLogger = this.child({ group: name });
@@ -167,7 +186,7 @@ export class OutputChannelLogger {
    * @param message - The message to log.
    * @param metadata - Optional metadata to include.
    */
-  private log(level: LogLevel, message: string, metadata?: LogMetadata): void {
+  private log(level: Readonly<LogLevel>, message: string, metadata?: Readonly<LogMetadata>): void {
     if (!this.shouldLog(level)) return;
 
     const mergedMetadata = { ...this.bindings, ...metadata };
@@ -182,7 +201,7 @@ export class OutputChannelLogger {
    * @param level - The log level to check.
    * @returns True if the message should be logged; otherwise false.
    */
-  private shouldLog(level: LogLevel): boolean {
+  private shouldLog(level: Readonly<LogLevel>): boolean {
     return (
       OutputChannelLogger.LOG_LEVELS[level] >= OutputChannelLogger.LOG_LEVELS[this.options.level]
     );
@@ -201,7 +220,7 @@ export class OutputChannelLogger {
    * @param level - The log level.
    * @param line - The formatted log line to write.
    */
-  private writeToConsole(level: LogLevel, line: string): void {
+  private writeToConsole(level: Readonly<LogLevel>, line: string): void {
     if (!this.options.console) return;
 
     const consoleMethods: Record<LogLevel, (...args: unknown[]) => void> = {
@@ -222,7 +241,11 @@ export class OutputChannelLogger {
    * @param metadata - Optional metadata to include.
    * @returns The formatted log line.
    */
-  private formatLine(level: LogLevel, message: string, metadata?: LogMetadata): string {
+  private formatLine(
+    level: Readonly<LogLevel>,
+    message: string,
+    metadata?: Readonly<LogMetadata>,
+  ): string {
     const timestamp = new Date().toISOString();
     const formattedMetadata = this.formatMetadata(metadata);
     const levelTag = `[${level.toUpperCase()}]`;
@@ -237,19 +260,14 @@ export class OutputChannelLogger {
    * @param metadata - The metadata to format.
    * @returns The formatted metadata string, or undefined if no metadata.
    */
-  private formatMetadata(metadata?: LogMetadata): string | undefined {
+  private formatMetadata(metadata?: Readonly<LogMetadata>): string | undefined {
     if (!metadata || Object.keys(metadata).length === 0) {
       return undefined;
     }
-
     const normalized = Object.entries(metadata).reduce<Record<string, unknown>>(
-      (accumulator, [key, value]) => {
-        accumulator[key] = isError(value) ? value.message : value;
-        return accumulator;
-      },
+      normalizeMetadataEntry,
       {},
     );
-
     return safeStringify(normalized);
   }
 

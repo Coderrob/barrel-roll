@@ -20,9 +20,9 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import type { Uri } from 'vscode';
-
 import { afterEach, beforeEach, describe, it } from 'node:test';
+
+import type { Uri } from 'vscode';
 
 import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
 
@@ -43,8 +43,8 @@ describe('BarrelFileGenerator Test Suite', () => {
   afterEach(async () => {
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch {
-      // Swallow cleanup errors to avoid masking test outcomes.
+    } catch (err) {
+      void err; // Intentionally swallow cleanup errors to avoid masking test failures
     }
   });
 

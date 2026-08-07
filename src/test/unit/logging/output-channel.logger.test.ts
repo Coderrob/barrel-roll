@@ -18,8 +18,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 
-import type { OutputChannel } from 'vscode';
-
 import { LogLevel, OutputChannelLogger } from '../../../logging/output-channel.logger.js';
 
 describe('OutputChannelLogger', () => {
@@ -45,16 +43,16 @@ describe('OutputChannelLogger', () => {
     };
 
     // Mock console methods
-    console.log = mock.fn((...args: unknown[]) => {
+    console.log = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'info', message: String(args[0]) });
     });
-    console.debug = mock.fn((...args: unknown[]) => {
+    console.debug = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'debug', message: String(args[0]) });
     });
-    console.warn = mock.fn((...args: unknown[]) => {
+    console.warn = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'warn', message: String(args[0]) });
     });
-    console.error = mock.fn((...args: unknown[]) => {
+    console.error = mock.fn((...args: readonly unknown[]) => {
       consoleOutput.push({ level: 'error', message: String(args[0]) });
     });
 
@@ -62,7 +60,7 @@ describe('OutputChannelLogger', () => {
       appendLine(line: string) {
         outputLines.push(line);
       },
-    } as OutputChannel);
+    });
   });
 
   afterEach(() => {
@@ -217,13 +215,13 @@ describe('OutputChannelLogger', () => {
 
   it('should log errors from grouped operations', async () => {
     const logger = new OutputChannelLogger({ console: false });
-    const failure = new Error('group failure');
+    const failureMessage = 'group failure';
 
     await assert.rejects(
       logger.group('failures', async () => {
-        throw failure;
+        throw new Error(failureMessage);
       }),
-      (error) => error === failure,
+      (error) => error instanceof Error && error.message === failureMessage,
     );
 
     assert.strictEqual(outputLines.length, 2);

@@ -15,8 +15,8 @@
  *
  */
 
-import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 import { getErrorMessage, formatErrorForLog } from '../../../utils/errors.js';
 
 describe('error utils', () => {
@@ -45,6 +45,13 @@ describe('error utils', () => {
       const err = new Error('boom');
       err.stack = 'STACK';
       assert.equal(formatErrorForLog(err), 'STACK');
+    });
+
+    it('should use an error message when no stack is available', () => {
+      const err = new Error('message only');
+      err.stack = undefined;
+
+      assert.equal(formatErrorForLog(err), 'message only');
     });
 
     it('should stringify object via safeStringify', () => {

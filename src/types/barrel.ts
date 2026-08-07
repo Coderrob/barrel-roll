@@ -22,6 +22,7 @@ export enum BarrelExportKind {
   Value = 'value',
   Type = 'type',
   Default = 'default',
+  Star = 'star',
 }
 
 /**
@@ -82,6 +83,10 @@ export type BarrelExport =
     }
   | {
       kind: BarrelExportKind.Default;
+    }
+  | {
+      kind: BarrelExportKind.Star;
+      typeOnly: boolean;
     };
 
 /**

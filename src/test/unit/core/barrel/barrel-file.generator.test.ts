@@ -16,22 +16,28 @@
  */
 
 import assert from 'node:assert/strict';
+import type { Stats } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import type { Uri } from 'vscode';
-
 import { afterEach, beforeEach, describe, it } from 'node:test';
 
-import type { LoggerInstance } from '../../../../types/index.js';
-import { BarrelGenerationMode, INDEX_FILENAME } from '../../../../types/index.js';
-import { FileSystemService } from '../../../../core/io/file-system.service.js';
+import type { Uri } from 'vscode';
+
 import { BarrelFileGenerator } from '../../../../core/barrel/barrel-file.generator.js';
+import { FileSystemService } from '../../../../core/io/file-system.service.js';
+import { ExportParser } from '../../../../core/parser/export.parser.js';
+import type { ILoggerInstance, IParsedExport } from '../../../../types/index.js';
+import { BarrelGenerationMode, INDEX_FILENAME } from '../../../../types/index.js';
+
+const CONCURRENCY_TEST_FILE_COUNT = 101;
+const CONCURRENCY_TEST_DIRECTORY_COUNT = 4;
+const EXPECTED_MAX_CONCURRENT_READS = 10;
 
 /**
  * Creates a mock logger that captures log calls for testing.
  */
-function createMockLogger(): LoggerInstance & { calls: { level: string; message: string }[] } {
+function createMockLogger(): ILoggerInstance & { calls: { level: string; message: string }[] } {
   const calls: { level: string; message: string }[] = [];
   return {
     calls,
@@ -42,6 +48,139 @@ function createMockLogger(): LoggerInstance & { calls: { level: string; message:
     error: (message: string) => calls.push({ level: 'error', message }),
     fatal: (message: string) => calls.push({ level: 'fatal', message }),
   };
+}
+
+/**
+ * Runs an operation while capturing warning arguments, restoring the console even on failure.
+ * @param operation Operation expected to emit warnings.
+ * @returns Warning argument lists in emission order.
+ */
+async function runWithCapturedConsoleWarnings(
+  operation: () => Promise<void>,
+): Promise<unknown[][]> {
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    await operation();
+    return warnings;
+  } finally {
+    console.warn = originalWarn;
+  }
+}
+
+/**
+ * Yields one turn so concurrently scheduled reads overlap during the test.
+ * @returns A promise resolved on the next event-loop turn.
+ */
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+/**
+ * File-system test double that records concurrent source reads without touching source files.
+ */
+class ConcurrencyTrackingFileSystemService extends FileSystemService {
+  private activeSourceReads = 0;
+  public maxConcurrentSourceReads = 0;
+
+  /** Creates a tracker that optionally exposes a wide recursive root. */
+  constructor(private readonly recursiveRoot?: string) {
+    super();
+  }
+
+  /** @inheritdoc */
+  override async getTypeScriptFiles(directoryPath: string): Promise<string[]> {
+    return Array.from({ length: CONCURRENCY_TEST_FILE_COUNT }, (_, index) =>
+      path.join(directoryPath, `source-${index}.ts`),
+    );
+  }
+
+  /** @inheritdoc */
+  override async getSubdirectories(directoryPath: string): Promise<string[]> {
+    if (directoryPath !== this.recursiveRoot) return [];
+    return Array.from({ length: CONCURRENCY_TEST_DIRECTORY_COUNT }, (_, index) =>
+      path.join(directoryPath, `directory-${index}`),
+    );
+  }
+
+  /** @inheritdoc */
+  override async getFileStats(): Promise<Stats> {
+    return { mtime: new Date(0) } as Stats;
+  }
+
+  /** @inheritdoc */
+  override async readFile(): Promise<string> {
+    this.activeSourceReads += 1;
+    this.maxConcurrentSourceReads = Math.max(this.maxConcurrentSourceReads, this.activeSourceReads);
+    await yieldToEventLoop();
+    this.activeSourceReads -= 1;
+    return 'export const shared = 1;';
+  }
+
+  /** @inheritdoc */
+  override async hasFile(): Promise<boolean> {
+    return false;
+  }
+
+  /** @inheritdoc */
+  override async writeFile(): Promise<void> {}
+}
+
+/** Parser test double that avoids AST work in the concurrency contract test. */
+class StaticExportParser extends ExportParser {
+  /** @inheritdoc */
+  override extractExports(): IParsedExport[] {
+    return [{ name: 'shared', typeOnly: false }];
+  }
+}
+
+/** File-system double that exposes an indefinitely deep directory chain. */
+class DeepDirectoryFileSystemService extends FileSystemService {
+  /** @inheritdoc */
+  override async getTypeScriptFiles(): Promise<string[]> {
+    return [];
+  }
+
+  /** @inheritdoc */
+  override async getSubdirectories(directoryPath: string): Promise<string[]> {
+    return [path.join(directoryPath, 'nested')];
+  }
+
+  /** @inheritdoc */
+  override async hasFile(): Promise<boolean> {
+    return false;
+  }
+}
+
+/** File-system double that fails while resolving an otherwise discoverable source file. */
+class UnreadableSourceFileSystemService extends FileSystemService {
+  public writes = 0;
+
+  /** @inheritdoc */
+  override async getTypeScriptFiles(directoryPath: string): Promise<string[]> {
+    return [path.join(directoryPath, 'unreadable.ts')];
+  }
+
+  /** @inheritdoc */
+  override async getSubdirectories(): Promise<string[]> {
+    return [];
+  }
+
+  /** @inheritdoc */
+  override async getFileStats(): Promise<Stats> {
+    throw new Error('Source unavailable');
+  }
+
+  /** @inheritdoc */
+  override async hasFile(): Promise<boolean> {
+    return false;
+  }
+
+  /** @inheritdoc */
+  override async writeFile(): Promise<void> {
+    this.writes += 1;
+  }
 }
 
 describe('BarrelFileGenerator', () => {
@@ -58,6 +197,91 @@ describe('BarrelFileGenerator', () => {
   });
 
   describe('generateBarrelFile', () => {
+    it('should enforce one global source-processing concurrency limit', async () => {
+      const trackingFileSystem = new ConcurrencyTrackingFileSystemService();
+      const generator = new BarrelFileGenerator(trackingFileSystem, new StaticExportParser());
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(rootUri);
+
+      assert.ok(trackingFileSystem.maxConcurrentSourceReads > 1);
+      assert.ok(
+        trackingFileSystem.maxConcurrentSourceReads <= EXPECTED_MAX_CONCURRENT_READS,
+        `Expected at most ${EXPECTED_MAX_CONCURRENT_READS} concurrent reads, received ${trackingFileSystem.maxConcurrentSourceReads}`,
+      );
+    });
+
+    it('should preserve the global concurrency limit across recursive sibling directories', async () => {
+      const trackingFileSystem = new ConcurrencyTrackingFileSystemService(tmpDir);
+      const generator = new BarrelFileGenerator(trackingFileSystem, new StaticExportParser());
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(rootUri, { recursive: true });
+
+      assert.ok(trackingFileSystem.maxConcurrentSourceReads > 1);
+      assert.ok(
+        trackingFileSystem.maxConcurrentSourceReads <= EXPECTED_MAX_CONCURRENT_READS,
+        `Expected at most ${EXPECTED_MAX_CONCURRENT_READS} concurrent reads across the traversal, received ${trackingFileSystem.maxConcurrentSourceReads}`,
+      );
+    });
+
+    it('should stop recursive traversal at the maximum depth', async () => {
+      const deepFileSystem = new DeepDirectoryFileSystemService();
+      const generator = new BarrelFileGenerator(deepFileSystem);
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+      const warnings = await runWithCapturedConsoleWarnings(() =>
+        generator.generateBarrelFile(rootUri, { recursive: true }),
+      );
+
+      assert.match(String(warnings[0]?.[0]), /Maximum recursion depth \(20\) reached/);
+    });
+
+    it('should isolate unreadable source files without writing an empty barrel', async () => {
+      const unreadableFileSystem = new UnreadableSourceFileSystemService();
+      const generator = new BarrelFileGenerator(unreadableFileSystem);
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+      const warnings = await runWithCapturedConsoleWarnings(() =>
+        generator.generateBarrelFile(rootUri, { recursive: true }),
+      );
+
+      assert.strictEqual(unreadableFileSystem.writes, 0);
+      assert.match(String(warnings[0]?.[0]), /Failed to process file .*unreadable\.ts/);
+      assert.match(String(warnings[0]?.[1]), /Source unavailable/);
+    });
+
+    it('should ignore source files without public exports', async () => {
+      await fileSystem.writeFile(path.join(tmpDir, 'internal.ts'), 'const internal = true;');
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'public.ts'),
+        'export const publicValue = true;',
+      );
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(rootUri);
+
+      assert.strictEqual(
+        await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME)),
+        "export { publicValue } from './public.js';\n",
+      );
+    });
+
+    it('should preserve type-only default re-exports without creating runtime exports', async () => {
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'type-facade.ts'),
+        "export type { default } from './contract.js';",
+      );
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(rootUri);
+
+      assert.strictEqual(
+        await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME)),
+        "export type { default } from './type-facade.js';\n",
+      );
+    });
+
     it('should generate recursive barrel files for nested directories', async () => {
       const nestedDir = path.join(tmpDir, 'nested');
       const deeperDir = path.join(nestedDir, 'deeper');
@@ -141,7 +365,7 @@ describe('BarrelFileGenerator', () => {
         mode: BarrelGenerationMode.UpdateExisting,
       });
 
-      const exists = await fileSystem.fileExists(path.join(nestedDir, INDEX_FILENAME));
+      const exists = await fileSystem.hasFile(path.join(nestedDir, INDEX_FILENAME));
 
       assert.strictEqual(exists, false);
     });
@@ -169,7 +393,7 @@ describe('BarrelFileGenerator', () => {
       const keepIndex = await fileSystem.readFile(path.join(keepDir, INDEX_FILENAME));
       assert.strictEqual(keepIndex, ["export { keep } from './keep';", ''].join('\n'));
 
-      const skipIndexExists = await fileSystem.fileExists(path.join(skipDir, INDEX_FILENAME));
+      const skipIndexExists = await fileSystem.hasFile(path.join(skipDir, INDEX_FILENAME));
       assert.strictEqual(skipIndexExists, false);
 
       const rootIndex = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
@@ -193,7 +417,7 @@ describe('BarrelFileGenerator', () => {
 
       await generator.generateBarrelFile(emptyDirUri, { recursive: true });
 
-      const exists = await fileSystem.fileExists(path.join(tmpDir, INDEX_FILENAME));
+      const exists = await fileSystem.hasFile(path.join(tmpDir, INDEX_FILENAME));
       assert.strictEqual(exists, false);
     });
 
@@ -682,6 +906,28 @@ export { formatError } from './errors.js';
         updatedIndex.includes('export function helper()'),
         'Helper function should be preserved',
       );
+    });
+
+    it('should preserve wildcard APIs and emit duplicate public names only once', async () => {
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'aggregator.ts'),
+        "export * from './implementation';",
+      );
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'alpha.ts'),
+        'export const shared = 1; export const { nested } = source;',
+      );
+      await fileSystem.writeFile(path.join(tmpDir, 'bravo.ts'), 'export const shared = 2;');
+
+      await generator.generateBarrelFile(rootUri);
+
+      const barrel = await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME));
+      assert.ok(barrel.includes("export * from './aggregator.js';"));
+      assert.ok(barrel.includes("export { nested, shared } from './alpha.js';"));
+      assert.strictEqual(barrel.match(/\bshared\b/g)?.length, 1);
+      assert.ok(!barrel.includes("from './bravo.js'"));
     });
   });
 });

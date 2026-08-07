@@ -2,6 +2,54 @@
 
 All notable changes to the "barrel-roll" extension will be documented in this file.
 
+## [1.1.2] - 2026-08-08
+
+### Added
+
+- Support for wildcard, namespace, destructured-binding, `.mts`, and `.cts` exports.
+- A real VS Code extension-host contract covering activation, command registration, command
+  execution, and generated barrel output.
+- Strict per-file coverage enforcement above 95%, bounded memory-retention checks, architectural
+  dependency validation, and the zero-tolerance ESLint ruleset.
+- Regression coverage for comment markup, malformed exports, duplicate public names, recursive
+  traversal, cache eviction, module-specific runtime extensions, legacy wildcard entries,
+  maximum-depth termination, unreadable source isolation, and file-stat error context.
+- Increased verified coverage to 99.86% for statements and lines, 98.22% for branches, and 100% for
+  functions; barrel generation, file-system operations, and semaphore behavior now have complete
+  statement, branch, function, and line coverage.
+
+### Changed
+
+- Replaced regex-based barrel inspection with TypeScript AST parsing for export detection and
+  sanitization.
+- Made barrel output deterministic across duplicate named, type-only, default, and wildcard exports.
+- Bounded source processing and recursive traversal so active operations and pending worker promises
+  cannot grow with the complete input set.
+- Made barrel content construction a pure transformation using `BarrelEntry.kind`, eliminating
+  redundant and unbounded file-system probes.
+- Simplified semaphore release handling around its non-empty queue invariant, removing an
+  unreachable fallback branch.
+- Updated development dependencies and `@coderrob/eslint-plugin-zero-tolerance` to `1.2.6`.
+- Consolidated current automation, testing, coverage, memory, and release guidance in `AGENTS.md`,
+  `README.md`, and `CONTRIBUTING.md`.
+
+### Fixed
+
+- Preserved type-only default re-exports instead of generating nonexistent runtime default exports.
+- Prevented duplicate exports when existing barrels contain multiline declarations, comments,
+  closing braces in comments, export attributes, or equivalent `/index` paths.
+- Corrected VS Code integration-test package-root discovery and isolated inherited Electron test-host
+  environment variables.
+- Preserved direct declarations and standalone comments while removing stale generated re-exports.
+- Corrected displaced and placeholder API documentation in the extension and test helpers.
+
+### Removed
+
+- Removed the superseded `hardening.md` planning document; active requirements and useful future work
+  now live in the maintained project documentation.
+- Removed the one-time `instanceof Error` codemod and its `jscodeshift` dependency; the maintained
+  ESLint autofix remains the supported cleanup path.
+
 ## [1.1.1] - 2026-02-19
 
 ### Added

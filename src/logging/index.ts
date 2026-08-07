@@ -21,7 +21,7 @@
  */
 
 export {
-  type LoggerOptions,
+  type ILoggerOptions,
   LogLevel,
   type LogMetadata,
   OutputChannelLogger,

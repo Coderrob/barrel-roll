@@ -19,6 +19,22 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  BarrelEntryKind,
+  BarrelExportKind,
+  BarrelGenerationMode,
+  DEFAULT_EXPORT_NAME,
+  INDEX_FILENAME,
+  NEWLINE,
+  PARENT_DIRECTORY_SEGMENT,
+  STAR_EXPORT_NAME,
+  type BarrelEntry,
+  type BarrelExport,
+  type IBarrelGenerationOptions,
+  type IParsedExport,
+  type NormalizedBarrelGenerationOptions,
+} from '../../../types/index.js';
+
+import {
   assert as customAssert,
   assertDefined,
   assertEqual,
@@ -27,39 +43,26 @@ import {
   assertBoolean,
 } from '../../../utils/assert.js';
 
-import {
-  BarrelEntryKind,
-  BarrelExportKind,
-  BarrelGenerationMode,
-  DEFAULT_EXPORT_NAME,
-  INDEX_FILENAME,
-  NEWLINE,
-  PARENT_DIRECTORY_SEGMENT,
-  type BarrelEntry,
-  type BarrelExport,
-  type IBarrelGenerationOptions,
-  type IParsedExport,
-  type NormalizedBarrelGenerationOptions,
-} from '../../../types/index.js';
-
 /**
  * Contract validation tests to ensure type safety and behavioral expectations
  */
 describe('Contract Validation', () => {
   describe('Enum Contracts', () => {
     describe('BarrelExportKind', () => {
-      it('should have exactly three values', () => {
+      it('should have exactly four values', () => {
         const values = Object.values(BarrelExportKind) as string[];
-        assert.strictEqual(values.length, 3);
+        assert.strictEqual(values.length, 4);
         assert.ok(values.includes(BarrelExportKind.Value));
         assert.ok(values.includes(BarrelExportKind.Type));
         assert.ok(values.includes(BarrelExportKind.Default));
+        assert.ok(values.includes(BarrelExportKind.Star));
       });
 
       it('should have string values matching enum names', () => {
         assert.strictEqual(BarrelExportKind.Value, 'value');
         assert.strictEqual(BarrelExportKind.Type, 'type');
         assert.strictEqual(BarrelExportKind.Default, 'default');
+        assert.strictEqual(BarrelExportKind.Star, 'star');
       });
     });
 
@@ -98,6 +101,7 @@ describe('Contract Validation', () => {
       assert.strictEqual(INDEX_FILENAME, 'index.ts');
       assert.strictEqual(NEWLINE, '\n');
       assert.strictEqual(PARENT_DIRECTORY_SEGMENT, '..');
+      assert.strictEqual(STAR_EXPORT_NAME, '*');
     });
 
     it('should have non-empty string constants', () => {
@@ -105,6 +109,7 @@ describe('Contract Validation', () => {
       assert.ok(INDEX_FILENAME.length > 0);
       assert.ok(NEWLINE.length > 0);
       assert.ok(PARENT_DIRECTORY_SEGMENT.length > 0);
+      assert.ok(STAR_EXPORT_NAME.length > 0);
     });
   });
 
@@ -164,6 +169,15 @@ describe('Contract Validation', () => {
         };
         assert.strictEqual(defaultExport.kind, BarrelExportKind.Default);
         assert.ok(!('name' in defaultExport));
+      });
+
+      it('should accept wildcard exports', () => {
+        const starExport: BarrelExport = {
+          kind: BarrelExportKind.Star,
+          typeOnly: true,
+        };
+        assert.strictEqual(starExport.kind, BarrelExportKind.Star);
+        assert.strictEqual(starExport.typeOnly, true);
       });
 
       it('should reject invalid export kinds', () => {
@@ -254,7 +268,7 @@ describe('Contract Validation', () => {
   describe('Behavioral Contracts', () => {
     describe('Enum Exhaustiveness', () => {
       it('should handle all BarrelExportKind values in switch', () => {
-        const testAllKinds = (kind: BarrelExportKind): string => {
+        const testAllKinds = (kind: Readonly<BarrelExportKind>): string => {
           switch (kind) {
             case BarrelExportKind.Value:
               return 'value';
@@ -262,6 +276,8 @@ describe('Contract Validation', () => {
               return 'type';
             case BarrelExportKind.Default:
               return 'default';
+            case BarrelExportKind.Star:
+              return 'star';
             default:
               throw new Error(`Unexpected BarrelExportKind: ${kind}`);
           }
@@ -270,10 +286,11 @@ describe('Contract Validation', () => {
         assert.strictEqual(testAllKinds(BarrelExportKind.Value), 'value');
         assert.strictEqual(testAllKinds(BarrelExportKind.Type), 'type');
         assert.strictEqual(testAllKinds(BarrelExportKind.Default), 'default');
+        assert.strictEqual(testAllKinds(BarrelExportKind.Star), 'star');
       });
 
       it('should handle all BarrelEntryKind values in switch', () => {
-        const testAllKinds = (kind: BarrelEntryKind): string => {
+        const testAllKinds = (kind: Readonly<BarrelEntryKind>): string => {
           switch (kind) {
             case BarrelEntryKind.File:
               return 'file';
@@ -289,7 +306,7 @@ describe('Contract Validation', () => {
       });
 
       it('should handle all BarrelGenerationMode values in switch', () => {
-        const testAllModes = (mode: BarrelGenerationMode): string => {
+        const testAllModes = (mode: Readonly<BarrelGenerationMode>): string => {
           switch (mode) {
             case BarrelGenerationMode.CreateOrUpdate:
               return 'createOrUpdate';
@@ -307,31 +324,31 @@ describe('Contract Validation', () => {
 
     describe('Type Guards', () => {
       const isValueExport = (
-        exp: BarrelExport,
+        exp: Readonly<BarrelExport>,
       ): exp is BarrelExport & { kind: BarrelExportKind.Value } => {
         return exp.kind === BarrelExportKind.Value;
       };
 
       const isTypeExport = (
-        exp: BarrelExport,
+        exp: Readonly<BarrelExport>,
       ): exp is BarrelExport & { kind: BarrelExportKind.Type } => {
         return exp.kind === BarrelExportKind.Type;
       };
 
       const isDefaultExport = (
-        exp: BarrelExport,
+        exp: Readonly<BarrelExport>,
       ): exp is BarrelExport & { kind: BarrelExportKind.Default } => {
         return exp.kind === BarrelExportKind.Default;
       };
 
       const isFileEntry = (
-        entry: BarrelEntry,
+        entry: Readonly<BarrelEntry>,
       ): entry is BarrelEntry & { kind: BarrelEntryKind.File } => {
         return entry.kind === BarrelEntryKind.File;
       };
 
       const isDirectoryEntry = (
-        entry: BarrelEntry,
+        entry: Readonly<BarrelEntry>,
       ): entry is BarrelEntry & { kind: BarrelEntryKind.Directory } => {
         return entry.kind === BarrelEntryKind.Directory;
       };

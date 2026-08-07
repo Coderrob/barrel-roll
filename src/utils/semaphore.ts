@@ -25,8 +25,21 @@ export class Semaphore {
   /**
    * Creates a new semaphore with the specified number of permits.
    * @param permits The number of permits to initialize the semaphore with.
+   * @throws {RangeError} When permits is not a positive integer.
    */
-  constructor(private permits: number) {}
+  constructor(private permits: number) {
+    if (!Number.isInteger(permits) || permits <= 0) {
+      throw new RangeError('Semaphore permits must be a positive integer');
+    }
+  }
+
+  /**
+   * Enqueues a resolve callback for later execution when a permit becomes available.
+   * @param resolve - The resolve callback to enqueue.
+   */
+  private enqueueResolve(resolve: () => void): void {
+    this.waiting.push(resolve);
+  }
 
   /**
    * Acquires a permit from the semaphore.
@@ -38,10 +51,7 @@ export class Semaphore {
       this.permits--;
       return;
     }
-
-    return new Promise((resolve) => {
-      this.waiting.push(resolve);
-    });
+    return new Promise<void>(this.enqueueResolve.bind(this));
   }
 
   /**
@@ -53,8 +63,7 @@ export class Semaphore {
     if (this.waiting.length === 0) {
       return;
     }
-
-    const resolve = this.waiting.shift()!;
+    const [resolve] = this.waiting.splice(0, 1);
     this.permits--;
     resolve();
   }
@@ -77,6 +86,18 @@ export class Semaphore {
 }
 
 /**
+ * Validates a concurrency capacity before work is scheduled.
+ * @param value - The capacity to validate.
+ * @param label - Human-readable name used in the failure message.
+ * @throws {RangeError} When the capacity is not a positive integer.
+ */
+function assertPositiveInteger(value: number, label: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new RangeError(`${label} must be a positive integer`);
+  }
+}
+
+/**
  * Processes items concurrently with a specified limit.
  * @param items Array of items to process.
  * @param concurrencyLimit Maximum number of concurrent operations.
@@ -84,20 +105,25 @@ export class Semaphore {
  * @returns Promise that resolves to array of results.
  */
 export async function processConcurrently<T, R>(
-  items: T[],
+  items: readonly T[],
   concurrencyLimit: number,
   processor: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const semaphore = new Semaphore(concurrencyLimit);
+  assertPositiveInteger(concurrencyLimit, 'Concurrency limit');
+  const workerCount = Math.min(items.length, concurrencyLimit);
+  const results = new Array<R>(items.length);
 
-  const promises = items.map(async (item) => {
-    await semaphore.acquire();
-    try {
-      return await processor(item);
-    } finally {
-      semaphore.release();
+  /**
+   * Processes one fixed lane of input indexes.
+   * @param workerIndex - First input index assigned to this worker lane.
+   * @returns Promise that resolves when the lane is complete.
+   */
+  const processWorkerLane = async (workerIndex: number): Promise<void> => {
+    for (let itemIndex = workerIndex; itemIndex < items.length; itemIndex += workerCount) {
+      results[itemIndex] = await processor(items[itemIndex]);
     }
-  });
+  };
 
-  return Promise.all(promises);
+  await Promise.all(Array.from({ length: workerCount }, (_, index) => processWorkerLane(index)));
+  return results;
 }

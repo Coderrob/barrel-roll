@@ -25,6 +25,7 @@
     "sourceMap": false,
     "strict": true,
     "target": "ES2022",
+    "types": ["node"],
     "useUnknownInCatchVariables": true
   },
   "exclude": [".vscode-test", "tests", "test-utils", "node_modules", "dist", "src/**/*.test.ts"],

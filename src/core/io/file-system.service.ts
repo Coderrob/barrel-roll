@@ -15,12 +15,18 @@
  *
  */
 
+import type { Stats } from 'node:fs';
 import { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { INDEX_FILENAME } from '../../types/index.js';
 import { getErrorMessage } from '../../utils/index.js';
+
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
+const MAX_FILE_SIZE_MB = 10;
+const MB_DECIMAL_PLACES = 2;
 
 const IGNORED_DIRECTORIES = new Set([
   // Dependencies
@@ -98,9 +104,14 @@ export class FileSystemService {
    */
   async getTypeScriptFiles(directoryPath: string): Promise<string[]> {
     const entries = await this.readDirectory(directoryPath);
-    return entries
-      .filter((entry) => this.isTypeScriptFile(entry))
-      .map((entry) => path.join(directoryPath, entry.name));
+    /**
+     * Converts a directory entry to its absolute file path.
+     * @param entry - The directory entry to convert.
+     * @returns The absolute file path.
+     */
+    const toAbsolutePath = (entry: Readonly<Dirent>): string =>
+      path.join(directoryPath, entry.name);
+    return entries.filter(this.isTypeScriptFile.bind(this)).map(toAbsolutePath);
   }
 
   /**
@@ -110,9 +121,14 @@ export class FileSystemService {
    */
   async getSubdirectories(directoryPath: string): Promise<string[]> {
     const entries = await this.readDirectory(directoryPath);
-    return entries
-      .filter((entry) => this.isTraversableDirectory(entry))
-      .map((entry) => path.join(directoryPath, entry.name));
+    /**
+     * Converts a directory entry to its absolute directory path.
+     * @param entry - The directory entry to convert.
+     * @returns The absolute directory path.
+     */
+    const toAbsolutePath = (entry: Readonly<Dirent>): string =>
+      path.join(directoryPath, entry.name);
+    return entries.filter(this.isTraversableDirectory.bind(this)).map(toAbsolutePath);
   }
 
   /**
@@ -120,7 +136,7 @@ export class FileSystemService {
    * @param entry The directory entry
    * @returns True if it's a TypeScript file; otherwise, false
    */
-  private isTypeScriptFile(entry: Dirent): boolean {
+  private isTypeScriptFile(entry: Readonly<Dirent>): boolean {
     if (!entry.isFile()) return false;
     if (this.shouldExcludeFile(entry.name)) return false;
     return this.isTypeScriptExtension(entry.name);
@@ -135,7 +151,7 @@ export class FileSystemService {
     const normalized = normalizeCase(filename);
     return (
       normalized === normalizeCase(INDEX_FILENAME) ||
-      normalized.endsWith('.d.ts') ||
+      /\.d\.(?:ts|mts|cts)$/.test(normalized) ||
       this.isTestFile(normalized)
     );
   }
@@ -147,7 +163,7 @@ export class FileSystemService {
    */
   private isTypeScriptExtension(filename: string): boolean {
     const normalized = normalizeCase(filename);
-    return normalized.endsWith('.ts') || normalized.endsWith('.tsx');
+    return /\.(?:ts|tsx|mts|cts)$/.test(normalized);
   }
 
   /**
@@ -157,12 +173,7 @@ export class FileSystemService {
    */
   private isTestFile(filename: string): boolean {
     const normalized = normalizeCase(filename);
-    return (
-      normalized.endsWith('.spec.ts') ||
-      normalized.endsWith('.test.ts') ||
-      normalized.endsWith('.spec.tsx') ||
-      normalized.endsWith('.test.tsx')
-    );
+    return /\.(?:spec|test)\.(?:ts|tsx|mts|cts)$/.test(normalized);
   }
 
   /**
@@ -170,7 +181,7 @@ export class FileSystemService {
    * @param entry The directory entry
    * @returns True if the directory should be traversed; otherwise, false
    */
-  private isTraversableDirectory(entry: Dirent): boolean {
+  private isTraversableDirectory(entry: Readonly<Dirent>): boolean {
     const normalized = normalizeCase(entry.name);
     return (
       entry.isDirectory() && !IGNORED_DIRECTORIES.has(normalized) && !normalized.startsWith('.')
@@ -186,13 +197,13 @@ export class FileSystemService {
   async readFile(filePath: string): Promise<string> {
     try {
       // Check file size before reading to prevent memory issues with large files
-      const maxFileSizeBytes = 10 * 1024 * 1024; // 10MB limit
+      const maxFileSizeBytes = MAX_FILE_SIZE_MB * BYTES_PER_MB;
       const stats = await this.fs.stat(filePath);
 
       if (stats.size > maxFileSizeBytes) {
         throw new Error(
-          `File ${filePath} is too large (${(stats.size / 1024 / 1024).toFixed(2)}MB). ` +
-            `Maximum allowed size is ${(maxFileSizeBytes / 1024 / 1024).toFixed(0)}MB.`,
+          `File ${filePath} is too large (${(stats.size / BYTES_PER_MB).toFixed(MB_DECIMAL_PLACES)}MB). ` +
+            `Maximum allowed size is ${(maxFileSizeBytes / BYTES_PER_MB).toFixed(0)}MB.`,
         );
       }
 
@@ -268,7 +279,7 @@ export class FileSystemService {
    * @param filePath The path to check
    * @returns True if the path exists; otherwise, false
    */
-  async fileExists(filePath: string): Promise<boolean> {
+  async hasFile(filePath: string): Promise<boolean> {
     try {
       await this.fs.access(filePath);
       return true;
@@ -297,7 +308,7 @@ export class FileSystemService {
    * @returns Promise that resolves to file stats
    * @throws Error if the stat operation fails
    */
-  async getFileStats(filePath: string): Promise<import('fs').Stats> {
+  async getFileStats(filePath: string): Promise<Stats> {
     try {
       return await this.fs.stat(filePath);
     } catch (error) {
@@ -310,6 +321,7 @@ export class FileSystemService {
    * Reads the entries of a directory with error handling.
    * @param directoryPath The directory path
    * @returns Array of directory entries
+   * @throws {Error} When the directory cannot be read, with the directory path in the message.
    */
   private async readDirectory(directoryPath: string): Promise<Dirent[]> {
     try {

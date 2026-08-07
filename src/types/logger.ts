@@ -18,7 +18,7 @@
 /**
  * Minimal runtime shape for logging implementations and test doubles.
  */
-export interface LoggerInstance {
+export interface ILoggerInstance {
   isLoggerAvailable(): boolean;
   info(message: string, metadata?: Record<string, unknown>): void;
   debug(message: string, metadata?: Record<string, unknown>): void;
@@ -26,20 +26,20 @@ export interface LoggerInstance {
   error(message: string, metadata?: Record<string, unknown>): void;
   fatal(message: string, metadata?: Record<string, unknown>): void;
   group?<T>(name: string, fn: () => Promise<T>): Promise<T>;
-  child?(bindings: Record<string, unknown>): LoggerInstance;
+  child?(bindings: Record<string, unknown>): ILoggerInstance;
 }
 
 /**
  * Interface for output channel used by logger.
  */
-export interface OutputChannel {
+export interface IOutputChannel {
   appendLine(value: string): void;
 }
 
 /**
  * Constructor interface for logger implementations.
  */
-export interface LoggerConstructor {
-  new (...args: unknown[]): LoggerInstance;
-  configureOutputChannel(channel?: OutputChannel): void;
+export interface ILoggerConstructor {
+  new (...args: unknown[]): ILoggerInstance;
+  configureOutputChannel(channel?: IOutputChannel): void;
 }

@@ -30,21 +30,26 @@ describe('BarrelContentBuilder', () => {
 
   describe('buildContent', () => {
     it('should build export statements for files and nested directories', async () => {
-      const entries = new Map<string, BarrelEntry>();
-
-      entries
-        .set('alpha.ts', {
-          kind: BarrelEntryKind.File,
-          exports: [{ kind: BarrelExportKind.Value, name: 'Alpha' }],
-        })
-        .set('beta.ts', {
-          kind: BarrelEntryKind.File,
-          exports: [
-            { kind: BarrelExportKind.Type, name: 'Bravo' },
-            { kind: BarrelExportKind.Default },
-          ],
-        })
-        .set('nested', { kind: BarrelEntryKind.Directory });
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'alpha.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'Alpha' }],
+          },
+        ],
+        [
+          'beta.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Type, name: 'Bravo' },
+              { kind: BarrelExportKind.Default },
+            ],
+          },
+        ],
+        ['nested', { kind: BarrelEntryKind.Directory }],
+      ]);
 
       const source = await builder.buildContent(entries, '');
 
@@ -107,13 +112,25 @@ describe('BarrelContentBuilder', () => {
       );
     });
 
+    it('should preserve wildcard exports from legacy entry arrays', async () => {
+      const entries = new Map<string, string[]>([['legacy.ts', ['*']]]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.strictEqual(result, "export * from './legacy';\n");
+    });
+
     it('should ignore undefined entries produced by legacy callers', async () => {
-      const entries = new Map<string, BarrelEntry>();
-      entries.set('ghost.ts', undefined as unknown as BarrelEntry);
-      entries.set('echo.ts', {
-        kind: BarrelEntryKind.File,
-        exports: [{ kind: BarrelExportKind.Value, name: 'Echo' }],
-      });
+      const entries = new Map<string, BarrelEntry>([
+        ['ghost.ts', undefined as unknown as BarrelEntry],
+        [
+          'echo.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'Echo' }],
+          },
+        ],
+      ]);
 
       const result = await builder.buildContent(entries, '');
 
@@ -121,16 +138,20 @@ describe('BarrelContentBuilder', () => {
     });
 
     it('should combine value and type exports using mixed export syntax', async () => {
-      const entries = new Map<string, BarrelEntry>();
-      entries.set('mixed.ts', {
-        kind: BarrelEntryKind.File,
-        exports: [
-          { kind: BarrelExportKind.Value, name: 'Something' },
-          { kind: BarrelExportKind.Type, name: 'OtherThing' },
-          { kind: BarrelExportKind.Value, name: 'AnotherValue' },
-          { kind: BarrelExportKind.Type, name: 'AnotherType' },
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'mixed.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Value, name: 'Something' },
+              { kind: BarrelExportKind.Type, name: 'OtherThing' },
+              { kind: BarrelExportKind.Value, name: 'AnotherValue' },
+              { kind: BarrelExportKind.Type, name: 'AnotherType' },
+            ],
+          },
         ],
-      });
+      ]);
 
       const result = await builder.buildContent(entries, '');
 
@@ -139,6 +160,126 @@ describe('BarrelContentBuilder', () => {
         result.trim(),
         "export { AnotherValue, Something, type AnotherType, type OtherThing } from './mixed';",
       );
+    });
+
+    it('should emit a type-only default without creating a runtime default export', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'type-facade.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Type, name: 'default' }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '', '.js');
+
+      assert.strictEqual(result, "export type { default } from './type-facade.js';\n");
+    });
+
+    it('should deterministically remove duplicate named and default exports', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'bravo.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Value, name: 'Shared' },
+              { kind: BarrelExportKind.Default },
+            ],
+          },
+        ],
+        [
+          'alpha.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [
+              { kind: BarrelExportKind.Type, name: 'Shared' },
+              { kind: BarrelExportKind.Value, name: 'Shared' },
+              { kind: BarrelExportKind.Default },
+            ],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.strictEqual(result.match(/\bShared\b/g)?.length, 1);
+      assert.strictEqual(result.match(/\{ default \}/g)?.length, 1);
+      assert.ok(result.includes("from './alpha'"));
+      assert.ok(!result.includes("from './bravo'"));
+    });
+
+    it('should prefer a runtime export when an earlier file has a type-only collision', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'alpha.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Type, name: 'Shared' }],
+          },
+        ],
+        [
+          'bravo.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'Shared' }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.strictEqual(result, "export { Shared } from './bravo';\n");
+    });
+
+    it('should map module-specific TypeScript extensions to runtime extensions', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'module.mts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'esmValue' }],
+          },
+        ],
+        [
+          'module.cts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Value, name: 'cjsValue' }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '', '.js');
+
+      assert.ok(result.includes("from './module.mjs'"));
+      assert.ok(result.includes("from './module.cjs'"));
+    });
+
+    it('should forward wildcard exports without conflating independent modules', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'types.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Star, typeOnly: true }],
+          },
+        ],
+        [
+          'values.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Star, typeOnly: false }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '');
+
+      assert.ok(result.includes("export type * from './types';"));
+      assert.ok(result.includes("export * from './values';"));
     });
 
     const parentDirectoryCases: Array<Map<string, BarrelEntry>> = [

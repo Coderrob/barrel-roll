@@ -18,6 +18,7 @@
 import assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { beforeEach, describe, it, mock } from 'node:test';
+import { BarrelGenerationMode } from '../../types/index.js';
 import type {
   FakeUri,
   CommandHandler,
@@ -29,7 +30,6 @@ import type {
   ProgressOptions,
 } from '../testTypes.js';
 import { uriFile } from '../testTypes.js';
-import { BarrelGenerationMode } from '../../types/index.js';
 
 /**
  * Creates a mock ExtensionContext for testing.
@@ -43,7 +43,7 @@ describe('Extension', () => {
     options: ProgressOptions;
   };
 
-  const commandHandlers = new Map<string, CommandHandler>();
+  const commandHandlers: Array<readonly [string, CommandHandler]> = [];
   let createOutputChannelCalls: string[];
   let createdOutputChannels: Array<{ appendLine: (value: string) => void }>;
   let outputChannelMessages: string[];
@@ -91,7 +91,7 @@ describe('Extension', () => {
       showOpenDialogCalls += 1;
       return showOpenDialogResult;
     },
-    async withProgress<T>(options: ProgressOptions, task: () => Promise<T>) {
+    async withProgress<T>(options: Readonly<ProgressOptions>, task: () => Promise<T>) {
       progressCalls.push({ options });
       return task();
     },
@@ -99,10 +99,11 @@ describe('Extension', () => {
 
   const commandsApi: TestCommandsApi = {
     registerCommand(command: string, handler: CommandHandler): { dispose(): void } {
-      commandHandlers.set(command, handler);
+      commandHandlers.push([command, handler]);
       return {
         dispose() {
-          commandHandlers.delete(command);
+          const handlerIndex = commandHandlers.findIndex(([registered]) => registered === command);
+          if (handlerIndex >= 0) commandHandlers.splice(handlerIndex, 1);
         },
       };
     },
@@ -116,7 +117,7 @@ describe('Extension', () => {
 
   const workspaceApi: { fs: { stat(uri: FakeUri): Promise<{ type: number }> } } = {
     fs: {
-      stat(uri: FakeUri) {
+      stat(uri: Readonly<FakeUri>) {
         return workspaceStatImpl(uri);
       },
     },
@@ -135,10 +136,13 @@ describe('Extension', () => {
     /**
      * Fake implementation of generateBarrelFile for testing purposes.
      */
-    async generateBarrelFile(targetDirectory: FakeUri, options: unknown): Promise<void> {
+    async generateBarrelFile(targetDirectory: Readonly<FakeUri>, options: unknown): Promise<void> {
       this.calls.push({ targetDirectory, options });
       if (generatorFailure) {
-        throw generatorFailure;
+        if (generatorFailure instanceof Error) {
+          throw new Error(generatorFailure.message);
+        }
+        throw new Error(String(generatorFailure));
       }
     }
   }
@@ -184,7 +188,7 @@ describe('Extension', () => {
    *
    */
   function resetState(): void {
-    commandHandlers.clear();
+    commandHandlers.length = 0;
     createOutputChannelCalls = [];
     createdOutputChannels = [];
     outputChannelMessages = [];
@@ -205,14 +209,14 @@ describe('Extension', () => {
     // vscode.ExtensionContext, but at runtime our mock module provides it
     const ext = await import('../../extension.js');
     activate = ext.activate as unknown as ActivateFn;
-    deactivate = ext.deactivate as DeactivateFn;
+    deactivate = ext.deactivate;
   });
 
   /**
    *
    */
   function getCommand(id: string): CommandHandler {
-    const handler = commandHandlers.get(id);
+    const handler = commandHandlers.find(([command]) => command === id)?.[1];
     assert.ok(handler, `Command ${id} was not registered`);
     return handler;
   }
@@ -222,9 +226,12 @@ describe('Extension', () => {
    */
   function lastGeneratorCall(): { targetDirectory: FakeUri; options: unknown } {
     assert.ok(generatorInstances.length > 0, 'No generator instances were created');
-    const instance = generatorInstances.at(-1)!;
+    const instance = generatorInstances.at(-1);
+    if (!instance) throw new TypeError('No generator instances were created');
     assert.ok(instance.calls.length > 0, 'Generator was not invoked');
-    return instance.calls.at(-1)!;
+    const call = instance.calls.at(-1);
+    if (!call) throw new TypeError('Generator was not invoked');
+    return call;
   }
 
   describe('extension activation', () => {
@@ -236,10 +243,10 @@ describe('Extension', () => {
       assert.deepStrictEqual(createOutputChannelCalls, ['Barrel Roll']);
       assert.strictEqual(configuredOutputChannel, createdOutputChannels[0]);
       assert.deepStrictEqual(outputChannelMessages, ['Barrel Roll: logging initialized']);
-      assert.deepStrictEqual(Array.from(commandHandlers.keys()), [
-        'barrel-roll.generateBarrel',
-        'barrel-roll.generateBarrelRecursive',
-      ]);
+      assert.deepStrictEqual(
+        commandHandlers.map(([command]) => command),
+        ['barrel-roll.generateBarrel', 'barrel-roll.generateBarrelRecursive'],
+      );
       assert.strictEqual(context.subscriptions.length, 3);
       assert.strictEqual(context.subscriptions[0], createdOutputChannels[0]);
 

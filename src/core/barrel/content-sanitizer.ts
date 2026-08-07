@@ -15,27 +15,22 @@
  *
  */
 
-import type { LoggerInstance } from '../../types/index.js';
-import {
-  extractExportPath,
-  isMultilineExportEnd,
-  isMultilineExportStart,
-  normalizeExportPath,
-} from './export-patterns.js';
+import type { ILoggerInstance } from '../../types/index.js';
+import { findBarrelReExports, normalizeExportPath } from './export-patterns.js';
 
-/**
- * State object for tracking multiline export parsing.
- */
-interface MultilineState {
-  buffer: string[];
-  inMultiline: boolean;
-}
+const BLOCK_COMMENT_END = '*/';
+const BLOCK_COMMENT_START = '/*';
 
 /**
  * Result of content sanitization.
  */
-export interface SanitizationResult {
+export interface ISanitizationResult {
   preservedLines: string[];
+}
+
+interface IPreservationDecision {
+  isExternal: boolean;
+  willBeRegenerated: boolean;
 }
 
 /**
@@ -43,13 +38,13 @@ export interface SanitizationResult {
  * Handles both single-line and multiline export statements.
  */
 export class BarrelContentSanitizer {
-  private readonly logger?: LoggerInstance;
+  private readonly logger?: ILoggerInstance;
 
   /**
    * Creates a new BarrelContentSanitizer instance.
    * @param logger Optional logger for debug output.
    */
-  constructor(logger?: LoggerInstance) {
+  constructor(logger?: Readonly<ILoggerInstance>) {
     this.logger = logger;
   }
 
@@ -62,83 +57,67 @@ export class BarrelContentSanitizer {
    */
   preserveDefinitionsAndSanitizeExports(
     existingContent: string,
-    newContentPaths: Set<string>,
-  ): SanitizationResult {
-    const lines = existingContent.trim().split('\n');
-    const state: MultilineState = { buffer: [], inMultiline: false };
-    const preservedLines: string[] = [];
-
-    for (const line of lines) {
-      const result = this.processLineForPreservation(line, state, newContentPaths);
-      preservedLines.push(...result);
+    newContentPaths: ReadonlySet<string>,
+  ): ISanitizationResult {
+    const ranges = findBarrelReExports(existingContent)
+      .filter((declaration) => !this.shouldPreserveReExport(declaration.path, newContentPaths))
+      .map((declaration) => ({
+        end: this.includeAttachedTrailingComment(existingContent, declaration.end),
+        start: declaration.start,
+      }));
+    let cursor = 0;
+    const fragments: string[] = [];
+    for (const range of ranges) {
+      fragments.push(existingContent.slice(cursor, range.start));
+      cursor = range.end;
     }
+    fragments.push(existingContent.slice(cursor));
 
-    // If we ended mid-multiline (malformed), preserve what we have
-    preservedLines.push(...state.buffer);
-
+    const preservedLines = fragments
+      .join('')
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0);
     return { preservedLines };
   }
 
   /**
-   * Processes a single line during barrel content preservation.
-   * Manages multiline export state and returns lines to preserve.
+   * Includes a comment trailing a removed re-export on the same line. Standalone comments before
+   * a declaration remain untouched, while comments attached to a generated line do not become
+   * misleading orphaned markup.
+   * @param content Complete source text.
+   * @param declarationEnd End offset of the export declaration.
+   * @returns End offset including an attached trailing comment when present.
    */
-  private processLineForPreservation(
-    line: string,
-    state: MultilineState,
-    newContentPaths: Set<string>,
-  ): string[] {
-    const trimmedLine = line.trim();
-
-    if (state.inMultiline) {
-      state.buffer.push(line);
-      if (isMultilineExportEnd(trimmedLine)) {
-        const result = this.processMultilineBlock(state.buffer, newContentPaths);
-        state.buffer = [];
-        state.inMultiline = false;
-        return result;
-      }
-      return [];
+  private includeAttachedTrailingComment(content: string, declarationEnd: number): number {
+    const lineEndIndex = content.indexOf('\n', declarationEnd);
+    const lineEnd = lineEndIndex === -1 ? content.length : lineEndIndex;
+    const suffix = content.slice(declarationEnd, lineEnd);
+    const trimmedSuffix = suffix.trimStart();
+    if (trimmedSuffix.length === 0) {
+      return lineEnd;
     }
-
-    if (isMultilineExportStart(trimmedLine)) {
-      state.inMultiline = true;
-      state.buffer = [line];
-      return [];
+    if (trimmedSuffix.startsWith('//')) {
+      return lineEnd;
     }
-
-    return this.processSingleLine(line, trimmedLine, newContentPaths);
+    if (!trimmedSuffix.startsWith(BLOCK_COMMENT_START)) {
+      return declarationEnd;
+    }
+    return this.findBlockCommentEnd(content, declarationEnd);
   }
 
   /**
-   * Processes a completed multiline export block and determines if it should be preserved.
-   * @returns Lines to preserve (empty array if should be stripped).
+   * Finds the end of an attached block comment.
+   * @param content Complete source text.
+   * @param searchStart Offset at which to start searching.
+   * @returns Offset after the block comment, or the content end for an unterminated comment.
    */
-  private processMultilineBlock(buffer: string[], newContentPaths: Set<string>): string[] {
-    const fullBlock = buffer.join('\n');
-    const exportPath = extractExportPath(fullBlock);
-    if (!exportPath) {
-      // Failed to parse as export, preserve the lines
-      return buffer;
-    }
-    return this.shouldPreserveReExport(exportPath, newContentPaths) ? buffer : [];
-  }
-
-  /**
-   * Processes a single line for preservation in barrel content.
-   * @returns Lines to preserve (empty array if should be stripped).
-   */
-  private processSingleLine(
-    line: string,
-    trimmedLine: string,
-    newContentPaths: Set<string>,
-  ): string[] {
-    const exportPath = extractExportPath(trimmedLine);
-    if (exportPath) {
-      return this.shouldPreserveReExport(exportPath, newContentPaths) ? [line] : [];
-    }
-    // Non-export line: preserve if not empty
-    return trimmedLine.length > 0 ? [line] : [];
+  private findBlockCommentEnd(content: string, searchStart: number): number {
+    const commentStart = content.indexOf(BLOCK_COMMENT_START, searchStart);
+    const commentEnd = content.indexOf(
+      BLOCK_COMMENT_END,
+      commentStart + BLOCK_COMMENT_START.length,
+    );
+    return commentEnd === -1 ? content.length : commentEnd + BLOCK_COMMENT_END.length;
   }
 
   /**
@@ -149,45 +128,60 @@ export class BarrelContentSanitizer {
    * @param normalizedNewPaths Set of pre-normalized paths that will be regenerated.
    * @returns True if the re-export should be preserved.
    */
-  private shouldPreserveReExport(exportPath: string, normalizedNewPaths: Set<string>): boolean {
-    const isExternal = exportPath.startsWith('..');
+  private shouldPreserveReExport(
+    exportPath: string,
+    normalizedNewPaths: ReadonlySet<string>,
+  ): boolean {
+    const isExternal = /^(?:\.\.(?:[\\/]|$))/.test(exportPath);
     const normalizedPath = normalizeExportPath(exportPath);
     const willBeRegenerated = normalizedNewPaths.has(normalizedPath);
     const shouldPreserve = !isExternal && !willBeRegenerated;
 
-    this.logPreservationDecision(exportPath, normalizedPath, isExternal, willBeRegenerated);
+    this.logPreservationDecision(exportPath, normalizedPath, { isExternal, willBeRegenerated });
     return shouldPreserve;
   }
 
   /**
    * Logs debug information about re-export preservation decisions.
+   * @param exportPath Module path as written in the barrel.
+   * @param normalizedPath Canonical path used for duplicate comparison.
+   * @param decision Reason the re-export is preserved or removed.
    */
   private logPreservationDecision(
     exportPath: string,
     normalizedPath: string,
-    isExternal: boolean,
-    willBeRegenerated: boolean,
+    decision: Readonly<IPreservationDecision>,
   ): void {
     if (!this.logger) {
       return;
     }
-
     this.logger.debug(
-      `[SANITIZER] Checking: ${exportPath} → ${normalizedPath} isExternal: ${isExternal} willBeRegenerated: ${willBeRegenerated}`,
+      `[SANITIZER] Checking: ${exportPath} → ${normalizedPath} isExternal: ${decision.isExternal} willBeRegenerated: ${decision.willBeRegenerated}`,
     );
+    this.logPreservationAction(this.logger, exportPath, normalizedPath, decision);
+  }
 
-    if (isExternal) {
-      this.logger.debug(`Stripping external re-export: ${exportPath}`);
-      return;
-    }
-
-    if (willBeRegenerated) {
-      this.logger.debug(
+  /**
+   * Logs the preservation action for a re-export.
+   * @param logger Logger receiving the decision.
+   * @param exportPath - The export path.
+   * @param normalizedPath - The normalized path.
+   * @param decision - The preservation decision.
+   */
+  private logPreservationAction(
+    logger: Readonly<ILoggerInstance>,
+    exportPath: string,
+    normalizedPath: string,
+    decision: Readonly<IPreservationDecision>,
+  ): void {
+    if (decision.isExternal) {
+      logger.debug(`Stripping external re-export: ${exportPath}`);
+    } else if (decision.willBeRegenerated) {
+      logger.debug(
         `Stripping re-export that will be regenerated: ${exportPath} (normalized: ${normalizedPath})`,
       );
-      return;
+    } else {
+      logger.debug(`Preserving re-export: ${exportPath}`);
     }
-
-    this.logger.debug(`Preserving re-export: ${exportPath}`);
   }
 }

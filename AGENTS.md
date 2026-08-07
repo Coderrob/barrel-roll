@@ -19,11 +19,61 @@ This file documents automation, scripts, CI checks, and packaging conventions us
 - Unit test titles must start with `should` (enforced by ESLint).
 - Shared test helpers live in `src/test/testTypes.ts`.
 - Test runner script: `scripts/run-tests.cjs`.
+- Test compilation script: `scripts/run-compile-tests.cjs`; it removes only stale `dist/src` and
+  `dist/test` compiler outputs before invoking TypeScript so deleted sources cannot affect tests or
+  coverage.
 - Test discovery is glob-based in `dist/test/**` and `dist/src/test/**` to support platform/compiler output differences.
 - Test commands:
   - `npm test` - compile tests, compile extension, lint, then run tests
   - `npm run test:unit` - compile tests, compile extension, then run tests (no lint)
-  - `npm run test:vscode` - compile tests, run VS Code integration harness
+  - `npm run test:vscode` - compile tests and the current extension bundle, then run the VS Code
+    extension-host contract from `dist/src/test/runTest.js`
+  - `npm run coverage:verify` - run the complete test suite with strict per-file coverage
+  - `npm run memory:check` - run bounded heap-retention and async-resource checks
+
+### FAST unit tests
+
+All unit tests must follow the FAST principle:
+
+- **Fast:** avoid network access, subprocesses, real timers, and unnecessary compiler or VS Code
+  startup. Keep stress and heap diagnostics in dedicated scripts rather than the unit suite.
+- **Autonomous:** isolate state per test; do not depend on execution order, prior tests, external
+  services, user configuration, or machine-specific paths.
+- **Self-validating:** use deterministic assertions and fail automatically without inspecting logs,
+  generated reports, or snapshots by hand.
+- **Timely:** add or update tests with the behavior they specify, including regression tests for
+  discovered edge cases.
+
+### Coverage and memory safety
+
+- `npm run coverage:verify` is the canonical coverage gate.
+- Every included executable production file must exceed 95% statements, branches, functions, and
+  lines. Thresholds are configured as 95.01% with c8's per-file enforcement and `all: true`, so
+  never-loaded runtime modules fail the gate. Exclusions are limited to tests, barrels, declarations,
+  and compiler-emitted stubs for type-only modules; do not weaken thresholds or exclude executable
+  production files to make the gate pass.
+- `npm run memory:check` is the bounded, offline heap-retention check. It warms up runtime caches,
+  forces garbage collection between samples, verifies bounded caches release entries, and rejects
+  retained growth or leaked asynchronous resources.
+- Memory stress checks are not unit tests and must remain deterministic and reasonably short.
+- The VS Code extension-host test is intentionally separate from the FAST unit suite. It must
+  activate `coderrob.barrel-roll`, verify contributed command registration, execute barrel
+  generation through VS Code, and validate the generated file. Do not silently skip this test based
+  on CI, TTY, or operating-system detection; provide the required display host on headless Linux.
+
+### Defensive, self-describing code
+
+- Validate boundary assumptions before destructive file operations, compiler invocation, resource
+  accounting, and concurrency setup. Fail with an error that identifies the violated invariant.
+- Concurrency helpers must bound both active operations and pending worker promises. Recursive
+  traversal must preserve one effective file-system concurrency ceiling across sibling directories.
+- Name functions and state after observable behavior (`collectFileEntries`, `longLivedParser`) and
+  document concrete inputs, outputs, and failure conditions; placeholder contract text is not
+  acceptable.
+- Use `ReadonlyMap` and `ReadonlySet` for read-only inputs. When state must change, return a new
+  collection or make the mutation boundary explicit rather than disguising mutable state as read-only.
+- Release temporary parser/compiler resources in `finally` blocks and keep regression tests focused
+  on public behavior, including ignored, empty, malformed, and failure inputs.
 
 ## Packaging and release
 
@@ -50,7 +100,11 @@ Verify with `npx @vscode/vsce ls` before publishing.
 
 ## CI
 
-CI runs dependency checks and tests. See:
+CI runs dependency checks, architectural dependency validation, TypeScript-aware circular/orphan
+analysis, duplication checks, per-file coverage, memory-retention checks, and tests. The canonical aggregate quality command is
+`npm run quality`; `npm run lint:deps` invokes dependency-cruiser directly.
+
+See:
 
 - `.github/workflows/ci.yml`
 - `.github/workflows/release.yml`
@@ -61,7 +115,8 @@ CI runs dependency checks and tests. See:
 npm install
 npm run deps:check
 npm run lint
-npm test
+npm run coverage:verify
+npm run memory:check
 ```
 
 ## Change discipline

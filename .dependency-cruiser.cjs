@@ -25,6 +25,7 @@ module.exports = {
           String.raw`(^|/)webpack\\.config\\.(js|cjs|mjs)$`, // Webpack config
           String.raw`(^|/)rollup\\.config\\.(js|cjs|mjs)$`, // Rollup config
           String.raw`(^|/)eslint\.config\.(js|cjs|mjs)$`, // ESLint config
+          String.raw`^src/test/integration/index\.ts$`, // VS Code integration entry point
         ],
       },
       to: {},
@@ -51,7 +52,7 @@ module.exports = {
       fileName: 'tsconfig.json',
     },
     webpackConfig: {
-      fileName: 'webpack.config.js',
+      fileName: 'webpack.config.cjs',
     },
   },
 };

@@ -40,7 +40,9 @@ export interface ProgressOptions {
 export type FakeUri = { fsPath: string };
 
 /**
- *
+ * Creates the minimal normalized URI representation used by unit-test doubles.
+ * @param fsPath File-system path represented by the fake URI.
+ * @returns Fake URI containing the platform-normalized path.
  */
 export function uriFile(fsPath: string): FakeUri {
   return { fsPath: path.normalize(fsPath) };
@@ -66,4 +68,8 @@ export type ActivateFn = (context: ExtensionContext) => Promise<void> | void;
 export type DeactivateFn = () => void;
 
 // Minimal runtime shape for the OutputChannelLogger class used in tests
-export type { LoggerConstructor, LoggerInstance } from '../types/index.js';
+export type { ILoggerConstructor, ILoggerInstance } from '../types/index.js';
+
+export interface CommonJsModuleLoader {
+  _load(request: string, ...loadContext: [parent: unknown, isMain: boolean]): unknown;
+}
