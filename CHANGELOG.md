@@ -2,7 +2,7 @@
 
 All notable changes to the "barrel-roll" extension will be documented in this file.
 
-## [1.1.2] - 2026-08-07
+## [1.1.2] - 2026-08-08
 
 ### Added
 
@@ -41,6 +41,8 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 
 - Removed the superseded `hardening.md` planning document; active requirements and useful future work
   now live in the maintained project documentation.
+- Removed the one-time `instanceof Error` codemod and its `jscodeshift` dependency; the maintained
+  ESLint autofix remains the supported cleanup path.
 
 ## [1.1.1] - 2026-02-19
 
