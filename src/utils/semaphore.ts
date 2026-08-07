@@ -89,6 +89,18 @@ export class Semaphore {
 }
 
 /**
+ * Validates a concurrency capacity before work is scheduled.
+ * @param value - The capacity to validate.
+ * @param label - Human-readable name used in the failure message.
+ * @throws {RangeError} When the capacity is not a positive integer.
+ */
+function assertPositiveInteger(value: number, label: string): void {
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new RangeError(`${label} must be a positive integer`);
+  }
+}
+
+/**
  * Processes items concurrently with a specified limit.
  * @param items Array of items to process.
  * @param concurrencyLimit Maximum number of concurrent operations.
@@ -100,35 +112,21 @@ export async function processConcurrently<T, R>(
   concurrencyLimit: number,
   processor: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const semaphore = new Semaphore(concurrencyLimit);
+  assertPositiveInteger(concurrencyLimit, 'Concurrency limit');
+  const workerCount = Math.min(items.length, concurrencyLimit);
+  const results = new Array<R>(items.length);
 
   /**
-   * Processes a single item under semaphore control.
-   * @param item - The item to process.
-   * @returns Promise resolving to the processed result.
+   * Processes one fixed lane of input indexes.
+   * @param workerIndex - First input index assigned to this worker lane.
+   * @returns Promise that resolves when the lane is complete.
    */
-  const processItem = (item: Readonly<T>): Promise<R> =>
-    runWithSemaphore(semaphore, processor, item);
+  const processWorkerLane = async (workerIndex: number): Promise<void> => {
+    for (let itemIndex = workerIndex; itemIndex < items.length; itemIndex += workerCount) {
+      results[itemIndex] = await processor(items[itemIndex]);
+    }
+  };
 
-  return Promise.all(items.map(processItem));
-}
-
-/**
- * Runs a single item under semaphore control.
- * @param semaphore - The semaphore to use for concurrency control.
- * @param processor - The function that processes the item.
- * @param item - The item to process.
- * @returns Promise resolving to the processed result.
- */
-async function runWithSemaphore<T, R>(
-  semaphore: Readonly<Semaphore>,
-  processor: (item: T) => Promise<R>,
-  item: Readonly<T>,
-): Promise<R> {
-  await semaphore.acquire();
-  try {
-    return await processor(item);
-  } finally {
-    semaphore.release();
-  }
+  await Promise.all(Array.from({ length: workerCount }, (_, index) => processWorkerLane(index)));
+  return results;
 }

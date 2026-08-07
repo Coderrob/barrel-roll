@@ -172,7 +172,7 @@
     "release:patch": "npm run version:patch && npm run ext:reinstall",
     "test": "node scripts/run-tests.cjs",
     "test:unit": "npm run compile-tests && npm run compile && node scripts/run-tests.cjs",
-    "test:vscode": "npm run compile-tests && node ./dist/src/test/runTest.js",
+    "test:vscode": "npm run compile-tests && npm run compile && node ./dist/src/test/runTest.js",
     "typecheck": "tsc --noEmit",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:patch": "npm version patch --no-git-tag-version",

@@ -18,7 +18,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Semaphore } from '../../../utils/semaphore.js';
+import { processConcurrently, Semaphore } from '../../../utils/semaphore.js';
 
 describe('Semaphore', () => {
   it('should reject capacities that cannot make progress', () => {
@@ -60,5 +60,38 @@ describe('Semaphore', () => {
     semaphore.release();
     assert.strictEqual(semaphore.availablePermits, 3);
     assert.strictEqual(semaphore.waitingCount, 0);
+  });
+});
+
+describe('processConcurrently', () => {
+  it('should preserve input order while limiting active worker lanes', async () => {
+    let activeWorkers = 0;
+    let maximumActiveWorkers = 0;
+    const items = Array.from({ length: 25 }, (_, index) => index);
+
+    const results = await processConcurrently(items, 4, async (item) => {
+      activeWorkers += 1;
+      maximumActiveWorkers = Math.max(maximumActiveWorkers, activeWorkers);
+      await new Promise((resolve) => setImmediate(resolve));
+      activeWorkers -= 1;
+      return item * 2;
+    });
+
+    assert.deepStrictEqual(
+      results,
+      items.map((item) => item * 2),
+    );
+    assert.strictEqual(maximumActiveWorkers, 4);
+  });
+
+  it('should validate the limit before processing an empty collection', async () => {
+    await assert.rejects(
+      processConcurrently([], 0, async () => 'unused'),
+      new RangeError('Concurrency limit must be a positive integer'),
+    );
+  });
+
+  it('should return no results when there is no work', async () => {
+    assert.deepStrictEqual(await processConcurrently([], 2, async () => 'unused'), []);
   });
 });

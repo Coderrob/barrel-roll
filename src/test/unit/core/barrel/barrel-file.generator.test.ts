@@ -31,6 +31,7 @@ import type { ILoggerInstance, IParsedExport } from '../../../../types/index.js'
 import { BarrelGenerationMode, INDEX_FILENAME } from '../../../../types/index.js';
 
 const CONCURRENCY_TEST_FILE_COUNT = 101;
+const CONCURRENCY_TEST_DIRECTORY_COUNT = 4;
 const EXPECTED_MAX_CONCURRENT_READS = 10;
 
 /**
@@ -64,6 +65,11 @@ class ConcurrencyTrackingFileSystemService extends FileSystemService {
   private activeSourceReads = 0;
   public maxConcurrentSourceReads = 0;
 
+  /** Creates a tracker that optionally exposes a wide recursive root. */
+  constructor(private readonly recursiveRoot?: string) {
+    super();
+  }
+
   /** @inheritdoc */
   override async getTypeScriptFiles(directoryPath: string): Promise<string[]> {
     return Array.from({ length: CONCURRENCY_TEST_FILE_COUNT }, (_, index) =>
@@ -72,8 +78,11 @@ class ConcurrencyTrackingFileSystemService extends FileSystemService {
   }
 
   /** @inheritdoc */
-  override async getSubdirectories(): Promise<string[]> {
-    return [];
+  override async getSubdirectories(directoryPath: string): Promise<string[]> {
+    if (directoryPath !== this.recursiveRoot) return [];
+    return Array.from({ length: CONCURRENCY_TEST_DIRECTORY_COUNT }, (_, index) =>
+      path.join(directoryPath, `directory-${index}`),
+    );
   }
 
   /** @inheritdoc */
@@ -132,6 +141,20 @@ describe('BarrelFileGenerator', () => {
       assert.ok(
         trackingFileSystem.maxConcurrentSourceReads <= EXPECTED_MAX_CONCURRENT_READS,
         `Expected at most ${EXPECTED_MAX_CONCURRENT_READS} concurrent reads, received ${trackingFileSystem.maxConcurrentSourceReads}`,
+      );
+    });
+
+    it('should preserve the global concurrency limit across recursive sibling directories', async () => {
+      const trackingFileSystem = new ConcurrencyTrackingFileSystemService(tmpDir);
+      const generator = new BarrelFileGenerator(trackingFileSystem, new StaticExportParser());
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(rootUri, { recursive: true });
+
+      assert.ok(trackingFileSystem.maxConcurrentSourceReads > 1);
+      assert.ok(
+        trackingFileSystem.maxConcurrentSourceReads <= EXPECTED_MAX_CONCURRENT_READS,
+        `Expected at most ${EXPECTED_MAX_CONCURRENT_READS} concurrent reads across the traversal, received ${trackingFileSystem.maxConcurrentSourceReads}`,
       );
     });
 

@@ -26,8 +26,8 @@ This file documents automation, scripts, CI checks, and packaging conventions us
 - Test commands:
   - `npm test` - compile tests, compile extension, lint, then run tests
   - `npm run test:unit` - compile tests, compile extension, then run tests (no lint)
-  - `npm run test:vscode` - compile tests, run the VS Code integration harness from
-    `dist/src/test/runTest.js`
+  - `npm run test:vscode` - compile tests and the current extension bundle, then run the VS Code
+    extension-host contract from `dist/src/test/runTest.js`
   - `npm run coverage:verify` - run the complete test suite with strict per-file coverage
   - `npm run memory:check` - run bounded heap-retention and async-resource checks
 
@@ -56,11 +56,17 @@ All unit tests must follow the FAST principle:
   forces garbage collection between samples, verifies bounded caches release entries, and rejects
   retained growth or leaked asynchronous resources.
 - Memory stress checks are not unit tests and must remain deterministic and reasonably short.
+- The VS Code extension-host test is intentionally separate from the FAST unit suite. It must
+  activate `coderrob.barrel-roll`, verify contributed command registration, execute barrel
+  generation through VS Code, and validate the generated file. Do not silently skip this test based
+  on CI, TTY, or operating-system detection; provide the required display host on headless Linux.
 
 ### Defensive, self-describing code
 
 - Validate boundary assumptions before destructive file operations, compiler invocation, resource
   accounting, and concurrency setup. Fail with an error that identifies the violated invariant.
+- Concurrency helpers must bound both active operations and pending worker promises. Recursive
+  traversal must preserve one effective file-system concurrency ceiling across sibling directories.
 - Name functions and state after observable behavior (`collectFileEntries`, `longLivedParser`) and
   document concrete inputs, outputs, and failure conditions; placeholder contract text is not
   acceptable.

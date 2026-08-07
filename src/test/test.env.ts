@@ -15,5 +15,26 @@
  *
  */
 
-/** Whether the current process is running in continuous integration. */
-export const IS_CONTINUOUS_INTEGRATION = Boolean(process.env.CI);
+const ELECTRON_NODE_MODE_VARIABLE = 'ELECTRON_RUN_AS_NODE';
+
+/**
+ * Removes the parent extension host's Electron-as-Node setting before launching VS Code.
+ * @returns The inherited value so the caller can restore it after the child exits.
+ */
+export function consumeElectronNodeMode(): string | undefined {
+  const inheritedValue = process.env[ELECTRON_NODE_MODE_VARIABLE];
+  Reflect.deleteProperty(process.env, ELECTRON_NODE_MODE_VARIABLE);
+  return inheritedValue;
+}
+
+/**
+ * Restores the parent extension host's Electron-as-Node setting.
+ * @param value - Original environment variable value.
+ */
+export function restoreElectronNodeMode(value: string | undefined): void {
+  if (value === undefined) {
+    Reflect.deleteProperty(process.env, ELECTRON_NODE_MODE_VARIABLE);
+    return;
+  }
+  Reflect.set(process.env, ELECTRON_NODE_MODE_VARIABLE, value);
+}

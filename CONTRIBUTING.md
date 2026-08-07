@@ -62,7 +62,10 @@ dependency-cruiser validation, duplicate-code detection, and TypeScript-aware Ma
 
 - Tests live under `src/test/`.
 - Test execution uses Node's built-in test runner via `scripts/run-tests.cjs`.
-- `npm run test:vscode` compiles and launches the VS Code-hosted integration harness.
+- `npm run test:vscode` compiles the tests and current extension bundle, then launches the real
+  VS Code-hosted contract. It activates the development extension, checks command registration,
+  executes barrel generation, and validates its output. The first run may download VS Code;
+  headless Linux requires a display host such as Xvfb.
 - Unit test titles must begin with `should`.
 - Keep unit tests FAST: fast, autonomous, self-validating, and timely. Do not put network calls,
   subprocesses, real-time waits, or heap stress loops in unit tests.

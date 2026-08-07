@@ -15,28 +15,24 @@
  *
  */
 
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { runTests, type TestOptions } from '@vscode/test-electron';
 
-import { IS_CONTINUOUS_INTEGRATION } from './test.env.js';
+import { consumeElectronNodeMode, restoreElectronNodeMode } from './test.env.js';
 
 /**
  * Main entry point for running VS Code extension tests.
  */
 async function main(): Promise<void> {
+  const userDataDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'barrel-roll-vscode-'));
+  const inheritedElectronNodeMode = consumeElectronNodeMode();
   try {
-    const shouldSkipTests = shouldSkipVscodeTests();
-
-    if (shouldSkipTests) {
-      console.log('Skipping VS Code integration tests in headless/CI/Linux environment');
-      return;
-    }
-
     // The folder containing the Extension Manifest package.json
     // Passed to `--extensionDevelopmentPath`
-    const extensionDevelopmentPath = path.resolve(__dirname, '../../');
+    const extensionDevelopmentPath = path.resolve(__dirname, '../../../');
 
     // The path to test runner
     // Passed to --extensionTestsPath
@@ -46,30 +42,17 @@ async function main(): Promise<void> {
     const options: TestOptions = {
       extensionDevelopmentPath,
       extensionTestsPath,
-      launchArgs: [
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--disable-extensions',
-        '--disable-workspace-trust',
-        '--user-data-dir',
-        path.join(os.tmpdir(), 'vscode-test-user-data'),
-      ],
+      launchArgs: ['--disable-extensions', '--user-data-dir', userDataDirectory],
     };
 
     await runTests(options);
-  } catch (error) {
-    console.error('Failed to run tests:', error);
-    process.exit(1);
+  } finally {
+    restoreElectronNodeMode(inheritedElectronNodeMode);
+    await fs.rm(userDataDirectory, { recursive: true, force: true });
   }
 }
 
-/**
- * Determines whether to skip VS Code integration tests based on environment conditions.
- * @returns True when the integration harness cannot run reliably in this environment.
- */
-function shouldSkipVscodeTests(): boolean {
-  return IS_CONTINUOUS_INTEGRATION || !process.stdout.isTTY || process.platform === 'linux';
-}
-
-main();
+void main().catch((error: unknown) => {
+  console.error('Failed to run VS Code integration tests:', error);
+  process.exit(1);
+});

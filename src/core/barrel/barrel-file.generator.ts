@@ -43,6 +43,9 @@ import { detectExtensionFromBarrelContent, extractAllExportPaths } from './expor
 
 type NormalizedGenerationOptions = NormalizedBarrelGenerationOptions;
 
+const FILE_SYSTEM_CONCURRENCY_LIMIT = 10;
+const DIRECTORY_TRAVERSAL_CONCURRENCY_LIMIT = 1;
+
 /**
  * Information about TypeScript files and subdirectories in a directory.
  */
@@ -263,9 +266,7 @@ export class BarrelFileGenerator {
       return;
     }
     if (options.mode !== BarrelGenerationMode.UpdateExisting) {
-      await Promise.all(
-        subdirectories.map((p) => this.generateBarrelFileFromPath(p, options, depth + 1)),
-      );
+      await this.processDirectoriesSequentially(subdirectories, options, depth);
       return;
     }
     await this.processUpdateExistingDirectories(subdirectories, options, depth);
@@ -283,18 +284,41 @@ export class BarrelFileGenerator {
     options: Readonly<NormalizedGenerationOptions>,
     depth: number,
   ): Promise<void> {
-    const filtered = await Promise.all(
-      subdirectories.map(async (subdirectoryPath) => {
+    const filtered = await processConcurrently(
+      subdirectories,
+      FILE_SYSTEM_CONCURRENCY_LIMIT,
+      async (subdirectoryPath) => {
         const hasIndex = await this.fileSystemService.hasFile(
           path.join(subdirectoryPath, INDEX_FILENAME),
         );
         return hasIndex ? subdirectoryPath : null;
-      }),
+      },
     );
-    await Promise.all(
-      filtered
-        .filter((p): p is string => p !== null)
-        .map((p) => this.generateBarrelFileFromPath(p, options, depth + 1)),
+    await this.processDirectoriesSequentially(
+      filtered.filter((p): p is string => p !== null),
+      options,
+      depth,
+    );
+  }
+
+  /**
+   * Processes sibling directories in a deterministic sequence so each directory's bounded workers
+   * share one effective traversal-wide concurrency ceiling.
+   * @param subdirectories Array of subdirectory paths.
+   * @param options Normalized generation options.
+   * @param depth Current recursion depth.
+   * @returns Promise that resolves after every directory has been processed.
+   */
+  private async processDirectoriesSequentially(
+    subdirectories: readonly string[],
+    options: Readonly<NormalizedGenerationOptions>,
+    depth: number,
+  ): Promise<void> {
+    await processConcurrently(
+      subdirectories,
+      DIRECTORY_TRAVERSAL_CONCURRENCY_LIMIT,
+      async (subdirectoryPath) =>
+        this.generateBarrelFileFromPath(subdirectoryPath, options, depth + 1),
     );
   }
 
@@ -328,8 +352,7 @@ export class BarrelFileGenerator {
     directoryPath: string,
     tsFiles: readonly string[],
   ): Promise<Map<string, BarrelEntry>> {
-    const concurrencyLimit = 10;
-    const results = await processConcurrently(tsFiles, concurrencyLimit, (filePath) =>
+    const results = await processConcurrently(tsFiles, FILE_SYSTEM_CONCURRENCY_LIMIT, (filePath) =>
       this.resolveFileEntry(directoryPath, filePath),
     );
     const entries: Array<readonly [string, BarrelEntry]> = results.flatMap((result) => {
@@ -372,12 +395,14 @@ export class BarrelFileGenerator {
     directoryPath: string,
     subdirectories: readonly string[],
   ): Promise<Map<string, BarrelEntry>> {
-    const results = await Promise.all(
-      subdirectories.map(async (subdirectoryPath) => {
+    const results = await processConcurrently(
+      subdirectories,
+      FILE_SYSTEM_CONCURRENCY_LIMIT,
+      async (subdirectoryPath) => {
         const barrelPath = path.join(subdirectoryPath, INDEX_FILENAME);
         const hasBarrel = await this.fileSystemService.hasFile(barrelPath);
         return hasBarrel ? subdirectoryPath : null;
-      }),
+      },
     );
     const entries: Array<readonly [string, BarrelEntry]> = results.flatMap((subdirectoryPath) => {
       if (!subdirectoryPath) return [];
