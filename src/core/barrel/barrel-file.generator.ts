@@ -473,7 +473,9 @@ export class BarrelFileGenerator {
   private normalizeParsedExports(exports: readonly IParsedExport[]): BarrelExport[] {
     return exports.map((exp) => {
       if (exp.name === DEFAULT_EXPORT_NAME) {
-        return { kind: BarrelExportKind.Default };
+        return exp.typeOnly
+          ? { kind: BarrelExportKind.Type, name: DEFAULT_EXPORT_NAME }
+          : { kind: BarrelExportKind.Default };
       }
       if (exp.name === STAR_EXPORT_NAME) {
         return { kind: BarrelExportKind.Star, typeOnly: exp.typeOnly };

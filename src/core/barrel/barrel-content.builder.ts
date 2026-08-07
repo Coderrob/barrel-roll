@@ -28,7 +28,6 @@ import {
   STAR_EXPORT_NAME,
 } from '../../types/index.js';
 import { sortAlphabetically } from '../../utils/string.js';
-import { FileSystemService } from '../io/file-system.service.js';
 
 const COMMONJS_TYPESCRIPT_EXTENSION = '.cts';
 const ES_MODULE_TYPESCRIPT_EXTENSION = '.mts';
@@ -83,15 +82,6 @@ function withMapEntry<Key, Value>(
  * Service to build the content of a barrel file from exports.
  */
 export class BarrelContentBuilder {
-  private readonly fileSystemService: FileSystemService;
-
-  /**
-   * Creates a new BarrelContentBuilder instance.
-   * @param fileSystemService Optional file system service instance.
-   */
-  constructor(fileSystemService?: FileSystemService) {
-    this.fileSystemService = fileSystemService || new FileSystemService();
-  }
   /**
    * Builds the content of a barrel file from export entries.
    * @param entries Map of file paths to export arrays.
@@ -123,46 +113,36 @@ export class BarrelContentBuilder {
    * @param exportExtension The file extension to use for exports (e.g., '.js' or '').
    * @returns The barrel file content as a string.
    */
-  async buildContent(
+  buildContent(
     entries: ReadonlyMap<string, BarrelEntry | string[]>,
-    directoryPath: string,
+    _directoryPath: string,
     exportExtension = '',
   ): Promise<string> {
     const normalizedEntries = this.normalizeEntries(entries);
-    const lines = await this.collectAllExportLines(
-      normalizedEntries,
-      exportExtension,
-      directoryPath,
-    );
-    return lines.join(NEWLINE) + NEWLINE;
+    const lines = this.collectAllExportLines(normalizedEntries, exportExtension);
+    return Promise.resolve(lines.join(NEWLINE) + NEWLINE);
   }
 
   /**
-   * Collects all export lines from the normalized entry map using parallel resolution.
+   * Collects all export lines from the normalized entry map without starting file-system work.
    * @param normalizedEntries Map of relative paths to barrel entries.
    * @param exportExtension The file extension to use for exports.
-   * @param directoryPath The directory path for relative imports.
    * @returns Flattened array of all export lines.
    */
-  private async collectAllExportLines(
+  private collectAllExportLines(
     normalizedEntries: ReadonlyMap<string, BarrelEntry>,
     exportExtension: string,
-    directoryPath: string,
-  ): Promise<string[]> {
+  ): string[] {
     const sortedPaths = sortAlphabetically(normalizedEntries.keys());
     let emittedNames: ReadonlySet<string> = new Set<string>();
     const runtimeExportNames = this.collectRuntimeExportNames(normalizedEntries);
-    const promises = sortedPaths.flatMap((relativePath) => {
+    return sortedPaths.flatMap((relativePath) => {
       const entry = normalizedEntries.get(relativePath);
       if (!entry) return [];
       const reservation = this.reserveUniqueExports(entry, emittedNames, runtimeExportNames);
       emittedNames = reservation.emittedNames;
-      return [
-        this.createLinesForEntry(relativePath, reservation.entry, exportExtension, directoryPath),
-      ];
+      return this.createLinesForEntry(relativePath, reservation.entry, exportExtension);
     });
-    const lineGroups = await Promise.all(promises);
-    return lineGroups.flat();
   }
 
   /**
@@ -328,35 +308,28 @@ export class BarrelContentBuilder {
    * @param relativePath The entry path
    * @param entry The entry metadata
    * @param exportExtension The file extension to use for exports
-   * @param directoryPath The directory path for resolving relative paths
    * @returns export lines for the entry
    */
-  private async createLinesForEntry(
+  private createLinesForEntry(
     relativePath: string,
     entry: Readonly<BarrelEntry>,
     exportExtension: string,
-    directoryPath: string,
-  ): Promise<string[]> {
+  ): string[] {
     if (entry.kind === BarrelEntryKind.Directory) {
-      return this.buildDirectoryExportLines(relativePath, exportExtension, directoryPath);
+      return this.buildDirectoryExportLines(relativePath, exportExtension);
     }
 
-    return this.buildFileExportLines(relativePath, entry.exports, exportExtension, directoryPath);
+    return this.buildFileExportLines(relativePath, entry.exports, exportExtension);
   }
 
   /**
    * Builds export statement(s) for a directory entry.
    * @param relativePath The directory path
    * @param exportExtension The file extension to use for exports
-   * @param directoryPath The directory path for resolving relative paths
    * @returns The export statement(s)
    */
-  private async buildDirectoryExportLines(
-    relativePath: string,
-    exportExtension: string,
-    directoryPath: string,
-  ): Promise<string[]> {
-    const modulePath = await this.getModulePath(relativePath, exportExtension, directoryPath);
+  private buildDirectoryExportLines(relativePath: string, exportExtension: string): string[] {
+    const modulePath = this.getDirectoryModulePath(relativePath, exportExtension);
     if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
       return [];
     }
@@ -379,15 +352,13 @@ export class BarrelContentBuilder {
    * @param filePath The file path
    * @param exports The exports from the file
    * @param exportExtension The file extension to use for exports
-   * @param directoryPath The directory path for resolving relative paths
    * @returns The export statement(s)
    */
-  private async buildFileExportLines(
+  private buildFileExportLines(
     filePath: string,
     exports: readonly BarrelExport[],
     exportExtension: string,
-    directoryPath: string,
-  ): Promise<string[]> {
+  ): string[] {
     const cleanedExports = exports.filter(this.isRelevantExport.bind(this));
 
     // Skip files with no exports
@@ -396,7 +367,7 @@ export class BarrelContentBuilder {
     }
 
     // Convert file path to module path (remove .ts extension and normalize)
-    const modulePath = await this.getModulePath(filePath, exportExtension, directoryPath);
+    const modulePath = this.getFileModulePath(filePath, exportExtension);
 
     // Skip if this references a parent folder
     if (modulePath.startsWith(PARENT_DIRECTORY_SEGMENT)) {
@@ -501,23 +472,22 @@ export class BarrelContentBuilder {
   }
 
   /**
-   * Converts a file path to a module path with the appropriate extension.
-   * @param filePath The file path
-   * @param exportExtension The extension to use for exports (e.g., '.js' or '')
-   * @param directoryPath The directory path for resolving relative paths
-   * @returns The module path
+   * Converts a directory path to its barrel module path.
+   * @param directoryPath Directory path to export.
+   * @param exportExtension Extension convention used by the containing barrel.
+   * @returns Directory module path targeting its index module when extensions are explicit.
    */
-  private async getModulePath(
-    filePath: string,
-    exportExtension: string,
-    directoryPath: string,
-  ): Promise<string> {
-    const isDirectory = await this.isDirectory(filePath, directoryPath);
-    // For directories, append /index + extension if extension is specified
-    if (isDirectory) {
-      return exportExtension ? `${filePath}/index${exportExtension}` : filePath;
-    }
+  private getDirectoryModulePath(directoryPath: string, exportExtension: string): string {
+    return exportExtension ? `${directoryPath}/index${exportExtension}` : directoryPath;
+  }
 
+  /**
+   * Converts a TypeScript file path to its runtime module path.
+   * @param filePath TypeScript source path to export.
+   * @param exportExtension Extension convention used by ordinary TypeScript files.
+   * @returns Normalized runtime module path.
+   */
+  private getFileModulePath(filePath: string, exportExtension: string): string {
     // For files, remove the TypeScript extension and replace it with the runtime extension.
     const sourceExtension = path.extname(filePath).toLowerCase();
     const runtimeExtension =
@@ -529,23 +499,5 @@ export class BarrelContentBuilder {
     const modulePath = filePath.replace(/\.(?:ts|tsx|mts|cts)$/i, '') + runtimeExtension;
     // Normalize path separators for cross-platform compatibility
     return modulePath.replaceAll(/\\/g, '/');
-  }
-
-  /**
-   * Checks if a file path represents a directory.
-   * @param filePath The file path to check
-   * @param directoryPath The directory path for resolving relative paths
-   * @returns True if the path represents a directory
-   */
-  private async isDirectory(filePath: string, directoryPath: string): Promise<boolean> {
-    // For test compatibility, if directoryPath is empty, assume directories based on file extension
-    if (!directoryPath) {
-      return !/\.(?:ts|tsx|mts|cts)$/i.test(filePath);
-    }
-
-    // Resolve the full path to check if it's a directory
-    const fullPath = path.resolve(directoryPath, filePath);
-
-    return this.fileSystemService.isDirectory(fullPath);
   }
 }

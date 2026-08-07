@@ -40,9 +40,9 @@ export interface ProgressOptions {
 export type FakeUri = { fsPath: string };
 
 /**
- *
- * @param fsPath TODO: describe parameter
- * @returns TODO: describe return value
+ * Creates the minimal normalized URI representation used by unit-test doubles.
+ * @param fsPath File-system path represented by the fake URI.
+ * @returns Fake URI containing the platform-normalized path.
  */
 export function uriFile(fsPath: string): FakeUri {
   return { fsPath: path.normalize(fsPath) };

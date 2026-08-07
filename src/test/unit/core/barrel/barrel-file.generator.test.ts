@@ -175,6 +175,22 @@ describe('BarrelFileGenerator', () => {
       );
     });
 
+    it('should preserve type-only default re-exports without creating runtime exports', async () => {
+      await fileSystem.writeFile(
+        path.join(tmpDir, 'type-facade.ts'),
+        "export type { default } from './contract.js';",
+      );
+      const generator = new BarrelFileGenerator();
+      const rootUri = { fsPath: tmpDir } as unknown as Uri;
+
+      await generator.generateBarrelFile(rootUri);
+
+      assert.strictEqual(
+        await fileSystem.readFile(path.join(tmpDir, INDEX_FILENAME)),
+        "export type { default } from './type-facade.js';\n",
+      );
+    });
+
     it('should generate recursive barrel files for nested directories', async () => {
       const nestedDir = path.join(tmpDir, 'nested');
       const deeperDir = path.join(nestedDir, 'deeper');

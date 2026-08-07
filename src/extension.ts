@@ -146,11 +146,11 @@ export function deactivate(): void {
 }
 
 /**
- * Registers a barrel generation command with VS Code.
- * @param generator The barrel file generator instance.
- * @param descriptor The command descriptor containing options and messages.
- * @returns A disposable for the registered command.
- * @throws {Error} TODO: describe error condition
+ * Resolves an accessible resource URI to the directory that should receive a barrel file.
+ * Directory URIs are returned unchanged and file URIs resolve to their parent directory.
+ * @param uri Resource selected by the user or supplied by a command invocation.
+ * @returns The target directory URI. Unknown resource kinds are returned unchanged.
+ * @throws {Error} When VS Code cannot read metadata for the selected resource.
  */
 async function ensureDirectoryUri(uri: Readonly<vscode.Uri>): Promise<vscode.Uri | undefined> {
   try {
@@ -170,10 +170,8 @@ async function ensureDirectoryUri(uri: Readonly<vscode.Uri>): Promise<vscode.Uri
 }
 
 /**
- * Resolves the target directory for barrel generation from the provided URI or user prompt.
- * @param uri Optional URI from the command invocation.
+ * Prompts the user to select a directory for barrel generation.
  * @returns Promise that resolves to the target directory URI, or undefined if cancelled.
- * @param descriptor TODO: describe parameter
  */
 async function promptForDirectory(): Promise<vscode.Uri | undefined> {
   const selected = await vscode.window.showOpenDialog({
@@ -191,10 +189,10 @@ async function promptForDirectory(): Promise<vscode.Uri | undefined> {
 }
 
 /**
- * Prompts the user to select a directory for barrel generation.
- * @returns Promise that resolves to the selected directory URI, or undefined if cancelled.
- * @param uri TODO: describe parameter
- * @param descriptor TODO: describe parameter
+ * Registers one barrel-generation command with VS Code.
+ * @param generator Barrel generator invoked by the command handler.
+ * @param descriptor Command identifier, generation options, and user-facing messages.
+ * @returns Disposable command registration owned by the extension context.
  */
 function registerBarrelCommand(
   generator: Readonly<BarrelFileGenerator>,
@@ -222,10 +220,10 @@ function registerBarrelCommand(
 }
 
 /**
- * Ensures the provided URI points to a directory, converting file URIs to their parent directory.
- * @param uri The URI to validate and potentially convert.
- * @returns Promise that resolves to a directory URI, or undefined if validation fails.
- * @throws {Error} TODO: describe error condition
+ * Resolves the target directory from a command argument or the folder picker.
+ * @param uri Optional resource supplied by the command invocation.
+ * @returns The validated directory URI, or undefined when folder selection is cancelled.
+ * @throws {Error} When metadata for the selected resource cannot be read.
  */
 async function resolveTargetDirectory(uri?: Readonly<vscode.Uri>): Promise<vscode.Uri | undefined> {
   const initial = uri ?? (await promptForDirectory());

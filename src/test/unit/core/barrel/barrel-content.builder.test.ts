@@ -154,6 +154,22 @@ describe('BarrelContentBuilder', () => {
       );
     });
 
+    it('should emit a type-only default without creating a runtime default export', async () => {
+      const entries = new Map<string, BarrelEntry>([
+        [
+          'type-facade.ts',
+          {
+            kind: BarrelEntryKind.File,
+            exports: [{ kind: BarrelExportKind.Type, name: 'default' }],
+          },
+        ],
+      ]);
+
+      const result = await builder.buildContent(entries, '', '.js');
+
+      assert.strictEqual(result, "export type { default } from './type-facade.js';\n");
+    });
+
     it('should deterministically remove duplicate named and default exports', async () => {
       const entries = new Map<string, BarrelEntry>([
         [

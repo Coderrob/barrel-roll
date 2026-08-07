@@ -2,6 +2,46 @@
 
 All notable changes to the "barrel-roll" extension will be documented in this file.
 
+## [1.1.2] - 2026-08-07
+
+### Added
+
+- Support for wildcard, namespace, destructured-binding, `.mts`, and `.cts` exports.
+- A real VS Code extension-host contract covering activation, command registration, command
+  execution, and generated barrel output.
+- Strict per-file coverage enforcement above 95%, bounded memory-retention checks, architectural
+  dependency validation, and the zero-tolerance ESLint ruleset.
+- Regression coverage for comment markup, malformed exports, duplicate public names, recursive
+  traversal, cache eviction, and module-specific runtime extensions.
+
+### Changed
+
+- Replaced regex-based barrel inspection with TypeScript AST parsing for export detection and
+  sanitization.
+- Made barrel output deterministic across duplicate named, type-only, default, and wildcard exports.
+- Bounded source processing and recursive traversal so active operations and pending worker promises
+  cannot grow with the complete input set.
+- Made barrel content construction a pure transformation using `BarrelEntry.kind`, eliminating
+  redundant and unbounded file-system probes.
+- Updated development dependencies and `@coderrob/eslint-plugin-zero-tolerance` to `1.2.6`.
+- Consolidated current automation, testing, coverage, memory, and release guidance in `AGENTS.md`,
+  `README.md`, and `CONTRIBUTING.md`.
+
+### Fixed
+
+- Preserved type-only default re-exports instead of generating nonexistent runtime default exports.
+- Prevented duplicate exports when existing barrels contain multiline declarations, comments,
+  closing braces in comments, export attributes, or equivalent `/index` paths.
+- Corrected VS Code integration-test package-root discovery and isolated inherited Electron test-host
+  environment variables.
+- Preserved direct declarations and standalone comments while removing stale generated re-exports.
+- Corrected displaced and placeholder API documentation in the extension and test helpers.
+
+### Removed
+
+- Removed the superseded `hardening.md` planning document; active requirements and useful future work
+  now live in the maintained project documentation.
+
 ## [1.1.1] - 2026-02-19
 
 ### Added

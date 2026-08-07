@@ -162,7 +162,7 @@ export class OutputChannelLogger {
    * @param name - The name of the group.
    * @param fn - The function to execute within the group.
    * @returns A promise that resolves when the group operation completes.
-   * @throws {Error} TODO: describe error condition
+   * @throws Re-throws the original rejection from `fn` after logging the group failure.
    */
   async group<T>(name: string, fn: () => Promise<T>): Promise<T> {
     const childLogger = this.child({ group: name });
