@@ -88,7 +88,6 @@ To clean up ad-hoc error checks:
 
 ```bash
 npm run lint:fix
-npm run fix:instanceof-error
 ```
 
 ## Commit and PR guidance
