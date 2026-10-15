@@ -90,7 +90,7 @@ export type { UserData } from './user.js';
 
 ### Prerequisites
 
-- Node.js 22.13+
+- Node.js 22.22.2+ (or 24.15+)
 - npm 10+
 
 ### Common commands

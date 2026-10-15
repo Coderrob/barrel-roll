@@ -4,6 +4,8 @@ Thanks for contributing.
 
 ## Development setup
 
+Use Node.js 22.22.2+ (or 24.15+) with npm 10+. `.nvmrc` selects the Node.js 22 line used by CI.
+
 1. Fork and clone:
 
 ```bash

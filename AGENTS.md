@@ -21,6 +21,8 @@ This file documents automation, scripts, CI checks, and packaging conventions us
   per ecosystem.
 - Routine updates wait until a release is at least 12 days old (`cooldown.default-days: 12`).
 - Security updates use separate groups per ecosystem and bypass the version-update cooldown.
+- Pin GitHub Actions to immutable commit hashes with release-version comments. Manual dependency
+  refreshes must also respect the 12-day release age and existing peer/API compatibility constraints.
 - When consolidating existing PRs, preserve their lockfile updates, validate the combined changes,
   and close superseded PRs only after the replacement PR exists.
 
