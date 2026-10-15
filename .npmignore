@@ -1,37 +1,10 @@
-# Source files
-src/
-__mocks__/
-__tests__/
-
-# Configuration files
-*.config.*
-.eslint*
-.prettier*
-.jscpd*
-.nvmrc
-.editorconfig
-.gitignore
-.gitattributes
-
-# Development files
-.devcontainer/
-.vscode/
-.automation/
-.github/
-script/
-badges/
-
-# Build artifacts
-.vscode-test/
-audit/
-dist/
-coverage/
-node_modules/
-*.log
-
-# Documentation (keep only README.md)
-*.md
+# Include only the npm runtime package and required parent directories.
+**
+!package.json
+!LICENSE
 !README.md
-
-# TypeScript configs
-tsconfig*.json
+!dist/
+!dist/extension.js
+!public/
+!public/img/
+!public/img/barrel-roll-icon.png

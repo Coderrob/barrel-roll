@@ -97,6 +97,28 @@ npm run lint:fix
 - Update `CHANGELOG.md` for user-facing changes
 - Include test updates for behavioral changes
 
+## Preparing and publishing releases
+
+Add notes to `CHANGELOG.md` under `## [Unreleased]`, then manually run **Prepare Release** on `main`.
+Choose `major`, `minor`, or `revision` (patch). The workflow updates `package.json`, `package-lock.json`,
+and the dated changelog, runs `npm run release:verify`, and opens a PR. It refuses empty release notes.
+Review and merge the PR before tagging its merged commit with the exact `vMAJOR.MINOR.PATCH` version.
+
+Tag pushes run **Publish To npm**; manual dispatch on `main` accepts an existing tag for publishing
+or retries. Tag, manifest, lockfile, changelog, and ancestry on `main` must agree. Publishing uses npm
+trusted publishing for `Coderrob/barrel-roll` and `publish-npm.yml`, with direct publishing allowed
+and no environment. The package must already exist and have this trusted publisher configured.
+Confirm npm name ownership and choose a version that has never been published.
+
+Repository Actions settings must permit Actions to create PRs. The default `GITHUB_TOKEN` does not
+trigger PR CI; the preparation run validates the candidate. To satisfy required PR checks, configure
+the optional `RELEASE_PR_TOKEN` secret with contents and pull-request write access. See the README's
+npm release instructions for setup and the npm package's VS Code-host requirement.
+
+Release helper tests are offline and run with `npm run release:test`; CI runs them on every platform.
+`npm run npm:pack:check` verifies exactly the documented npm files after building. Do not weaken this
+check or include development files in the published package.
+
 ## PR checklist
 
 - [ ] `npm run lint` passes

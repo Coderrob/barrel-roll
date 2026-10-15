@@ -139,6 +139,10 @@
   "main": "./dist/extension.js",
   "name": "barrel-roll",
   "publisher": "coderrob",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Coderrob/barrel-roll.git"
@@ -163,11 +167,14 @@
     "lint:fix": "prettier --write . && eslint --fix .",
     "madge": "madge --extensions ts --ts-config tsconfig.json --circular --orphans src",
     "memory:check": "npm run compile-tests && node --expose-gc scripts/run-memory-check.cjs",
+    "npm:pack:check": "node scripts/release.cjs check-package",
     "package": "webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "quality": "npm run lint && npm run lint:deps && npm run duplication && npm run madge",
     "release:minor": "npm run version:minor && npm run ext:reinstall",
     "release:patch": "npm run version:patch && npm run ext:reinstall",
+    "release:test": "node --test scripts/test/release.test.cjs",
+    "release:verify": "npm run release:test && npm run quality && npm run typecheck && npm run coverage:verify && npm run memory:check && npm run package && npm run npm:pack:check",
     "test": "node scripts/run-tests.cjs",
     "test:unit": "npm run compile-tests && npm run compile && node scripts/run-tests.cjs",
     "test:vscode": "npm run compile-tests && npm run compile && node ./dist/src/test/runTest.js",

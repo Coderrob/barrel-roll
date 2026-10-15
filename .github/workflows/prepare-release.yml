@@ -1,0 +1,77 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version increment (revision means patch)
+        required: true
+        default: revision
+        type: choice
+        options:
+          - major
+          - minor
+          - revision
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare version and changelog
+        id: release
+        env:
+          RELEASE_BUMP: ${{ inputs.bump }}
+        run: |
+          case "$RELEASE_BUMP" in
+            major|minor) npm version "$RELEASE_BUMP" --no-git-tag-version --ignore-scripts ;;
+            revision) npm version patch --no-git-tag-version --ignore-scripts ;;
+            *) echo "Unsupported version increment: $RELEASE_BUMP" >&2; exit 1 ;;
+          esac
+          version="$(node -p 'require("./package.json").version')"
+          node scripts/release.cjs prepare-changelog "$version"
+          node scripts/release.cjs check-tag "v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release candidate
+        run: npm run release:verify
+
+      - name: Open release pull request
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          branch="release/v${VERSION}"
+          if [ "$(gh pr list --base main --head "$branch" --state open --json number --jq 'length')" != 0 ]; then
+            echo "An open pull request already exists for $branch" >&2
+            exit 1
+          fi
+          git switch -c "$branch"
+          git add -f package.json package-lock.json CHANGELOG.md
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "chore: prepare v${VERSION} release"
+          git push origin "$branch"
+          printf 'Prepare v%s and move Unreleased notes into a dated section.\n\nValidation: `npm run release:verify` passed.\n\nWhen using the default GITHUB_TOKEN, pull_request workflows do not start automatically. Review the preparation run before merging. Configure RELEASE_PR_TOKEN if branch rules require PR CI.\n' "$VERSION" > "$RUNNER_TEMP/release-pr-body.md"
+          gh pr create --base main --head "$branch" --title "Prepare v${VERSION} release" --body-file "$RUNNER_TEMP/release-pr-body.md"

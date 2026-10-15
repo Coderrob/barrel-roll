@@ -82,6 +82,27 @@ All unit tests must follow the FAST principle:
 - Install packaged VSIX: `npm run ext:install`
 - Quick reinstall: `npm run ext:reinstall`
 
+### npm release automation
+
+- `.github/workflows/prepare-release.yml` is manually dispatched on `main` with `major`, `minor`, or
+  `revision` (patch). It prepares package and lockfile versions, moves nonempty Unreleased notes into
+  a dated changelog section, runs `npm run release:verify`, and opens a release PR.
+- `.github/workflows/publish-npm.yml` accepts exact `vMAJOR.MINOR.PATCH` tags on push or via manual
+  dispatch on `main`. It verifies tag/version/changelog agreement and ancestry on `main`, reruns
+  release validation, and publishes using npm OIDC. Configure the npm trusted publisher for
+  `Coderrob/barrel-roll`, `publish-npm.yml`, no environment, and direct `npm publish` permission.
+- Actions must be allowed to create PRs. The optional `RELEASE_PR_TOKEN` secret triggers PR CI when
+  required by branch rules; the default `GITHUB_TOKEN` does not trigger PR workflows.
+- `scripts/release.cjs` implements changelog, tag, and npm package validation. Offline tests are
+  `npm run release:test`; `npm run release:verify` includes them and all quality, coverage, memory,
+  production build, and npm package checks.
+- `.npmignore` restricts npm output to `LICENSE`, `README.md`, `dist/extension.js`, and
+  `public/img/barrel-roll-icon.png`, plus the automatically included `package.json`. Keep the
+  npm allowlist separate from `.vscodeignore`; VSCE rejects combining that file with `package.json#files`.
+  `npm run npm:pack:check` verifies the exact list and rejects empty files.
+- The npm artifact is the VS Code extension bundle and requires a VS Code extension host. Keep the
+  extension identity intact when adapting npm distribution.
+
 ### Publish allowlist
 
 `.vscodeignore` uses an allowlist strategy. Intended packaged files are:

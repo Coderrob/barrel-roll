@@ -31,6 +31,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Check release automation
+        run: npm run release:test
+
       - name: Run linter
         run: npm run lint
 
@@ -54,3 +57,6 @@ jobs:
 
       - name: Package extension
         run: npm run package
+
+      - name: Verify npm package contents
+        run: npm run npm:pack:check

@@ -150,6 +150,38 @@ npm run ext:install
 npm run ext:reinstall
 ```
 
+### npm releases
+
+The npm package contains the built VS Code extension and its runtime assets. It requires a VS Code
+extension host; npm installation does not install or activate the extension in VS Code.
+
+1. Add release notes under `## [Unreleased]` in `CHANGELOG.md`.
+1. Run **Prepare Release** from the Actions tab on `main`, choosing `major`, `minor`, or `revision`
+   (`revision` means patch). It updates both package versions and the changelog, validates the
+   candidate, and opens a release PR.
+1. Review and merge the release PR, then create and push the exact `vMAJOR.MINOR.PATCH` tag on the
+   merged commit. Tag pushes run **Publish To npm** and the existing VSIX release workflow.
+1. To publish or retry manually, run **Publish To npm** on `main` and supply the existing release tag.
+   Publishing requires that the tag points to a commit on `main`, matches both package versions,
+   and has a dated changelog section. Historical tags with commit suffixes are rejected.
+
+Configure npm trusted publishing for the package named in `package.json`: GitHub owner `Coderrob`,
+repository `barrel-roll`, workflow filename `publish-npm.yml`, no environment, and permission for
+direct `npm publish`. This uses OIDC with Node.js 24 and requires no npm publish token. For a new npm
+package, complete its initial publication and trusted-publisher setup first. Confirm ownership of
+the npm name and select an unused version; `barrel-roll` has previously unpublished releases.
+See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/).
+
+Enable **Allow GitHub Actions to create and approve pull requests** in repository Actions settings
+for preparation. PRs created with `GITHUB_TOKEN` do not start PR workflows automatically; review the
+successful preparation run before merging. If branch rules require PR CI, use the optional
+`RELEASE_PR_TOKEN` secret with repository contents and pull-request write access to trigger it.
+
+`npm run release:verify` runs release-helper tests, quality checks, type checking, coverage, memory
+checks, the production build, and npm package inspection. The npm allowlist is `package.json`,
+`LICENSE`, `README.md`, `dist/extension.js`, and `public/img/barrel-roll-icon.png`; missing or extra
+files fail verification. The publishing workflow reruns verification before publishing.
+
 ### VSIX contents
 
 Publishing uses an allowlist in `.vscodeignore` so only runtime assets are intentionally included:

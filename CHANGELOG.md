@@ -2,6 +2,13 @@
 
 All notable changes to the "barrel-roll" extension will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Manual release preparation and npm publishing workflows, with release PRs, tag validation,
+  trusted publishing, and verified npm package contents.
+
 ## [1.1.2] - 2026-08-08
 
 ### Added
