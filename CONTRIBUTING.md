@@ -47,6 +47,16 @@ npm run coverage:verify
 npm run memory:check
 ```
 
+## Dependency updates
+
+Dependabot checks npm packages and GitHub Actions weekly using `.github/dependabot.yml`. Version
+updates are grouped into one PR per ecosystem and wait until releases are at least 12 days old.
+Security updates are grouped separately per ecosystem and bypass this cooldown.
+
+Review the combined dependency changes and require CI to pass before merging. When consolidating
+existing dependency PRs, include their lockfile updates in the replacement and close superseded PRs
+only after the replacement PR exists.
+
 ## Code style and quality
 
 Run `npm run quality` before submitting changes. It includes formatting and ESLint checks,

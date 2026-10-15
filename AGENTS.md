@@ -14,6 +14,16 @@ This file documents automation, scripts, CI checks, and packaging conventions us
 - Behavior: runs `depcheck` programmatically, writes `.depcheck.json`, filters references found in repository files/scripts, and exits non-zero when unused packages remain.
 - Rationale: avoids `npx` platform inconsistencies and keeps local/CI behavior aligned.
 
+## Automated dependency updates
+
+- Configuration: `.github/dependabot.yml`.
+- Dependabot checks npm packages and GitHub Actions weekly, grouping all version updates into one PR
+  per ecosystem.
+- Routine updates wait until a release is at least 12 days old (`cooldown.default-days: 12`).
+- Security updates use separate groups per ecosystem and bypass the version-update cooldown.
+- When consolidating existing PRs, preserve their lockfile updates, validate the combined changes,
+  and close superseded PRs only after the replacement PR exists.
+
 ## Testing conventions
 
 - Unit test titles must start with `should` (enforced by ESLint).

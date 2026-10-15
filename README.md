@@ -134,6 +134,13 @@ duplicate code, and TypeScript circular/orphan modules.
 
 `npm run deps:check` uses `scripts/run-depcheck.cjs` (programmatic depcheck runner). It writes `.depcheck.json`, filters known script/repository references, and fails when unused dependencies remain.
 
+### Automated dependency updates
+
+Dependabot checks npm packages and GitHub Actions weekly and groups version updates into one PR per
+ecosystem. Routine updates wait until releases are at least 12 days old to reduce exposure to newly
+published packages. Security updates are grouped separately and bypass this cooldown. See
+[`.github/dependabot.yml`](.github/dependabot.yml) for the policy.
+
 ### Packaging and release
 
 ```bash
