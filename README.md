@@ -181,19 +181,15 @@ The workflow checks tag/version/identity agreement, runs quality, type, coverage
 then builds and publishes the validated VSIX with `vsce`. The tag-triggered **Release** workflow
 continues to attach VSIX files to GitHub releases.
 
-Set up the publishing identity once:
+Set up the publishing token once:
 
-1. Create a Microsoft Entra application/service principal or user-assigned managed identity.
-1. Add a federated credential with issuer `https://token.actions.githubusercontent.com`, audience
-   `api://AzureADTokenExchange`, and subject `repo:Coderrob/barrel-roll:ref:refs/heads/main`.
-1. Authorize the identity as a **Contributor** on the `coderrob` Visual Studio Marketplace publisher,
-   following Microsoft's [identity-based publishing instructions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#secure-automated-publishing-to-visual-studio-marketplace).
-1. Add repository Actions secrets `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` with that identity's client
-   and tenant IDs. No subscription ID, client secret, or Marketplace PAT is required.
+1. Create a [Marketplace publishing token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token)
+   using an account authorized to publish under `coderrob`, with the Marketplace **Manage** scope.
+1. In this repository's **Settings → Secrets and variables → Actions**, add a repository secret named
+   `VSCE_PAT` containing that token.
 
-The workflow uses [Azure Login's OIDC authentication](https://github.com/Azure/login#login-with-openid-connect-oidc-recommended)
-and the released `vsce --azure-credential` option. It publishes `coderrob.barrel-roll` to the Visual
-Studio Marketplace.
+The workflow passes `VSCE_PAT` only to the final publish step. `vsce` reads that environment variable
+and publishes the validated VSIX as `coderrob.barrel-roll`. Rotate the secret when the token expires.
 
 ## Known limitations
 

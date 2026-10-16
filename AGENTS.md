@@ -103,10 +103,9 @@ All unit tests must follow the FAST principle:
 - `.github/workflows/publish-vscode.yml` is manually dispatched from `main` with an existing release
   tag. It verifies ancestry on `main`, extension identity, package/lockfile versions, and any commit
   suffix, then runs quality, coverage, memory, and packaging checks before publishing that VSIX.
-- Authentication uses `azure/login` with GitHub OIDC and `vsce publish --azure-credential`. Configure
-  `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` repository secrets, an Entra federated credential for
-  `repo:Coderrob/barrel-roll:ref:refs/heads/main`, and Marketplace Contributor access for the identity.
-  No Marketplace PAT or client secret is needed. See the README for setup.
+- Authentication uses the `VSCE_PAT` repository Actions secret with a Marketplace publishing token
+  authorized for `coderrob` and scoped to Marketplace **Manage**. Expose it only to the publish step
+  as an environment variable. See the README for setup.
 
 ### Publish allowlist
 

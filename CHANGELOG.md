@@ -7,7 +7,7 @@ All notable changes to the "barrel-roll" extension will be documented in this fi
 ### Added
 
 - A manually dispatched Visual Studio Marketplace publishing workflow using the locked `vsce` CLI
-  and GitHub OIDC with Microsoft Entra authentication.
+  and a Marketplace publishing token stored in the `VSCE_PAT` Actions secret.
 - VSIX packaging checks on Linux, Windows, and macOS.
 
 ## [1.1.2] - 2026-08-08

@@ -113,9 +113,9 @@ followed by `_COMMIT`), then run **Publish to Visual Studio Marketplace** from `
 The tag must include the locked CLI dependency; its version, lockfile, ancestry, identity, and any
 commit suffix must agree. The workflow reruns validation and publishes the resulting VSIX.
 
-Configure the Entra federated identity, Marketplace Contributor access, and `AZURE_CLIENT_ID` /
-`AZURE_TENANT_ID` Actions secrets using the README's setup instructions. Authentication uses GitHub
-OIDC and `vsce --azure-credential`. Packaging and validation can run locally without those credentials.
+Configure the `VSCE_PAT` repository Actions secret with a token authorized to publish as `coderrob`
+and scoped to Marketplace **Manage**, using the README's setup instructions. The workflow passes it
+to `vsce` only during publishing. Packaging and validation run locally without the token.
 
 ## Commit and PR guidance
 
