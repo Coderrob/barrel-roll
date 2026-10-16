@@ -1,0 +1,104 @@
+name: Publish to Visual Studio Marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag (vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH_COMMIT)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-vscode
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      AZURE_CORE_OUTPUT: none
+    steps:
+      - name: Validate release tag format
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(_[0-9a-f]{7,40})?$ ]]; then
+            echo 'Expected a stable release tag, optionally suffixed with its commit hash.' >&2
+            exit 1
+          fi
+
+      - name: Check out release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.x
+          package-manager-cache: false
+
+      - name: Verify release commit and package metadata
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const { execFileSync } = require('node:child_process');
+          const manifest = require('./package.json');
+          const lockfile = require('./package-lock.json');
+          const [version, commit] = process.env.RELEASE_TAG.slice(1).split('_');
+          assert.equal(version, manifest.version, 'Tag must match package version');
+          assert.equal(lockfile.version, version, 'Lockfile version differs');
+          assert.equal(lockfile.packages[''].version, version, 'Lockfile root version differs');
+          assert.equal(manifest.publisher, 'coderrob', 'Unexpected Marketplace publisher');
+          assert.equal(manifest.name, 'barrel-roll', 'Unexpected extension name');
+          assert.ok(manifest.devDependencies['@vscode/vsce'], 'Tag must include the locked vsce dependency');
+          if (commit) {
+            const sha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+            assert.ok(sha.startsWith(commit), 'Tag commit suffix must match the release commit');
+          }
+          NODE
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Run quality and type checks
+        run: npm run quality && npm run typecheck
+
+      - name: Verify coverage and memory retention
+        run: npm run coverage:verify && npm run memory:check
+
+      - name: Inspect package contents
+        run: npm exec --no -- vsce ls
+
+      - name: Build release VSIX
+        run: npm run ext:package -- --out "$RUNNER_TEMP/barrel-roll.vsix"
+
+      - name: Verify Azure identity configuration
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          if [[ -z "$AZURE_CLIENT_ID" || -z "$AZURE_TENANT_ID" ]]; then
+            echo 'Configure AZURE_CLIENT_ID and AZURE_TENANT_ID and the federated Marketplace publisher identity. See README.md.' >&2
+            exit 1
+          fi
+
+      - name: Sign in to Azure using GitHub OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Publish the validated VSIX
+        run: npm exec --no -- vsce publish --azure-credential --packagePath "$RUNNER_TEMP/barrel-roll.vsix"

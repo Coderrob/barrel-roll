@@ -102,6 +102,21 @@ To clean up ad-hoc error checks:
 npm run lint:fix
 ```
 
+## Marketplace releases
+
+`npm run ext:package` uses the locked local `@vscode/vsce` and builds the production bundle through
+`vscode:prepublish`. CI verifies VSIX creation on every supported platform. Inspect its file list with
+`npm exec --no -- vsce ls` before publishing.
+
+To publish, merge the release commit, tag it with the package version (`vMAJOR.MINOR.PATCH`, optionally
+followed by `_COMMIT`), then run **Publish to Visual Studio Marketplace** from `main` with that tag.
+The tag must include the locked CLI dependency; its version, lockfile, ancestry, identity, and any
+commit suffix must agree. The workflow reruns validation and publishes the resulting VSIX.
+
+Configure the Entra federated identity, Marketplace Contributor access, and `AZURE_CLIENT_ID` /
+`AZURE_TENANT_ID` Actions secrets using the README's setup instructions. Authentication uses GitHub
+OIDC and `vsce --azure-credential`. Packaging and validation can run locally without those credentials.
+
 ## Commit and PR guidance
 
 - Use conventional prefixes when possible: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`

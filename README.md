@@ -167,7 +167,33 @@ Publishing uses an allowlist in `.vscodeignore` so only runtime assets are inten
 - `dist/extension.js`
 - `public/img/barrel-roll-icon.png`
 
-Use `npx @vscode/vsce ls` to inspect final package contents before publishing.
+Use `npm exec --no -- vsce ls` to inspect final package contents before publishing. `@vscode/vsce`
+is locked as a development dependency, and CI validates real VSIX packaging on all three platforms.
+
+### Publish to Visual Studio Marketplace
+
+After merging a release commit, create a tag matching the extension version, such as `v1.1.3`, or
+the existing `v1.1.3_COMMIT` convention with its matching 7–40 character lowercase commit hash.
+The tagged commit must be reachable from `main` and include the locked `@vscode/vsce` dependency.
+
+Run **Publish to Visual Studio Marketplace** from the Actions tab, select `main`, and enter that tag.
+The workflow checks tag/version/identity agreement, runs quality, type, coverage, and memory checks,
+then builds and publishes the validated VSIX with `vsce`. The tag-triggered **Release** workflow
+continues to attach VSIX files to GitHub releases.
+
+Set up the publishing identity once:
+
+1. Create a Microsoft Entra application/service principal or user-assigned managed identity.
+1. Add a federated credential with issuer `https://token.actions.githubusercontent.com`, audience
+   `api://AzureADTokenExchange`, and subject `repo:Coderrob/barrel-roll:ref:refs/heads/main`.
+1. Authorize the identity as a **Contributor** on the `coderrob` Visual Studio Marketplace publisher,
+   following Microsoft's [identity-based publishing instructions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#secure-automated-publishing-to-visual-studio-marketplace).
+1. Add repository Actions secrets `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` with that identity's client
+   and tenant IDs. No subscription ID, client secret, or Marketplace PAT is required.
+
+The workflow uses [Azure Login's OIDC authentication](https://github.com/Azure/login#login-with-openid-connect-oidc-recommended)
+and the released `vsce --azure-credential` option. It publishes `coderrob.barrel-roll` to the Visual
+Studio Marketplace.
 
 ## Known limitations
 

@@ -94,6 +94,20 @@ All unit tests must follow the FAST principle:
 - Install packaged VSIX: `npm run ext:install`
 - Quick reinstall: `npm run ext:reinstall`
 
+### Marketplace publishing
+
+- `@vscode/vsce` is a locked development dependency. `npm run ext:package` uses its local CLI;
+  do not replace it with an unpinned global installation.
+- CI creates a real VSIX on Linux, Windows, and macOS. The tag-based Release workflow uses the same
+  command to attach a VSIX to the GitHub release.
+- `.github/workflows/publish-vscode.yml` is manually dispatched from `main` with an existing release
+  tag. It verifies ancestry on `main`, extension identity, package/lockfile versions, and any commit
+  suffix, then runs quality, coverage, memory, and packaging checks before publishing that VSIX.
+- Authentication uses `azure/login` with GitHub OIDC and `vsce publish --azure-credential`. Configure
+  `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` repository secrets, an Entra federated credential for
+  `repo:Coderrob/barrel-roll:ref:refs/heads/main`, and Marketplace Contributor access for the identity.
+  No Marketplace PAT or client secret is needed. See the README for setup.
+
 ### Publish allowlist
 
 `.vscodeignore` uses an allowlist strategy. Intended packaged files are:
@@ -104,7 +118,7 @@ All unit tests must follow the FAST principle:
 - `dist/extension.js`
 - `public/img/barrel-roll-icon.png`
 
-Verify with `npx @vscode/vsce ls` before publishing.
+Verify with `npm exec --no -- vsce ls` before publishing.
 
 ### Packaging note
 
