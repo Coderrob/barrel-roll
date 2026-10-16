@@ -4,6 +4,8 @@ Thanks for contributing.
 
 ## Development setup
 
+Use Node.js 22.22.2+ (or 24.15+) with npm 10+. `.nvmrc` selects the Node.js 22 line used by CI.
+
 1. Fork and clone:
 
 ```bash
@@ -47,6 +49,16 @@ npm run coverage:verify
 npm run memory:check
 ```
 
+## Dependency updates
+
+Dependabot checks npm packages and GitHub Actions weekly using `.github/dependabot.yml`. Version
+updates are grouped into one PR per ecosystem and wait until releases are at least 12 days old.
+Security updates are grouped separately per ecosystem and bypass this cooldown.
+
+Review the combined dependency changes and require CI to pass before merging. When consolidating
+existing dependency PRs, include their lockfile updates in the replacement and close superseded PRs
+only after the replacement PR exists.
+
 ## Code style and quality
 
 Run `npm run quality` before submitting changes. It includes formatting and ESLint checks,
@@ -89,6 +101,21 @@ To clean up ad-hoc error checks:
 ```bash
 npm run lint:fix
 ```
+
+## Marketplace releases
+
+`npm run ext:package` uses the locked local `@vscode/vsce` and builds the production bundle through
+`vscode:prepublish`. CI verifies VSIX creation on every supported platform. Inspect its file list with
+`npm exec --no -- vsce ls` before publishing.
+
+To publish, merge the release commit, tag it with the package version (`vMAJOR.MINOR.PATCH`, optionally
+followed by `_COMMIT`), then run **Publish to Visual Studio Marketplace** from `main` with that tag.
+The tag must include the locked CLI dependency; its version, lockfile, ancestry, identity, and any
+commit suffix must agree. The workflow reruns validation and publishes the resulting VSIX.
+
+Configure the `VSCE_PAT` repository Actions secret with a token authorized to publish as `coderrob`
+and scoped to Marketplace **Manage**, using the README's setup instructions. The workflow passes it
+to `vsce` only during publishing. Packaging and validation run locally without the token.
 
 ## Commit and PR guidance
 

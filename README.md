@@ -90,7 +90,7 @@ export type { UserData } from './user.js';
 
 ### Prerequisites
 
-- Node.js 22.13+
+- Node.js 22.22.2+ (or 24.15+)
 - npm 10+
 
 ### Common commands
@@ -134,6 +134,13 @@ duplicate code, and TypeScript circular/orphan modules.
 
 `npm run deps:check` uses `scripts/run-depcheck.cjs` (programmatic depcheck runner). It writes `.depcheck.json`, filters known script/repository references, and fails when unused dependencies remain.
 
+### Automated dependency updates
+
+Dependabot checks npm packages and GitHub Actions weekly and groups version updates into one PR per
+ecosystem. Routine updates wait until releases are at least 12 days old to reduce exposure to newly
+published packages. Security updates are grouped separately and bypass this cooldown. See
+[`.github/dependabot.yml`](.github/dependabot.yml) for the policy.
+
 ### Packaging and release
 
 ```bash
@@ -160,7 +167,29 @@ Publishing uses an allowlist in `.vscodeignore` so only runtime assets are inten
 - `dist/extension.js`
 - `public/img/barrel-roll-icon.png`
 
-Use `npx @vscode/vsce ls` to inspect final package contents before publishing.
+Use `npm exec --no -- vsce ls` to inspect final package contents before publishing. `@vscode/vsce`
+is locked as a development dependency, and CI validates real VSIX packaging on all three platforms.
+
+### Publish to Visual Studio Marketplace
+
+After merging a release commit, create a tag matching the extension version, such as `v1.1.3`, or
+the existing `v1.1.3_COMMIT` convention with its matching 7–40 character lowercase commit hash.
+The tagged commit must be reachable from `main` and include the locked `@vscode/vsce` dependency.
+
+Run **Publish to Visual Studio Marketplace** from the Actions tab, select `main`, and enter that tag.
+The workflow checks tag/version/identity agreement, runs quality, type, coverage, and memory checks,
+then builds and publishes the validated VSIX with `vsce`. The tag-triggered **Release** workflow
+continues to attach VSIX files to GitHub releases.
+
+Set up the publishing token once:
+
+1. Create a [Marketplace publishing token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token)
+   using an account authorized to publish under `coderrob`, with the Marketplace **Manage** scope.
+1. In this repository's **Settings → Secrets and variables → Actions**, add a repository secret named
+   `VSCE_PAT` containing that token.
+
+The workflow passes `VSCE_PAT` only to the final publish step. `vsce` reads that environment variable
+and publishes the validated VSIX as `coderrob.barrel-roll`. Rotate the secret when the token expires.
 
 ## Known limitations
 

@@ -14,6 +14,18 @@ This file documents automation, scripts, CI checks, and packaging conventions us
 - Behavior: runs `depcheck` programmatically, writes `.depcheck.json`, filters references found in repository files/scripts, and exits non-zero when unused packages remain.
 - Rationale: avoids `npx` platform inconsistencies and keeps local/CI behavior aligned.
 
+## Automated dependency updates
+
+- Configuration: `.github/dependabot.yml`.
+- Dependabot checks npm packages and GitHub Actions weekly, grouping all version updates into one PR
+  per ecosystem.
+- Routine updates wait until a release is at least 12 days old (`cooldown.default-days: 12`).
+- Security updates use separate groups per ecosystem and bypass the version-update cooldown.
+- Pin GitHub Actions to immutable commit hashes with release-version comments. Manual dependency
+  refreshes must also respect the 12-day release age and existing peer/API compatibility constraints.
+- When consolidating existing PRs, preserve their lockfile updates, validate the combined changes,
+  and close superseded PRs only after the replacement PR exists.
+
 ## Testing conventions
 
 - Unit test titles must start with `should` (enforced by ESLint).
@@ -82,6 +94,19 @@ All unit tests must follow the FAST principle:
 - Install packaged VSIX: `npm run ext:install`
 - Quick reinstall: `npm run ext:reinstall`
 
+### Marketplace publishing
+
+- `@vscode/vsce` is a locked development dependency. `npm run ext:package` uses its local CLI;
+  do not replace it with an unpinned global installation.
+- CI creates a real VSIX on Linux, Windows, and macOS. The tag-based Release workflow uses the same
+  command to attach a VSIX to the GitHub release.
+- `.github/workflows/publish-vscode.yml` is manually dispatched from `main` with an existing release
+  tag. It verifies ancestry on `main`, extension identity, package/lockfile versions, and any commit
+  suffix, then runs quality, coverage, memory, and packaging checks before publishing that VSIX.
+- Authentication uses the `VSCE_PAT` repository Actions secret with a Marketplace publishing token
+  authorized for `coderrob` and scoped to Marketplace **Manage**. Expose it only to the publish step
+  as an environment variable. See the README for setup.
+
 ### Publish allowlist
 
 `.vscodeignore` uses an allowlist strategy. Intended packaged files are:
@@ -92,7 +117,7 @@ All unit tests must follow the FAST principle:
 - `dist/extension.js`
 - `public/img/barrel-roll-icon.png`
 
-Verify with `npx @vscode/vsce ls` before publishing.
+Verify with `npm exec --no -- vsce ls` before publishing.
 
 ### Packaging note
 
